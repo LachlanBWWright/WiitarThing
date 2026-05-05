@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Windows.Forms;
 
 using System.IO;
@@ -7,7 +8,6 @@ using System.Reflection;
 using System.Xml;
 using System.Runtime.InteropServices;
 
-using System.Configuration;
 using Microsoft.Win32;
 using System.Collections;
 using System.Collections.Specialized;

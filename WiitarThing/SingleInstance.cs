@@ -14,10 +14,7 @@ namespace Microsoft.Shell
     using System.Collections;
     using System.Collections.Generic;
     using System.IO;
-    using System.Runtime.Remoting;
-    using System.Runtime.Remoting.Channels;
-    using System.Runtime.Remoting.Channels.Ipc;
-    using System.Runtime.Serialization.Formatters;
+    using System.IO.Pipes;
     using System.Threading;
     using System.Windows;
     using System.Windows.Threading;
@@ -217,30 +214,15 @@ namespace Microsoft.Shell
         /// </summary>
         private const string Delimiter = ":";
 
-        /// <summary>
-        /// Suffix to the channel name.
-        /// </summary>
-        private const string ChannelNameSuffix = "SingeInstanceIPCChannel";
-
-        /// <summary>
-        /// Remote service name.
-        /// </summary>
-        private const string RemoteServiceName = "SingleInstanceApplicationService";
-
-        /// <summary>
-        /// IPC protocol used (string).
-        /// </summary>
-        private const string IpcProtocol = "ipc://";
+        private const string PipeNameSuffix = "SingleInstancePipe";
 
         /// <summary>
         /// Application mutex.
         /// </summary>
         private static Mutex singleInstanceMutex;
 
-        /// <summary>
-        /// IPC channel for communications.
-        /// </summary>
-        private static IpcServerChannel channel;
+        private static Thread pipeServerThread;
+        private static volatile bool pipeServerRunning;
 
         /// <summary>
         /// List of command line arguments for the application.
@@ -275,18 +257,18 @@ namespace Microsoft.Shell
             // Build unique application Id and the IPC channel name.
             string applicationIdentifier = uniqueName + Environment.UserName;
 
-            string channelName = String.Concat(applicationIdentifier, Delimiter, ChannelNameSuffix);
+            string pipeName = String.Concat(applicationIdentifier, Delimiter, PipeNameSuffix);
 
             // Create mutex based on unique application Id to check if this is the first instance of the application. 
             bool firstInstance;
             singleInstanceMutex = new Mutex(true, applicationIdentifier, out firstInstance);
             if (firstInstance)
             {
-                CreateRemoteService(channelName);
+                CreateRemoteService(pipeName);
             }
             else
             {
-                SignalFirstInstance(channelName, commandLineArgs);
+                SignalFirstInstance(pipeName, commandLineArgs);
             }
 
             return firstInstance;
@@ -303,11 +285,8 @@ namespace Microsoft.Shell
                 singleInstanceMutex = null;
             }
 
-            if (channel != null)
-            {
-                ChannelServices.UnregisterChannel(channel);
-                channel = null;
-            }
+            pipeServerRunning = false;
+            pipeServerThread = null;
         }
 
         #endregion
@@ -321,38 +300,7 @@ namespace Microsoft.Shell
         private static IList<string> GetCommandLineArgs(string uniqueApplicationName)
         {
             string[] args = null;
-            if (AppDomain.CurrentDomain.ActivationContext == null)
-            {
-                // The application was not clickonce deployed, get args from standard API's
-                args = Environment.GetCommandLineArgs();
-            }
-            else
-            {
-                // The application was clickonce deployed
-                // Clickonce deployed apps cannot recieve traditional commandline arguments
-                // As a workaround commandline arguments can be written to a shared location before 
-                // the app is launched and the app can obtain its commandline arguments from the 
-                // shared location               
-                string appFolderPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), uniqueApplicationName);
-
-                string cmdLinePath = Path.Combine(appFolderPath, "cmdline.txt");
-                if (File.Exists(cmdLinePath))
-                {
-                    try
-                    {
-                        using (TextReader reader = new StreamReader(cmdLinePath, System.Text.Encoding.Unicode))
-                        {
-                            args = NativeMethods.CommandLineToArgvW(reader.ReadToEnd());
-                        }
-
-                        File.Delete(cmdLinePath);
-                    }
-                    catch (IOException)
-                    {
-                    }
-                }
-            }
+            args = Environment.GetCommandLineArgs();
 
             if (args == null)
             {
@@ -365,26 +313,13 @@ namespace Microsoft.Shell
         /// <summary>
         /// Creates a remote service for communication.
         /// </summary>
-        /// <param name="channelName">Application's IPC channel name.</param>
-        private static void CreateRemoteService(string channelName)
+        /// <param name="pipeName">Application's IPC pipe name.</param>
+        private static void CreateRemoteService(string pipeName)
         {
-            BinaryServerFormatterSinkProvider serverProvider = new BinaryServerFormatterSinkProvider();
-            serverProvider.TypeFilterLevel = TypeFilterLevel.Full;
-            IDictionary props = new Dictionary<string, string>();
-
-            props["name"] = channelName;
-            props["portName"] = channelName;
-            props["exclusiveAddressUse"] = "false";
-
-            // Create the IPC Server channel with the channel properties
-            channel = new IpcServerChannel(props, serverProvider);
-
-            // Register the channel with the channel services
-            ChannelServices.RegisterChannel(channel, true);
-
-            // Expose the remote service with the REMOTE_SERVICE_NAME
-            IPCRemoteService remoteService = new IPCRemoteService();
-            RemotingServices.Marshal(remoteService, RemoteServiceName);
+            pipeServerRunning = true;
+            pipeServerThread = new Thread(() => ListenForSecondInstances(pipeName));
+            pipeServerThread.IsBackground = true;
+            pipeServerThread.Start();
         }
 
         /// <summary>
@@ -392,27 +327,69 @@ namespace Microsoft.Shell
         /// in this case, the remoting service exposed by the first instance. Calls a function of the remoting service 
         /// class to pass on command line arguments from the second instance to the first and cause it to activate itself.
         /// </summary>
-        /// <param name="channelName">Application's IPC channel name.</param>
+        /// <param name="pipeName">Application's IPC pipe name.</param>
         /// <param name="args">
         /// Command line arguments for the second instance, passed to the first instance to take appropriate action.
         /// </param>
-        private static void SignalFirstInstance(string channelName, IList<string> args)
+        private static void SignalFirstInstance(string pipeName, IList<string> args)
         {
-            IpcClientChannel secondInstanceChannel = new IpcClientChannel();
-            ChannelServices.RegisterChannel(secondInstanceChannel, true);
-
-            string remotingServiceUrl = IpcProtocol + channelName + "/" + RemoteServiceName;
-
-            // Obtain a reference to the remoting service exposed by the server i.e the first instance of the application
-            IPCRemoteService firstInstanceRemoteServiceReference = (IPCRemoteService)RemotingServices.Connect(typeof(IPCRemoteService), remotingServiceUrl);
-
-            // Check that the remote service exists, in some cases the first instance may not yet have created one, in which case
-            // the second instance should just exit
-            if (firstInstanceRemoteServiceReference != null)
+            try
             {
-                // Invoke a method of the remote service exposed by the first instance passing on the command line
-                // arguments and causing the first instance to activate itself
-                firstInstanceRemoteServiceReference.InvokeFirstInstance(args);
+                using (NamedPipeClientStream client = new NamedPipeClientStream(".", pipeName, PipeDirection.Out))
+                {
+                    client.Connect(1000);
+                    using (BinaryWriter writer = new BinaryWriter(client))
+                    {
+                        writer.Write(args.Count);
+                        foreach (string arg in args)
+                        {
+                            writer.Write(arg ?? String.Empty);
+                        }
+                    }
+                }
+            }
+            catch (IOException)
+            {
+            }
+            catch (TimeoutException)
+            {
+            }
+        }
+
+        private static void ListenForSecondInstances(string pipeName)
+        {
+            while (pipeServerRunning)
+            {
+                try
+                {
+                    using (NamedPipeServerStream server = new NamedPipeServerStream(pipeName, PipeDirection.In, 1))
+                    {
+                        server.WaitForConnection();
+                        using (BinaryReader reader = new BinaryReader(server))
+                        {
+                            int count = reader.ReadInt32();
+                            List<string> args = new List<string>(count);
+                            for (int i = 0; i < count; i++)
+                            {
+                                args.Add(reader.ReadString());
+                            }
+
+                            if (Application.Current != null)
+                            {
+                                Application.Current.Dispatcher.BeginInvoke(
+                                    DispatcherPriority.Normal,
+                                    new DispatcherOperationCallback(SingleInstance<TApplication>.ActivateFirstInstanceCallback),
+                                    args);
+                            }
+                        }
+                    }
+                }
+                catch (IOException)
+                {
+                }
+                catch (ObjectDisposedException)
+                {
+                }
             }
         }
 
@@ -446,39 +423,5 @@ namespace Microsoft.Shell
 
         #endregion
 
-        #region Private Classes
-
-        /// <summary>
-        /// Remoting service class which is exposed by the server i.e the first instance and called by the second instance
-        /// to pass on the command line arguments to the first instance and cause it to activate itself.
-        /// </summary>
-        private class IPCRemoteService : MarshalByRefObject
-        {
-            /// <summary>
-            /// Activates the first instance of the application.
-            /// </summary>
-            /// <param name="args">List of arguments to pass to the first instance.</param>
-            public void InvokeFirstInstance(IList<string> args)
-            {
-                if (Application.Current != null)
-                {
-                    // Do an asynchronous call to ActivateFirstInstance function
-                    Application.Current.Dispatcher.BeginInvoke(
-                        DispatcherPriority.Normal, new DispatcherOperationCallback(SingleInstance<TApplication>.ActivateFirstInstanceCallback), args);
-                }
-            }
-
-            /// <summary>
-            /// Remoting Object's ease expires after every 5 minutes by default. We need to override the InitializeLifetimeService class
-            /// to ensure that lease never expires.
-            /// </summary>
-            /// <returns>Always null.</returns>
-            public override object InitializeLifetimeService()
-            {
-                return null;
-            }
-        }
-
-        #endregion
     }
 }
