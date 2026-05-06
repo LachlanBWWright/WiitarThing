@@ -5,16 +5,50 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WiinUSoft.Windows"
         mc:Ignorable="d"
-        Title="Default Calibration" Height="280.616" Width="319.95" Background="{DynamicResource BrushSocialBlue}" Icon="../Images/WiinUSoft_Icon32.png" Loaded="Window_Loaded">
-    <Grid>
-        <TextBlock x:Name="textBlock" Margin="10,10,10,0" TextWrapping="Wrap" Text="Choose a calibration setting to set as the default. Or select a device to copy calibration and auto connect preferences from." VerticalAlignment="Top" Height="61" FontSize="13.333"/>
-        <RadioButton x:Name="radioMin" Content="Minimum" HorizontalAlignment="Left" Margin="10,71,0,0" VerticalAlignment="Top" GroupName="selection" FontSize="14.667"/>
-        <RadioButton x:Name="radioDefault" Content="Default" HorizontalAlignment="Left" Margin="10,95,0,0" VerticalAlignment="Top" GroupName="selection" FontSize="14.667" IsChecked="True"/>
-        <RadioButton x:Name="radioMod" Content="Moderate" HorizontalAlignment="Left" Margin="10,119,0,0" VerticalAlignment="Top" GroupName="selection" FontSize="14.667"/>
-        <RadioButton x:Name="radioExt" Content="Extra" HorizontalAlignment="Left" Margin="10,143,0,0" VerticalAlignment="Top" GroupName="selection" FontSize="14.667"/>
-        <RadioButton x:Name="radioCopy" Content="Copy From:" HorizontalAlignment="Left" Margin="10,167,0,0" VerticalAlignment="Top" GroupName="selection" FontSize="14.667" IsEnabled="False"/>
-        <ComboBox x:Name="copyCombo" Margin="108,167,29,0" VerticalAlignment="Top" IsEnabled="False"/>
-        <Button x:Name="saveBtn" Content="Save" Margin="0,0,12,10" Background="{DynamicResource ButonFillBrush1}" BorderBrush="{DynamicResource BrushAntemBlue}" FontWeight="Bold" Foreground="{DynamicResource {x:Static SystemColors.MenuTextBrushKey}}" Click="saveBtn_Click" Height="26" VerticalAlignment="Bottom" HorizontalAlignment="Right" Width="64"/>
-        <Button x:Name="clearBtn" Content="Clear" Margin="0,0,81,10" Background="{DynamicResource ButonFillBrush1}" BorderBrush="{DynamicResource BrushAntemBlue}" FontWeight="Bold" Foreground="{DynamicResource {x:Static SystemColors.MenuTextBrushKey}}" HorizontalAlignment="Right" Width="64" Height="26" VerticalAlignment="Bottom" Click="clearBtn_Click"/>
+        Title="Default Calibration" Height="290" Width="320"
+        Background="{DynamicResource BrushSocialBlue}"
+        Icon="../Images/WiinUSoft_Icon32.png"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Loaded="Window_Loaded">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   TextWrapping="Wrap"
+                   FontSize="13"
+                   Margin="0,0,0,12">
+            Choose a calibration setting to set as the default, or select a device to copy calibration and auto-connect preferences from.
+        </TextBlock>
+
+        <StackPanel Grid.Row="1" Margin="4,0,0,0">
+            <RadioButton x:Name="radioMin"     Content="Minimum"    GroupName="selection" FontSize="13" Margin="0,0,0,6"/>
+            <RadioButton x:Name="radioDefault" Content="Default"    GroupName="selection" FontSize="13" Margin="0,0,0,6" IsChecked="True"/>
+            <RadioButton x:Name="radioMod"     Content="Moderate"   GroupName="selection" FontSize="13" Margin="0,0,0,6"/>
+            <RadioButton x:Name="radioExt"     Content="Extra"      GroupName="selection" FontSize="13" Margin="0,0,0,6"/>
+            <StackPanel Orientation="Horizontal">
+                <RadioButton x:Name="radioCopy" Content="Copy From:" GroupName="selection" FontSize="13"
+                             IsEnabled="False" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <ComboBox x:Name="copyCombo" IsEnabled="False" MinWidth="120" Height="26"/>
+            </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button x:Name="clearBtn"
+                    Style="{StaticResource BaseButtonStyle}"
+                    Content="Clear"
+                    Width="72" Height="28"
+                    Margin="0,0,8,0"
+                    Click="clearBtn_Click"/>
+            <Button x:Name="saveBtn"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Content="Save"
+                    Width="72" Height="28"
+                    Click="saveBtn_Click"/>
+        </StackPanel>
     </Grid>
 </Window>

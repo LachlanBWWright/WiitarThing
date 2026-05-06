@@ -3,12 +3,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Xml.Serialization;
+using Shared;
 
 namespace WiinUSoft
 {
     public class UserPrefs
     {
         private static UserPrefs _instance;
+
         public static UserPrefs Instance
         {
             get
@@ -18,27 +20,31 @@ namespace WiinUSoft
                     if (File.Exists(AppDomain.CurrentDomain.BaseDirectory + @"\prefs.config"))
                     {
                         DataPath = AppDomain.CurrentDomain.BaseDirectory + @"\prefs.config";
-                        LoadPrefs();
+                        var result = LoadPrefs();
+                        if (result.IsError)
+                            System.Diagnostics.Debug.WriteLine(result.Error);
                     }
                     else if (File.Exists(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + @"\WiinUSoft_prefs.config"))
                     {
                         DataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + @"\WiinUSoft_prefs.config";
-                        LoadPrefs();
+                        var result = LoadPrefs();
+                        if (result.IsError)
+                            System.Diagnostics.Debug.WriteLine(result.Error);
                     }
                     else
                     {
                         _instance = new UserPrefs();
-                        _instance.devicePrefs = new List<Property>();
                         _instance.defaultProfile = new Profile();
-                        // we could, but just in case lets not
-                        //_instance.greedyMode = Environment.OSVersion.Version.Major < 10; 
-                        //_instance.toshibaMode = !Shared.Windows.NativeImports.BluetoothEnableDiscovery(IntPtr.Zero, true);
                         DataPath = AppDomain.CurrentDomain.BaseDirectory + @"\prefs.config";
-                        
-                        if (!SavePrefs())
+
+                        var saveResult = SavePrefs();
+                        if (saveResult.IsError)
                         {
+                            System.Diagnostics.Debug.WriteLine(saveResult.Error);
                             DataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + @"\WiinUSoft_prefs.config";
-                            SavePrefs();
+                            var fallback = SavePrefs();
+                            if (fallback.IsError)
+                                System.Diagnostics.Debug.WriteLine(fallback.Error);
                         }
                     }
                 }
@@ -48,6 +54,7 @@ namespace WiinUSoft
         }
 
         public static string DataPath { get; protected set; }
+
         public static bool AutoStart
         {
             get { return Instance.autoStartup; }
@@ -93,8 +100,10 @@ namespace WiinUSoft
             }
         }
 
-        public List<Property> devicePrefs;
+        // devicePrefs is always initialized; never null.
+        public List<Property> devicePrefs = new List<Property>();
         public Profile defaultProfile;
+        // defaultProperty is explicitly nullable: absent when no "all" entry exists.
         public Property defaultProperty;
         public bool autoStartup;
         public bool startMinimized;
@@ -102,87 +111,113 @@ namespace WiinUSoft
         public bool toshibaMode;
         public bool autoRefresh = true;
 
+        // Parameterless constructor required by XmlSerializer.
         public UserPrefs()
-        { }
-
-        public static bool LoadPrefs()
         {
-            bool successful = false;
-            XmlSerializer X = new XmlSerializer(typeof(UserPrefs));
-            
-            try
-            {
-                if (File.Exists(DataPath))
-                {
-                    using (FileStream stream = File.OpenRead(DataPath))
-                    using (StreamReader reader = new StreamReader(stream))
-                    {
-                        _instance = X.Deserialize(reader) as UserPrefs;
-                        reader.Close();
-                        stream.Close();
-                    }
-
-                    successful = true;
-
-                    if (_instance != null && _instance.devicePrefs != null)
-                        _instance.defaultProperty = _instance.devicePrefs.Find((p) => p.hid.ToLower().Equals("all"));
-                }
-            }
-            catch (Exception e) 
-            {
-                System.Diagnostics.Debug.WriteLine(e.Message);
-            }
-
-            return successful;
+            devicePrefs = new List<Property>();
         }
 
-        public static bool SavePrefs()
+        /// <summary>
+        /// Loads preferences from <see cref="DataPath"/>.
+        /// Returns <see cref="Result{T,TError}.Ok"/> on success,
+        /// or a structured <see cref="PreferencesError"/> on recoverable failure.
+        /// </summary>
+        public static Result<UserPrefs, PreferencesError> LoadPrefs()
         {
-            bool successful = false;
-            XmlSerializer X = new XmlSerializer(typeof(UserPrefs));
+            if (string.IsNullOrEmpty(DataPath))
+                return Result<UserPrefs, PreferencesError>.Err(
+                    new PreferencesError(PreferencesErrorKind.MissingPath, "DataPath has not been set."));
 
+            if (!File.Exists(DataPath))
+                return Result<UserPrefs, PreferencesError>.Err(
+                    PreferencesError.FileNotFound(DataPath));
+
+            var serializer = new XmlSerializer(typeof(UserPrefs));
             try
             {
-                if (File.Exists(DataPath))
+                using (var stream = File.OpenRead(DataPath))
+                using (var reader = new StreamReader(stream))
                 {
-                    FileInfo prefs = new FileInfo(DataPath);
-                    using (FileStream stream = File.Open(DataPath, FileMode.Create, FileAccess.ReadWrite))
-                    using (StreamWriter writer = new StreamWriter(stream))
-                    {
-                        X.Serialize(writer, _instance);
-                        writer.Close();
-                        stream.Close();
-                    }
-                }
-                else
-                {
-                    using (FileStream stream = File.Create(DataPath))
-                    using (StreamWriter writer = new StreamWriter(stream))
-                    {
-                        X.Serialize(writer, _instance);
-                        writer.Close();
-                        stream.Close();
-                    }
+                    _instance = (UserPrefs)serializer.Deserialize(reader);
                 }
 
-                successful = true;
+                // Ensure collections are never null after deserialization.
+                if (_instance.devicePrefs == null)
+                    _instance.devicePrefs = new List<Property>();
+
+                // Locate the optional "all" default property entry.
+                _instance.defaultProperty = _instance.devicePrefs.Find(
+                    p => p.hid != null && p.hid.Equals("all", StringComparison.OrdinalIgnoreCase));
+
+                return Result<UserPrefs, PreferencesError>.Ok(_instance);
             }
-            catch (Exception e)
+            catch (UnauthorizedAccessException ex)
             {
-                System.Diagnostics.Debug.WriteLine(e.Message);
+                return Result<UserPrefs, PreferencesError>.Err(
+                    PreferencesError.AccessDenied(DataPath, ex));
             }
-
-            return successful;
+            catch (System.Xml.XmlException ex)
+            {
+                return Result<UserPrefs, PreferencesError>.Err(
+                    PreferencesError.InvalidXml(DataPath, ex));
+            }
+            catch (InvalidOperationException ex) when (ex.InnerException is System.Xml.XmlException)
+            {
+                return Result<UserPrefs, PreferencesError>.Err(
+                    PreferencesError.InvalidXml(DataPath, ex));
+            }
+            catch (Exception ex)
+            {
+                return Result<UserPrefs, PreferencesError>.Err(
+                    PreferencesError.Unknown(DataPath, ex));
+            }
         }
 
+        /// <summary>
+        /// Saves the current preferences to <see cref="DataPath"/>.
+        /// Returns <see cref="Result{T,TError}.Ok"/> on success,
+        /// or a structured <see cref="PreferencesError"/> on recoverable failure.
+        /// </summary>
+        public static Result<Unit, PreferencesError> SavePrefs()
+        {
+            if (string.IsNullOrEmpty(DataPath))
+                return Result<Unit, PreferencesError>.Err(
+                    new PreferencesError(PreferencesErrorKind.MissingPath, "DataPath has not been set."));
+
+            var serializer = new XmlSerializer(typeof(UserPrefs));
+            try
+            {
+                var mode = File.Exists(DataPath) ? FileMode.Create : FileMode.CreateNew;
+                using (var stream = File.Open(DataPath, mode, FileAccess.Write))
+                using (var writer = new StreamWriter(stream))
+                {
+                    serializer.Serialize(writer, _instance);
+                }
+
+                return Result<Unit, PreferencesError>.Ok(Unit.Value);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Result<Unit, PreferencesError>.Err(
+                    PreferencesError.AccessDenied(DataPath, ex));
+            }
+            catch (Exception ex)
+            {
+                return Result<Unit, PreferencesError>.Err(
+                    PreferencesError.SerializationFailed(DataPath, ex));
+            }
+        }
+
+        /// <summary>
+        /// Returns the saved preference for the given HID path,
+        /// or the global "all" default if one exists, or <c>null</c> if absent.
+        /// </summary>
         public Property GetDevicePref(string hid)
         {
             foreach (var pref in devicePrefs)
             {
                 if (pref.hid == hid)
-                {
                     return pref;
-                }
             }
 
             return defaultProperty;
@@ -217,7 +252,9 @@ namespace WiinUSoft
             if (prop >= 0)
             {
                 devicePrefs[prop].lastIcon = icon;
-                SavePrefs();
+                var result = SavePrefs();
+                if (result.IsError)
+                    System.Diagnostics.Debug.WriteLine(result.Error);
             }
         }
 

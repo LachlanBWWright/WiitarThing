@@ -4,72 +4,132 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="350" d:DesignWidth="300" Width="280" Height="80">
-    <Grid Width="280" Height="80">
-        <Rectangle Height="80" Margin="0" Width="280" StrokeThickness="4" RadiusX="0" RadiusY="0" HorizontalAlignment="Left" VerticalAlignment="Top">
-            <Rectangle.Stroke>
-                <SolidColorBrush Color="{DynamicResource JohnTheRevelater}"/>
-            </Rectangle.Stroke>
-            <Rectangle.Fill>
-                <LinearGradientBrush EndPoint="0,1" StartPoint="0,0">
-                    <GradientStop Color="{DynamicResource Eyeing}" Offset="0"/>
-                    <GradientStop x:Name="statusGradient" Color="{DynamicResource AntemBlue}" Offset="1"/>
-                </LinearGradientBrush>
-            </Rectangle.Fill>
-        </Rectangle>
-        <Label x:Name="labelUnavailable" Content="Device Unavailable" HorizontalAlignment="Center" Margin="0" VerticalAlignment="Center" FontSize="16" FontStyle="Italic" Width="145" Foreground="#FF939393" Visibility="Hidden"/>
-        <Image x:Name="icon" HorizontalAlignment="Left" Margin="12,16,0,0" VerticalAlignment="Top" Source="{DynamicResource UIcon}" Width="80" Height="48">
-            <Image.ContextMenu>
-                <ContextMenu>
-                    <MenuItem x:Name="typeClear" Header="Reset" Click="typeOption_Click"/>
-                    <MenuItem x:Name="typePro" Header="Pro Controller" Click="typeOption_Click"/>
-                    <MenuItem x:Name="typeWiimote" Header="Wiimote" Click="typeOption_Click"/>
-                    <MenuItem x:Name="typeNunchuk" Header="Nunchuk" Click="typeOption_Click"/>
-                    <MenuItem x:Name="typeClassic" Header="Classic Controller" Click="typeOption_Click"/>
-                    <MenuItem x:Name="typeClassicPro" Header="Classic Controller Pro" Click="typeOption_Click"/>
-                    <MenuItem x:Name="typeGuitar" Header="Wii Guitar" Click="typeOption_Click"/>
-                </ContextMenu>
-            </Image.ContextMenu>
-        </Image>
-        <Label x:Name="labelName" Content="Unknown Device" HorizontalAlignment="Left" Margin="100,8,0,0" VerticalAlignment="Top" Width="160" FontSize="14" Height="26"/>
-        <Button x:Name="btnDebugView" HorizontalAlignment="Left" Margin="81,46,0,0" VerticalAlignment="Top" Width="24" Height="24" BorderBrush="#FFEA0000" BorderThickness="2" FontSize="11" ToolTip="Debug View" Click="btnDebugView_Click">
-            <Button.Background>
-                <LinearGradientBrush EndPoint="0,1" StartPoint="0,0">
-                    <GradientStop Color="#FFFFBEBE" Offset="0"/>
-                    <GradientStop Color="#FFFF5C5C" Offset="0.5"/>
-                    <GradientStop Color="#FFFF2828" Offset="1"/>
-                </LinearGradientBrush>
-            </Button.Background>
-            <Image Source="/WiitarThing;component/Images/Properties-icon.png"/>
-        </Button>
-        <Button x:Name="btnIdentify" HorizontalAlignment="Left" Margin="110,39,0,0" VerticalAlignment="Top" Width="32" Height="32" BorderBrush="{DynamicResource BrushAntemBlue}" BorderThickness="2" FontSize="11" ToolTip="Identify" Background="{DynamicResource ButonFillBrush1}" Click="btnIdentify_Click">
-            <Image Source="../Images/IDicon3.png"/>
-        </Button>
-        <Button x:Name="btnProperties" HorizontalAlignment="Left" Margin="147,39,0,0" VerticalAlignment="Top" Width="32" Height="32" BorderBrush="{DynamicResource BrushAntemBlue}" BorderThickness="2" FontSize="11" ToolTip="Properties" Background="{DynamicResource ButonFillBrush1}" Click="btnProperties_Click">
-            <Image Source="../Images/Properties-icon.png" Opacity="0.5" HorizontalAlignment="Center" VerticalAlignment="Center" Width="28" Height="28" />
+             d:DesignHeight="80" d:DesignWidth="300">
 
-        </Button>
-        <Button x:Name="btnXinput" Content="CONNECT" HorizontalAlignment="Left" Margin="184,36,0,0" VerticalAlignment="Top" Width="80" Height="38" BorderBrush="{DynamicResource BrushAntemBlue}" BorderThickness="2" Click="btnXinput_Click" ToolTip="Connect as an Xbox 360 controller" Background="{DynamicResource ButonFillBrush1}" IsEnabledChanged="btnXinput_IsEnabledChanged" FontWeight="Bold">
-            <Button.ContextMenu>
-                <ContextMenu>
-                    <MenuItem x:Name="XOption1" Header="Player 1" Click="XOption_Click"/>
-                    <MenuItem x:Name="XOption2" Header="Player 2" Click="XOption_Click"/>
-                    <MenuItem x:Name="XOption3" Header="Player 3" Click="XOption_Click"/>
-                    <MenuItem x:Name="XOption4" Header="Player 4" Click="XOption_Click"/>
-                </ContextMenu>
-            </Button.ContextMenu>
-        </Button>
-        <!--<Button x:Name="btnVjoy" HorizontalAlignment="Left" Margin="226,36,-22,0" VerticalAlignment="Top" Width="38" Height="38" BorderBrush="{DynamicResource BrushAntemBlue}" BorderThickness="2" IsEnabled="False" ToolTip="Attatch as DirectInput Device" Background="{DynamicResource ButonFillBrush1}" IsEnabledChanged="btnVjoy_IsEnabledChanged" Visibility="Hidden">
-            <Button.ContextMenu>
-                <ContextMenu/>
-            </Button.ContextMenu>
-            <Image x:Name="btnVjoy_image" Source="../Images/Joystick-icon64.png" Margin="1" OpacityMask="Black" Opacity="0.5"/>
-        </Button>-->
-        <!--<Button x:Name="btnConfig" HorizontalAlignment="Left" Margin="184,36,0,0" VerticalAlignment="Top" Width="38" Height="38" BorderBrush="{DynamicResource BrushAntemBlue}" BorderThickness="2" FontSize="11" Visibility="Hidden" Click="btnConfig_Click" ToolTip="Configure" Background="{DynamicResource ButonFillBrush1}">
-            <Image Source="../Images/wrench-icon.png" />
-        </Button>-->
-        <Button x:Name="btnDetatch" HorizontalAlignment="Left" Margin="185,36,0,0" VerticalAlignment="Top" Width="79" Height="38" BorderBrush="{DynamicResource BrushAntemBlue}" BorderThickness="2" FontSize="10" Click="btnDetatch_Click" Visibility="Hidden" ToolTip="Detatch" Background="{DynamicResource ButonFillBrush1}" FontWeight="Bold">
-            DISCONNECT
-        </Button>
-    </Grid>
+    <!-- Device row card. statusGradient is accessed by code-behind. -->
+    <Border CornerRadius="4" BorderThickness="1" Padding="8,6">
+        <Border.BorderBrush>
+            <SolidColorBrush Color="{DynamicResource Color.Border}"/>
+        </Border.BorderBrush>
+        <Border.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                <GradientStop Color="{DynamicResource Color.DeviceRow}" Offset="0"/>
+                <GradientStop x:Name="statusGradient" Color="{DynamicResource AntemBlue}" Offset="1"/>
+            </LinearGradientBrush>
+        </Border.Background>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <!-- Device icon -->
+                <ColumnDefinition Width="52"/>
+                <!-- Device name + status -->
+                <ColumnDefinition Width="*"/>
+                <!-- Action buttons -->
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Device icon with controller-type context menu -->
+            <Image x:Name="icon"
+                   Grid.Column="0"
+                   Source="{DynamicResource UIcon}"
+                   Width="40" Height="40"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Margin="0,0,6,0">
+                <Image.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem x:Name="typeClear"      Header="Reset"                   Click="typeOption_Click"/>
+                        <MenuItem x:Name="typePro"        Header="Pro Controller"           Click="typeOption_Click"/>
+                        <MenuItem x:Name="typeWiimote"    Header="Wiimote"                  Click="typeOption_Click"/>
+                        <MenuItem x:Name="typeNunchuk"    Header="Nunchuk"                  Click="typeOption_Click"/>
+                        <MenuItem x:Name="typeClassic"    Header="Classic Controller"       Click="typeOption_Click"/>
+                        <MenuItem x:Name="typeClassicPro" Header="Classic Controller Pro"   Click="typeOption_Click"/>
+                        <MenuItem x:Name="typeGuitar"     Header="Wii Guitar"               Click="typeOption_Click"/>
+                    </ContextMenu>
+                </Image.ContextMenu>
+            </Image>
+
+            <!-- Device name + unavailable overlay -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock x:Name="labelName"
+                           FontSize="14" FontWeight="SemiBold"
+                           Text="Unknown Device"
+                           Foreground="{DynamicResource Brush.Text.Primary}"
+                           TextTrimming="CharacterEllipsis"/>
+                <TextBlock x:Name="labelUnavailable"
+                           FontSize="11" FontStyle="Italic"
+                           Text="Device Unavailable"
+                           Foreground="{DynamicResource Brush.Text.Disabled}"
+                           Visibility="Hidden"/>
+            </StackPanel>
+
+            <!-- Action buttons -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0,0,0">
+
+                <!-- Debug view (debug builds only) -->
+                <Button x:Name="btnDebugView"
+                        Style="{StaticResource DangerButtonStyle}"
+                        Width="28" Height="28"
+                        Padding="3"
+                        ToolTip="Debug View"
+                        Click="btnDebugView_Click"
+                        Margin="0,0,4,0"
+                        AutomationProperties.Name="Debug View">
+                    <Image Source="/WiitarThing;component/Images/Properties-icon.png"/>
+                </Button>
+
+                <!-- Identify -->
+                <Button x:Name="btnIdentify"
+                        Style="{StaticResource IconButtonStyle}"
+                        Width="28" Height="28"
+                        ToolTip="Identify (rumble)"
+                        Click="btnIdentify_Click"
+                        Margin="0,0,4,0"
+                        AutomationProperties.Name="Identify">
+                    <Image Source="../Images/IDicon3.png"/>
+                </Button>
+
+                <!-- Properties -->
+                <Button x:Name="btnProperties"
+                        Style="{StaticResource IconButtonStyle}"
+                        Width="28" Height="28"
+                        ToolTip="Properties"
+                        Click="btnProperties_Click"
+                        Margin="0,0,4,0"
+                        AutomationProperties.Name="Properties">
+                    <Image Source="../Images/Properties-icon.png" Opacity="0.7"/>
+                </Button>
+
+                <!-- Connect -->
+                <Button x:Name="btnXinput"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Width="90" Height="34"
+                        FontSize="12" FontWeight="Bold"
+                        Content="CONNECT"
+                        ToolTip="Connect as an Xbox 360 controller"
+                        Click="btnXinput_Click"
+                        IsEnabledChanged="btnXinput_IsEnabledChanged"
+                        Margin="0,0,4,0">
+                    <Button.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem x:Name="XOption1" Header="Player 1" Click="XOption_Click"/>
+                            <MenuItem x:Name="XOption2" Header="Player 2" Click="XOption_Click"/>
+                            <MenuItem x:Name="XOption3" Header="Player 3" Click="XOption_Click"/>
+                            <MenuItem x:Name="XOption4" Header="Player 4" Click="XOption_Click"/>
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
+
+                <!-- Disconnect -->
+                <Button x:Name="btnDetatch"
+                        Style="{StaticResource BaseButtonStyle}"
+                        Width="90" Height="34"
+                        FontSize="12" FontWeight="Bold"
+                        Content="DISCONNECT"
+                        ToolTip="Disconnect this controller"
+                        Click="btnDetatch_Click"
+                        Visibility="Hidden"
+                        Margin="0,0,4,0"/>
+            </StackPanel>
+        </Grid>
+    </Border>
 </UserControl>

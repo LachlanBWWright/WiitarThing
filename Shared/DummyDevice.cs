@@ -58,23 +58,15 @@ namespace Shared
 
         public override long Length
         {
-            get
-            {
-                throw new NotImplementedException();
-            }
+            // A simulated device stream has no meaningful length.
+            get { return 0; }
         }
 
         public override long Position
         {
-            get
-            {
-                throw new NotImplementedException();
-            }
-
-            set
-            {
-                throw new NotImplementedException();
-            }
+            // Seeking is not supported; position is always 0.
+            get { return 0; }
+            set { /* no-op: DummyDevice does not support seeking */ }
         }
 
         public override void Flush()

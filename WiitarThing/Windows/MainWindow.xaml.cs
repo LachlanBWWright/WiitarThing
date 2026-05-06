@@ -2,6 +2,7 @@
 using NintrollerLib;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Media;
 using System.Runtime.InteropServices;
@@ -50,6 +51,8 @@ namespace WiinUSoft
 
         private List<DeviceInfo> hidList;
         private List<DeviceControl> deviceList;
+        private ObservableCollection<DeviceControl> _availableDevices;
+        private ObservableCollection<DeviceControl> _connectedDevices;
         private Task _refreshTask;
         private CancellationTokenSource _refreshToken;
         private bool _refreshing;
@@ -58,6 +61,8 @@ namespace WiinUSoft
         {
             hidList = new List<DeviceInfo>();
             deviceList = new List<DeviceControl>();
+            _availableDevices = new ObservableCollection<DeviceControl>();
+            _connectedDevices  = new ObservableCollection<DeviceControl>();
 
             InitializeComponent();
 
@@ -283,6 +288,14 @@ namespace WiinUSoft
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            // Bind observable collections to the ItemsControls.
+            groupAvailable.ItemsSource = _availableDevices;
+            groupXinput.ItemsSource    = _connectedDevices;
+
+#if !DEBUG
+            labelDebugBuild.Visibility = Visibility.Collapsed;
+#endif
+
             try
             {
                 Version version = System.Reflection.Assembly.GetEntryAssembly().GetName().Version;
@@ -319,31 +332,23 @@ namespace WiinUSoft
             switch (oldState)
             {
                 case DeviceState.Discovered:
-                    groupAvailable.Children.Remove(sender);
+                    _availableDevices.Remove(sender);
                     break;
 
                 case DeviceState.Connected_XInput:
-                    groupXinput.Children.Remove(sender);
+                    _connectedDevices.Remove(sender);
                     break;
-
-                //case DeviceState.Connected_VJoy:
-                //    groupXinput.Children.Remove(sender);
-                //    break;
             }
 
             switch (newState)
             {
                 case DeviceState.Discovered:
-                    groupAvailable.Children.Add(sender);
+                    _availableDevices.Add(sender);
                     break;
 
                 case DeviceState.Connected_XInput:
-                    groupXinput.Children.Add(sender);
+                    _connectedDevices.Add(sender);
                     break;
-
-                //case DeviceState.Connected_VJoy:
-                //    groupXinput.Children.Add(sender);
-                //    break;
             }
             
             if (menu_AutoRefresh.IsChecked)
@@ -354,15 +359,8 @@ namespace WiinUSoft
 
         private void DeviceControl_OnConnectionLost(DeviceControl sender)
         {
-            if (groupAvailable.Children.Contains(sender))
-            {
-                groupAvailable.Children.Remove(sender);
-            }
-            else if (groupXinput.Children.Contains(sender))
-            {
-                groupXinput.Children.Remove(sender);
-            }
-
+            _availableDevices.Remove(sender);
+            _connectedDevices.Remove(sender);
             deviceList.Remove(sender);
 
             AutoRefresh(menu_AutoRefresh.IsChecked);
@@ -370,11 +368,7 @@ namespace WiinUSoft
         
         private void btnDetatchAllXInput_Click(object sender, RoutedEventArgs e)
         {
-            List<DeviceControl> detatchList = new List<DeviceControl>();
-            foreach (DeviceControl d in groupXinput.Children)
-            {
-                detatchList.Add(d);
-            }
+            var detatchList = new List<DeviceControl>(_connectedDevices);
             foreach (DeviceControl d in detatchList)
             {
                 d.Detatch();
@@ -594,17 +588,15 @@ namespace WiinUSoft
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            var dlg = groupXinput.Children.Count == 0 ? MessageBoxResult.Yes : MessageBox.Show("Are you sure you want to close WiitarThing?\n\nALL connected controllers will STOP WORKING!", "Close WiitarThing?", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var dlg = _connectedDevices.Count == 0
+                ? MessageBoxResult.Yes
+                : MessageBox.Show("Are you sure you want to close WiitarThing?\n\nALL connected controllers will STOP WORKING!", "Close WiitarThing?", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
             e.Cancel = (dlg != MessageBoxResult.Yes);
 
             if (!e.Cancel)
             {
-                List<DeviceControl> detatchList = new List<DeviceControl>();
-                foreach (DeviceControl d in groupXinput.Children)
-                {
-                    detatchList.Add(d);
-                }
+                var detatchList = new List<DeviceControl>(_connectedDevices);
                 foreach (DeviceControl d in detatchList)
                 {
                     d.Detatch();

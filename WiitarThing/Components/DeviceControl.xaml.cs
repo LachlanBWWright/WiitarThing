@@ -202,7 +202,7 @@ namespace WiinUSoft
         public void SetName(string newName)
         {
             dName = newName;
-            labelName.Content = new TextBlock() { Text = newName };
+            labelName.Text = newName;
         }
 
         public void Detatch()
