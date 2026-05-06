@@ -7,23 +7,17 @@
              d:DesignHeight="80"
              d:DesignWidth="300">
 
-    <!-- Device row card. statusGradient is accessed by code-behind. -->
-    <Border CornerRadius="4"
+    <!-- Device row card with WinUI Fluent styling -->
+    <Border CornerRadius="8"
             BorderThickness="1"
-            Padding="8,6">
-        <Border.BorderBrush>
-            <SolidColorBrush Color="{StaticResource Color.Border}"/>
-        </Border.BorderBrush>
-        <Border.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                <GradientStop Color="{StaticResource Color.DeviceRow}" Offset="0"/>
-                <GradientStop x:Name="statusGradient" Color="{StaticResource AntemBlue}" Offset="1"/>
-            </LinearGradientBrush>
-        </Border.Background>
+            Padding="12"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            x:Name="statusGradient">
 
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="52"/>
+                <ColumnDefinition Width="48"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
@@ -32,108 +26,131 @@
             <Image x:Name="icon"
                    Grid.Column="0"
                    Source="{StaticResource UIcon}"
-                   Width="40" Height="40"
+                   Width="40"
+                    Height="40"
                    HorizontalAlignment="Center"
                    VerticalAlignment="Center"
-                   Margin="0,0,6,0"
                    RightTapped="icon_RightTapped">
                 <FlyoutBase.AttachedFlyout>
                     <MenuFlyout>
-                        <MenuFlyoutItem x:Name="typeClear"    Text="Reset"                    Click="typeOption_Click"/>
-                        <MenuFlyoutItem x:Name="typePro"      Text="Pro Controller"           Click="typeOption_Click"/>
-                        <MenuFlyoutItem x:Name="typeWiimote"  Text="Wiimote"                  Click="typeOption_Click"/>
-                        <MenuFlyoutItem x:Name="typeNunchuk"  Text="Nunchuk"                  Click="typeOption_Click"/>
-                        <MenuFlyoutItem x:Name="typeClassic"  Text="Classic Controller"       Click="typeOption_Click"/>
-                        <MenuFlyoutItem x:Name="typeClassicPro" Text="Classic Controller Pro" Click="typeOption_Click"/>
-                        <MenuFlyoutItem x:Name="typeGuitar"   Text="Wii Guitar"               Click="typeOption_Click"/>
+                        <MenuFlyoutItem x:Name="typeClear"
+                                Text="Reset"
+                                Click="typeOption_Click"/>
+                        <MenuFlyoutItem x:Name="typePro"
+                                Text="Pro Controller"
+                                Click="typeOption_Click"/>
+                        <MenuFlyoutItem x:Name="typeWiimote"
+                                Text="Wiimote"
+                                Click="typeOption_Click"/>
+                        <MenuFlyoutItem x:Name="typeNunchuk"
+                                Text="Nunchuk"
+                                Click="typeOption_Click"/>
+                        <MenuFlyoutItem x:Name="typeClassic"
+                                Text="Classic Controller"
+                                Click="typeOption_Click"/>
+                        <MenuFlyoutItem x:Name="typeClassicPro"
+                                Text="Classic Controller Pro"
+                                Click="typeOption_Click"/>
+                        <MenuFlyoutItem x:Name="typeGuitar"
+                                Text="Wii Guitar"
+                                Click="typeOption_Click"/>
                     </MenuFlyout>
                 </FlyoutBase.AttachedFlyout>
             </Image>
 
             <!-- Device name + unavailable label -->
-            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+            <StackPanel Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Margin="8,0,0,0">
                 <TextBlock x:Name="labelName"
-                           FontSize="14"
+                           Style="{ThemeResource BodyTextBlockStyle}"
                            FontWeight="SemiBold"
                            Text="Unknown Device"
-                           Foreground="{StaticResource Brush.Text.Primary}"
                            TextTrimming="CharacterEllipsis"/>
                 <TextBlock x:Name="labelUnavailable"
-                           FontSize="11"
-                           FontStyle="Italic"
+                           Style="{ThemeResource CaptionTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            Text="Device Unavailable"
-                           Foreground="{StaticResource Brush.Text.Disabled}"
-                           Visibility="Collapsed"/>
+                           Visibility="Collapsed"
+                           Margin="0,2,0,0"/>
             </StackPanel>
 
             <!-- Action buttons -->
             <StackPanel Grid.Column="2"
                         Orientation="Horizontal"
                         VerticalAlignment="Center"
-                        Margin="6,0,0,0">
+                        Spacing="4">
 
                 <!-- Debug view (debug builds only) -->
                 <Button x:Name="btnDebugView"
-                        Style="{StaticResource DangerButtonStyle}"
-                        Width="28" Height="28" Padding="3"
+                        Width="32"
+                        Height="32"
                         ToolTipService.ToolTip="Debug View"
                         Click="btnDebugView_Click"
-                        Margin="0,0,4,0"
                         AutomationProperties.Name="Debug View">
-                    <Image Source="../Images/Properties-icon.png"/>
+                    <Image Source="../Images/Properties-icon.png"
+                            Width="16"
+                            Height="16"/>
                 </Button>
 
                 <!-- Identify -->
                 <Button x:Name="btnIdentify"
-                        Style="{StaticResource IconButtonStyle}"
-                        Width="28" Height="28"
+                        Width="32"
+                        Height="32"
                         ToolTipService.ToolTip="Identify (rumble)"
                         Click="btnIdentify_Click"
-                        Margin="0,0,4,0"
                         AutomationProperties.Name="Identify">
-                    <Image Source="../Images/IDicon3.png"/>
+                    <Image Source="../Images/IDicon3.png"
+                            Width="16"
+                            Height="16"/>
                 </Button>
 
                 <!-- Properties -->
                 <Button x:Name="btnProperties"
-                        Style="{StaticResource IconButtonStyle}"
-                        Width="28" Height="28"
+                        Width="32"
+                        Height="32"
                         ToolTipService.ToolTip="Properties"
                         Click="btnProperties_Click"
-                        Margin="0,0,4,0"
                         AutomationProperties.Name="Properties">
-                    <Image Source="../Images/Properties-icon.png" Opacity="0.7"/>
+                    <Image Source="../Images/Properties-icon.png"
+                            Width="16"
+                            Height="16"
+                            Opacity="0.7"/>
                 </Button>
 
                 <!-- Connect (with player-selection flyout) -->
                 <Button x:Name="btnXinput"
-                        Style="{StaticResource PrimaryButtonStyle}"
-                        Width="90" Height="34"
-                        FontSize="12" FontWeight="Bold"
+                        Height="36"
                         Content="CONNECT"
                         ToolTipService.ToolTip="Connect as an Xbox 360 controller"
                         IsEnabledChanged="btnXinput_IsEnabledChanged"
-                        Margin="0,0,4,0">
+                        Margin="4,0,0,0">
                     <Button.Flyout>
                         <MenuFlyout Opening="XInputFlyout_Opening">
-                            <MenuFlyoutItem x:Name="XOption1" Text="Player 1" Click="XOption_Click"/>
-                            <MenuFlyoutItem x:Name="XOption2" Text="Player 2" Click="XOption_Click"/>
-                            <MenuFlyoutItem x:Name="XOption3" Text="Player 3" Click="XOption_Click"/>
-                            <MenuFlyoutItem x:Name="XOption4" Text="Player 4" Click="XOption_Click"/>
+                            <MenuFlyoutItem x:Name="XOption1"
+                                    Text="Player 1"
+                                    Click="XOption_Click"/>
+                            <MenuFlyoutItem x:Name="XOption2"
+                                    Text="Player 2"
+                                    Click="XOption_Click"/>
+                            <MenuFlyoutItem x:Name="XOption3"
+                                    Text="Player 3"
+                                    Click="XOption_Click"/>
+                            <MenuFlyoutItem x:Name="XOption4"
+                                    Text="Player 4"
+                                    Click="XOption_Click"/>
                         </MenuFlyout>
                     </Button.Flyout>
                 </Button>
 
                 <!-- Disconnect -->
                 <Button x:Name="btnDetatch"
-                        Style="{StaticResource BaseButtonStyle}"
-                        Width="90" Height="34"
-                        FontSize="12" FontWeight="Bold"
+                        Height="36"
                         Content="DISCONNECT"
                         ToolTipService.ToolTip="Disconnect this controller"
                         Click="btnDetatch_Click"
                         Visibility="Collapsed"
-                        Margin="0,0,4,0"/>
+                        Margin="4,0,0,0"/>
             </StackPanel>
         </Grid>
     </Border>

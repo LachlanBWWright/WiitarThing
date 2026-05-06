@@ -1,175 +1,146 @@
 ﻿<Window
-    x:Class="WiinUSoft.MainWindow"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="WiitarThing">
+        x:Class="WiinUSoft.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="WiitarThing">
 
-    <Grid Margin="10"
-            Background="{StaticResource BrushSocialBlue}">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-
-        <StackPanel Grid.Row="0"
-                Orientation="Horizontal"
-                Margin="0,0,0,8">
-            <Button x:Name="btnSync"
-                    Style="{StaticResource DangerButtonStyle}"
-                    Width="56"
-                    Height="28"
-                    FontWeight="Bold"
-                    FontSize="12"
-                    ToolTipService.ToolTip="Sync a new Wiimote"
-                    Click="btnSync_Click"
-                    Margin="0,0,6,0">SYNC</Button>
-            <Button x:Name="btnRemoveAllWiimotes"
-                    Style="{StaticResource BaseButtonStyle}"
-                    Height="28"
-                    FontSize="11"
-                    ToolTipService.ToolTip="Remove all paired Wiimotes from this PC"
-                    Click="btnRemoveAllWiimotes_Click"
-                    Margin="0,0,6,0"
-                    Padding="10,4">Remove All Wiimotes</Button>
-            <Button x:Name="btnSettings"
-                    Style="{StaticResource BaseButtonStyle}"
-                    Height="28"
-                    FontSize="11"
-                    ToolTipService.ToolTip="Advanced configuration"
-                    Margin="0,0,6,0"
-                    Padding="10,4">
-                <Button.Flyout>
-                    <MenuFlyout>
-                        <ToggleMenuFlyoutItem x:Name="menu_AutoStart"
-                                Text="Auto Startup"
-                                Click="menu_AutoStart_Click"/>
-                        <ToggleMenuFlyoutItem x:Name="menu_StartMinimized"
-                                Text="Start Minimized"
-                                Click="menu_StartMinimized_Click"/>
-                        <ToggleMenuFlyoutItem x:Name="menu_AutoRefresh"
-                                Text="Use Auto Refresh"
-                                Click="menu_AutoRefresh_Click"/>
-                        <ToggleMenuFlyoutItem x:Name="menu_NoSharing"
-                                Text="Greedy Mode"
-                                Click="menu_NoSharing_Click"/>
-                        <ToggleMenuFlyoutItem x:Name="menu_MsBluetooth"
-                                Text="Microsoft Bluetooth"
-                                Click="menu_MsBluetooth_Click"/>
-                        <MenuFlyoutItem x:Name="menu_SetDefaultCalibration"
-                                Text="Set Default Calibration"
-                                Click="menu_SetDefaultCalibration_Click"
-                                Visibility="Collapsed"/>
-                        <MenuFlyoutSeparator/>
-                        <MenuFlyoutItem x:Name="menu_version"
-                                Text="Version 2.0"
-                                IsEnabled="False"/>
-                    </MenuFlyout>
-                </Button.Flyout>
-                Advanced Config
-            </Button>
-            <Button x:Name="buttonTestInputs"
-                    Style="{StaticResource BaseButtonStyle}"
-                    Height="28"
-                    FontSize="11"
-                    ToolTipService.ToolTip="Open controller test panel (joy.cpl)"
-                    Click="buttonTestInputs_Click"
-                    Padding="10,4">Test Controllers</Button>
-        </StackPanel>
-
-        <TextBlock x:Name="labelDebugBuild"
-                Grid.Row="1"
-                HorizontalAlignment="Right"
-                Foreground="{StaticResource Brush.Danger}"
-                FontWeight="Bold"
-                FontSize="11"
-                Margin="0,0,0,4">DEBUG BUILD</TextBlock>
-
-        <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="10"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <Grid Grid.Column="0">
+        <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0"
-                        Text="Detected Devices"
-                        Style="{StaticResource SectionHeaderTextStyle}"
-                        Margin="0,0,0,2"/>
-                <TextBlock Grid.Row="1"
-                        Text="If your device doesn't show up, refresh or restart the app."
-                        Style="{StaticResource SecondaryTextStyle}"
-                        TextWrapping="Wrap"
-                        Margin="0,0,0,6"/>
-                <Border Grid.Row="2"
-                        Style="{StaticResource SectionPanelStyle}">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                            HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel x:Name="groupAvailable"
-                                Margin="2"
-                                Spacing="4"/>
-                    </ScrollViewer>
-                </Border>
-                <Button Grid.Row="3"
-                        x:Name="btnRefresh"
-                        Style="{StaticResource BaseButtonStyle}"
-                        Height="28"
-                        FontSize="11"
-                        FontWeight="SemiBold"
-                        ToolTipService.ToolTip="Refresh detected device list"
-                        Click="btnRefresh_Click"
-                        Margin="0,6,0,0">Refresh Detected Devices</Button>
-            </Grid>
 
-            <Grid Grid.Column="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0"
-                        Text="Connected Xbox 360 Controllers"
-                        Style="{StaticResource SectionHeaderTextStyle}"
-                        Margin="0,0,0,2"/>
-                <TextBlock Grid.Row="1"
-                        Text="Double-click &quot;Controller (XBOX 360 For Windows)&quot; in the test panel to verify."
-                        Style="{StaticResource SecondaryTextStyle}"
-                        TextWrapping="Wrap"
-                        Margin="0,0,0,6"/>
-                <Border Grid.Row="2"
-                        Style="{StaticResource SectionPanelStyle}">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                            HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel x:Name="groupXinput"
-                                Margin="2"
-                                Spacing="4"/>
-                    </ScrollViewer>
-                </Border>
-                <Button Grid.Row="3"
-                        x:Name="btnDetatchAllXInput"
-                        Style="{StaticResource BaseButtonStyle}"
-                        Height="28"
-                        FontSize="11"
-                        FontWeight="SemiBold"
-                        ToolTipService.ToolTip="Disconnect all connected controllers"
-                        Click="btnDetatchAllXInput_Click"
-                        Margin="0,6,0,0">Disconnect All Devices</Button>
-            </Grid>
+                <!-- Button Bar -->
+                <StackPanel Grid.Row="0"
+                            Orientation="Horizontal"
+                            Spacing="8"
+                            Padding="12,8,12,8"
+                            Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+                        <Button x:Name="btnSync"
+                                Content="Sync"
+                                ToolTipService.ToolTip="Sync a new Wiimote"
+                                Click="btnSync_Click"
+                                Padding="12,8"/>
+                        <Button x:Name="btnRefresh"
+                                Content="Refresh"
+                                ToolTipService.ToolTip="Refresh detected device list"
+                                Click="btnRefresh_Click"
+                                Padding="12,8"/>
+                        <Button x:Name="buttonTestInputs"
+                                Content="Test Controllers"
+                                ToolTipService.ToolTip="Open controller test panel (joy.cpl)"
+                                Click="buttonTestInputs_Click"
+                                Padding="12,8"/>
+                        <Button x:Name="btnSettings"
+                                Content="Advanced Settings"
+                                ToolTipService.ToolTip="Advanced configuration"
+                                Click="btnSettings_Click"
+                                Padding="12,8">
+                                <Button.Flyout>
+                                        <MenuFlyout>
+                                                <MenuFlyoutItem x:Name="menu_version"
+                                                                Text="Version"
+                                                                IsEnabled="False"/>
+                                                <MenuFlyoutSeparator/>
+                                                <ToggleMenuFlyoutItem x:Name="menu_AutoStart"
+                                                                Text="Start with Windows"
+                                                                Click="menu_AutoStart_Click"/>
+                                                <ToggleMenuFlyoutItem x:Name="menu_StartMinimized"
+                                                                Text="Start minimized"
+                                                                Click="menu_StartMinimized_Click"/>
+                                                <ToggleMenuFlyoutItem x:Name="menu_NoSharing"
+                                                                Text="Exclusive Bluetooth access"
+                                                                Click="menu_NoSharing_Click"/>
+                                                <ToggleMenuFlyoutItem x:Name="menu_AutoRefresh"
+                                                                Text="Auto refresh"
+                                                                Click="menu_AutoRefresh_Click"/>
+                                                <ToggleMenuFlyoutItem x:Name="menu_MsBluetooth"
+                                                                Text="Use Microsoft Bluetooth stack"
+                                                                Click="menu_MsBluetooth_Click"/>
+                                                <MenuFlyoutSeparator/>
+                                                <MenuFlyoutItem Text="Default Calibration"
+                                                                Click="menu_SetDefaultCalibration_Click"/>
+                                        </MenuFlyout>
+                                </Button.Flyout>
+                        </Button>
+                        <Button x:Name="btnRemoveAllWiimotes"
+                                Content="Remove All Wiimotes"
+                                ToolTipService.ToolTip="Remove all paired Wiimotes from this PC"
+                                Click="btnRemoveAllWiimotes_Click"
+                                Padding="12,8"/>
+                </StackPanel>
+
+                <!-- Main Content -->
+                <Grid Grid.Row="1"
+                                Margin="12">
+                        <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Grid Grid.Column="0">
+                                <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0"
+                                           Text="Detected Devices"
+                                           Style="{ThemeResource SubheaderTextBlockStyle}"
+                                           Margin="0,0,0,6"/>
+                                <TextBlock Grid.Row="1"
+                                           Text="Press SYNC on your Wiimote or use the Refresh button to find new devices."
+                                           Style="{ThemeResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,12"/>
+                                <ScrollViewer Grid.Row="2"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                        <StackPanel x:Name="groupAvailable"
+                                                    Spacing="8"/>
+                                </ScrollViewer>
+                        </Grid>
+
+                        <Grid Grid.Column="2">
+                                <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0"
+                                           Text="Active Controllers"
+                                           Style="{ThemeResource SubheaderTextBlockStyle}"
+                                           Margin="0,0,0,6"/>
+                                <TextBlock Grid.Row="1"
+                                           Text="Connected devices will appear here. Use Test Controllers to manage mappings."
+                                           Style="{ThemeResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,12"/>
+                                <ScrollViewer Grid.Row="2"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                        <StackPanel x:Name="groupXinput"
+                                                    Spacing="8"/>
+                                </ScrollViewer>
+                                <Button Grid.Row="3"
+                                        x:Name="btnDetatchAllXInput"
+                                        Height="32"
+                                        ToolTipService.ToolTip="Disconnect all connected controllers"
+                                        Click="btnDetatchAllXInput_Click"
+                                        Margin="0,12,0,0">Disconnect All</Button>
+                        </Grid>
+                </Grid>
+
+                <!-- Footer -->
+                <TextBlock Grid.Row="2"
+                           Text="Built upon WiinUSoft by Justin Keys. Guitar support by Meowmaritus."
+                           Style="{ThemeResource CaptionTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Margin="12,12,12,12"/>
         </Grid>
-
-        <TextBlock Grid.Row="3"
-                Text="Built upon WiinUSoft by Justin Keys. Guitar support by Meowmaritus."
-                Style="{StaticResource SecondaryTextStyle}"
-                Margin="0,6,0,0"
-                HorizontalAlignment="Left"/>
-    </Grid>
 </Window>

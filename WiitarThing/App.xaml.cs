@@ -21,22 +21,31 @@ namespace WiinUSoft
         [STAThread]
         public static void Main()
         {
+            EarlyLog("Main begin");
             System.Threading.Thread.Sleep(250);
 
             if (SingleInstance<App>.InitializeAsFirstInstance(Unique))
             {
+                EarlyLog("First instance initialized");
                 AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
                 WinRT.ComWrappersSupport.InitializeComWrappers();
                 Application.Start(p =>
                 {
+                    EarlyLog("Application.Start callback begin");
                     var ctx = new Microsoft.UI.Dispatching.DispatcherQueueSynchronizationContext(
                         Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
                     System.Threading.SynchronizationContext.SetSynchronizationContext(ctx);
                     _ = new App();
+                    EarlyLog("Application.Start callback end");
                 });
 
                 SingleInstance<App>.Cleanup();
+                EarlyLog("Main end");
+            }
+            else
+            {
+                EarlyLog("Second instance signaled first instance");
             }
         }
 
@@ -64,16 +73,42 @@ namespace WiinUSoft
 
         public App()
         {
+            EarlyLog("App ctor begin");
+            UnhandledException += App_UnhandledException;
             InitializeComponent();
+            EarlyLog("App ctor end");
         }
 
         protected override void OnLaunched(LaunchActivatedEventArgs args)
         {
+            EarlyLog("OnLaunched begin");
             // Load controller icon BitmapImages from the output directory
             LoadIconResources();
+            EarlyLog("Icons loaded");
 
             _mainWindow = new MainWindow();
+            EarlyLog("MainWindow constructed");
             _mainWindow.Activate();
+            EarlyLog("MainWindow activated");
+        }
+
+        private static void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
+        {
+            EarlyLog($"WinUI unhandled exception:\n{e.Exception}");
+            WiitarDebug.Log($"ERROR:\n{e.Exception}", WiitarDebug.LogLevel.Error);
+        }
+
+        internal static void EarlyLog(string message)
+        {
+            try
+            {
+                File.AppendAllText(
+                    Path.Combine(AppContext.BaseDirectory, "WiitarStartup.log"),
+                    $"[{DateTime.Now:O}] {message}{Environment.NewLine}");
+            }
+            catch
+            {
+            }
         }
 
         /// <summary>
@@ -82,11 +117,12 @@ namespace WiinUSoft
         private void LoadIconResources()
         {
             var baseDir = AppContext.BaseDirectory;
+            var iconResources = new ResourceDictionary();
             void Add(string key, string relPath)
             {
                 var fullPath = Path.Combine(baseDir, relPath);
                 if (File.Exists(fullPath))
-                    Resources[key] = new BitmapImage(new Uri(fullPath));
+                    iconResources[key] = new BitmapImage(new Uri(fullPath));
             }
 
             Add("ProIcon", Path.Combine("Images", "ProController_white_32.png"));
@@ -97,6 +133,8 @@ namespace WiinUSoft
             Add("UIcon", Path.Combine("Images", "unknown.png"));
             Add("WGTIcon", Path.Combine("Images", "GHWT_Wii_Guitar.png"));
             Add("WDRIcon", Path.Combine("Images", "GHWT_Wii_Drums.png"));
+
+            Resources.MergedDictionaries.Add(iconResources);
         }
 
         public bool SignalExternalCommandLineArgs(IList<string> args)

@@ -3,155 +3,521 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:WiinUSoft"
         Title="Calibration">
-    <Grid Margin="8">
+    <Grid Margin="16">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock x:Name="title" Grid.Row="0" Text="Wiimote" FontWeight="Bold" FontSize="14" Margin="2,2,2,0"/>
-
-        <TextBlock x:Name="inst" Grid.Row="1" TextWrapping="Wrap" FontSize="13" Margin="2,2,2,8">
-            Rotate the Wiimote around to the left and right (roll) so the buttons face to the left and then to the right. Adjust the minimums and maximums of each axis as desired.
-        </TextBlock>
+        <!-- Title -->
+        <StackPanel Grid.Row="0"
+                Spacing="4"
+                Margin="0,0,0,12">
+            <TextBlock x:Name="title"
+                    Style="{ThemeResource TitleTextBlockStyle}"
+                    Text="Calibrate Wiimote"/>
+            <TextBlock x:Name="inst"
+                       Style="{ThemeResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       TextWrapping="Wrap">
+                Rotate the Wiimote around to the left and right (roll) so the buttons face left and then right. Adjust the minimums and maximums of each axis as desired.
+            </TextBlock>
+        </StackPanel>
 
         <!-- Calibration groups -->
-        <Canvas Grid.Row="2" Height="200">
-            <!-- group1 -->
-            <Border x:Name="group1" Canvas.Left="0" Canvas.Top="0" Width="190" Height="190"
-                    BorderBrush="{StaticResource Brush.BorderAccent}" BorderThickness="1" CornerRadius="4">
-                <Grid>
-                    <Grid.RowDefinitions><RowDefinition Height="20"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                    <TextBlock x:Name="group1Header" Grid.Row="0" Text="Left X-axis" FontWeight="SemiBold" Margin="6,2" FontSize="11"/>
-                    <Grid Grid.Row="1">
-                        <TextBlock Text="Center:"  HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group1_center" HorizontalAlignment="Left" Margin="83,10,0,0" VerticalAlignment="Top" Value="32"/>
-                        <TextBlock Text="Minimum:" HorizontalAlignment="Left" Margin="10,50,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group1_min"    HorizontalAlignment="Left" Margin="83,50,0,0" VerticalAlignment="Top" Value="0"/>
-                        <TextBlock Text="Maximum:" HorizontalAlignment="Left" Margin="10,90,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group1_max"    HorizontalAlignment="Left" Margin="83,90,0,0" VerticalAlignment="Top"/>
-                        <TextBlock Text="Deadzone:" HorizontalAlignment="Left" Margin="10,130,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group1_dead"   HorizontalAlignment="Left" Margin="83,130,0,0" VerticalAlignment="Top" Value="4"/>
-                    </Grid>
-                </Grid>
-            </Border>
-            <!-- group2 -->
-            <Border x:Name="group2" Canvas.Left="195" Canvas.Top="0" Width="190" Height="190"
-                    BorderBrush="{StaticResource Brush.BorderAccent}" BorderThickness="1" CornerRadius="4">
-                <Grid>
-                    <Grid.RowDefinitions><RowDefinition Height="20"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                    <TextBlock x:Name="group2Header" Grid.Row="0" Text="Left Y-axis" FontWeight="SemiBold" Margin="6,2" FontSize="11"/>
-                    <Grid Grid.Row="1">
-                        <TextBlock Text="Center:"  HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group2_center" HorizontalAlignment="Left" Margin="83,10,0,0" VerticalAlignment="Top" Value="32"/>
-                        <TextBlock Text="Minimum:" HorizontalAlignment="Left" Margin="10,50,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group2_min"    HorizontalAlignment="Left" Margin="83,50,0,0" VerticalAlignment="Top" Value="0"/>
-                        <TextBlock Text="Maximum:" HorizontalAlignment="Left" Margin="10,90,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group2_max"    HorizontalAlignment="Left" Margin="83,90,0,0" VerticalAlignment="Top"/>
-                        <TextBlock Text="Deadzone:" HorizontalAlignment="Left" Margin="10,130,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group2_dead"   HorizontalAlignment="Left" Margin="83,130,0,0" VerticalAlignment="Top" Value="4"/>
-                    </Grid>
-                </Grid>
-            </Border>
-            <!-- group3 -->
-            <Border x:Name="group3" Canvas.Left="390" Canvas.Top="0" Width="190" Height="190"
-                    BorderBrush="{StaticResource Brush.BorderAccent}" BorderThickness="1" CornerRadius="4">
-                <Grid>
-                    <Grid.RowDefinitions><RowDefinition Height="20"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                    <TextBlock x:Name="group3Header" Grid.Row="0" Text="Right X-axis" FontWeight="SemiBold" Margin="6,2" FontSize="11"/>
-                    <Grid Grid.Row="1">
-                        <TextBlock Text="Center:"  HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group3_center" HorizontalAlignment="Left" Margin="83,10,0,0" VerticalAlignment="Top" Value="32"/>
-                        <TextBlock Text="Minimum:" HorizontalAlignment="Left" Margin="10,50,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group3_min"    HorizontalAlignment="Left" Margin="83,50,0,0" VerticalAlignment="Top" Value="0"/>
-                        <TextBlock Text="Maximum:" HorizontalAlignment="Left" Margin="10,90,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group3_max"    HorizontalAlignment="Left" Margin="83,90,0,0" VerticalAlignment="Top"/>
-                        <TextBlock Text="Deadzone:" HorizontalAlignment="Left" Margin="10,130,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group3_dead"   HorizontalAlignment="Left" Margin="83,130,0,0" VerticalAlignment="Top" Value="4"/>
-                    </Grid>
-                </Grid>
-            </Border>
-            <!-- group4 -->
-            <Border x:Name="group4" Canvas.Left="585" Canvas.Top="0" Width="190" Height="190"
-                    BorderBrush="{StaticResource Brush.BorderAccent}" BorderThickness="1" CornerRadius="4">
-                <Grid>
-                    <Grid.RowDefinitions><RowDefinition Height="20"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                    <TextBlock x:Name="group4Header" Grid.Row="0" Text="Right Y-axis" FontWeight="SemiBold" Margin="6,2" FontSize="11"/>
-                    <Grid Grid.Row="1">
-                        <TextBlock Text="Center:"  HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group4_center" HorizontalAlignment="Left" Margin="83,10,0,0" VerticalAlignment="Top" Value="32"/>
-                        <TextBlock Text="Minimum:" HorizontalAlignment="Left" Margin="10,50,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group4_min"    HorizontalAlignment="Left" Margin="83,50,0,0" VerticalAlignment="Top" Value="0"/>
-                        <TextBlock Text="Maximum:" HorizontalAlignment="Left" Margin="10,90,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group4_max"    HorizontalAlignment="Left" Margin="83,90,0,0" VerticalAlignment="Top"/>
-                        <TextBlock Text="Deadzone:" HorizontalAlignment="Left" Margin="10,130,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group4_dead"   HorizontalAlignment="Left" Margin="83,130,0,0" VerticalAlignment="Top" Value="4"/>
-                    </Grid>
-                </Grid>
-            </Border>
-        </Canvas>
-
-        <!-- IR / trigger groups + action buttons -->
-        <StackPanel Grid.Row="3" Margin="0,4,0,0">
-            <!-- group5: IR bounding box -->
-            <Border x:Name="group5" Width="775" Height="69" HorizontalAlignment="Left"
-                    BorderBrush="{StaticResource Brush.BorderAccent}" BorderThickness="1" CornerRadius="4">
-                <Grid>
-                    <Grid.RowDefinitions><RowDefinition Height="20"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="IR Pointer Bounding Box (Dead Zone)" FontWeight="SemiBold" Margin="6,2" FontSize="11"/>
-                    <Grid Grid.Row="1">
-                        <TextBlock Text="Center X:" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group5_centerX" HorizontalAlignment="Left" Margin="82,10,0,0" VerticalAlignment="Top" Max="1020" Min="2" Value="512"/>
-                        <TextBlock Text="Center Y:" HorizontalAlignment="Left" Margin="205,10,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group5_centerY" HorizontalAlignment="Left" Margin="278,10,0,0" VerticalAlignment="Top" Max="1020" Min="2" Value="512"/>
-                        <TextBlock Text="Width:"    HorizontalAlignment="Left" Margin="400,10,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group5_width"   HorizontalAlignment="Left" Margin="473,10,0,0" VerticalAlignment="Top" Min="0" Max="512" Value="128"/>
-                        <TextBlock Text="Height:"   HorizontalAlignment="Left" Margin="595,10,0,0" VerticalAlignment="Top"/>
-                        <local:NumPicker x:Name="group5_height"  HorizontalAlignment="Left" Margin="668,10,0,0" VerticalAlignment="Top" Min="0" Max="512" Value="128"/>
-                    </Grid>
-                </Grid>
-            </Border>
-
-            <!-- groupL + groupR triggers -->
-            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                <Border x:Name="groupL" Visibility="Collapsed" Width="385" Height="69"
-                        BorderBrush="{StaticResource Brush.BorderAccent}" BorderThickness="1" CornerRadius="4" Margin="0,0,4,0">
-                    <Grid>
-                        <Grid.RowDefinitions><RowDefinition Height="20"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                        <TextBlock x:Name="groupLHeader" Grid.Row="0" Text="Left Trigger" FontWeight="SemiBold" Margin="6,2" FontSize="11"/>
-                        <Grid Grid.Row="1">
-                            <TextBlock Text="Minimum:" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top"/>
-                            <local:NumPicker x:Name="groupL_min" HorizontalAlignment="Left" Margin="83,10,0,0" VerticalAlignment="Top" Max="32"/>
-                            <TextBlock Text="Maximum:" HorizontalAlignment="Left" Margin="205,10,0,0" VerticalAlignment="Top"/>
-                            <local:NumPicker x:Name="groupL_max" HorizontalAlignment="Left" Margin="278,10,0,0" VerticalAlignment="Top" Max="64" Value="32"/>
+        <ScrollViewer Grid.Row="1"
+                VerticalScrollBarVisibility="Auto"
+                Margin="0,0,0,12">
+            <StackPanel Spacing="8">
+                <!-- Joystick groups -->
+                <StackPanel Orientation="Horizontal"
+                        Spacing="8">
+                    <!-- group1 -->
+                    <Border x:Name="group1"
+                            Width="190"
+                            Height="190"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            Padding="10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="group1Header"
+                                    Grid.Row="0"
+                                    Text="Left X-axis"
+                                    FontWeight="SemiBold"
+                                    Margin="0,0,0,8"/>
+                            <Grid Grid.Row="1"
+                                    RowSpacing="8">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Row="0"
+                                        Grid.Column="0"
+                                        Text="Center:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Row="0"
+                                        Grid.Column="1"
+                                        x:Name="group1_center"
+                                        Value="32"
+                                        HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Row="1"
+                                        Grid.Column="0"
+                                        Text="Min:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Row="1"
+                                        Grid.Column="1"
+                                        x:Name="group1_min"
+                                        Value="0"
+                                        HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Row="2"
+                                        Grid.Column="0"
+                                        Text="Max:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Row="2"
+                                        Grid.Column="1"
+                                        x:Name="group1_max"
+                                        HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Row="3"
+                                        Grid.Column="0"
+                                        Text="Deadzone:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Row="3"
+                                        Grid.Column="1"
+                                        x:Name="group1_dead"
+                                        Value="4"
+                                        HorizontalAlignment="Right"/>
+                            </Grid>
                         </Grid>
-                    </Grid>
-                </Border>
-                <Border x:Name="groupR" Visibility="Collapsed" Width="385" Height="69"
-                        BorderBrush="{StaticResource Brush.BorderAccent}" BorderThickness="1" CornerRadius="4">
-                    <Grid>
-                        <Grid.RowDefinitions><RowDefinition Height="20"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                        <TextBlock x:Name="groupRHeader" Grid.Row="0" Text="Right Trigger" FontWeight="SemiBold" Margin="6,2" FontSize="11"/>
-                        <Grid Grid.Row="1">
-                            <TextBlock Text="Minimum:" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top"/>
-                            <local:NumPicker x:Name="groupR_min" HorizontalAlignment="Left" Margin="83,10,0,0" VerticalAlignment="Top" Max="32" Value="0"/>
-                            <TextBlock Text="Maximum:" HorizontalAlignment="Left" Margin="205,10,0,0" VerticalAlignment="Top"/>
-                            <local:NumPicker x:Name="groupR_max" HorizontalAlignment="Left" Margin="278,10,0,0" VerticalAlignment="Top" Value="32" Max="64"/>
+                    </Border>
+                    <!-- group2 -->
+                    <Border x:Name="group2"
+                            Width="190"
+                            Height="190"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            Padding="10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="group2Header"
+                                    Grid.Row="0"
+                                    Text="Left Y-axis"
+                                    FontWeight="SemiBold"
+                                    Margin="0,0,0,8"/>
+                            <Grid Grid.Row="1"
+                                    RowSpacing="8">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Row="0"
+                                        Grid.Column="0"
+                                        Text="Center:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Row="0"
+                                        Grid.Column="1"
+                                        x:Name="group2_center"
+                                        Value="32"
+                                        HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Row="1"
+                                        Grid.Column="0"
+                                        Text="Min:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Row="1"
+                                        Grid.Column="1"
+                                        x:Name="group2_min"
+                                        Value="0"
+                                        HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Row="2"
+                                        Grid.Column="0"
+                                        Text="Max:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Row="2"
+                                        Grid.Column="1"
+                                        x:Name="group2_max"
+                                        HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Row="3"
+                                        Grid.Column="0"
+                                        Text="Deadzone:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Row="3"
+                                        Grid.Column="1"
+                                        x:Name="group2_dead"
+                                        Value="4"
+                                        HorizontalAlignment="Right"/>
+                            </Grid>
                         </Grid>
-                    </Grid>
-                </Border>
-            </StackPanel>
-
-            <!-- Action buttons row -->
-            <Grid Margin="0,8,0,0">
-                <Button x:Name="skipBtn"   Style="{StaticResource BaseButtonStyle}"    Content="Skip"   Width="72"  Height="28" HorizontalAlignment="Left"  Click="skipBtn_Click"/>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button x:Name="cancelBtn" Style="{StaticResource BaseButtonStyle}"    Content="Cancel" Width="72"  Height="28" Margin="0,0,8,0" Click="cancelBtn_Click"/>
-                    <Button x:Name="nextBtn"   Style="{StaticResource PrimaryButtonStyle}" Content="Next"   Width="104" Height="28" Click="nextBtn_Click"/>
+                    </Border>
+                    <!-- group3 -->
+                    <Border x:Name="group3"
+                            Width="190"
+                            Height="190"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            Padding="10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="group3Header"
+                                    Grid.Row="0"
+                                    Text="Right X-axis"
+                                    FontWeight="SemiBold"
+                                    Margin="0,0,0,8"/>
+                            <Grid Grid.Row="1"
+                                    RowSpacing="8">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Row="0"
+                                        Grid.Column="0"
+                                        Text="Center:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Row="0"
+                                        Grid.Column="1"
+                                        x:Name="group3_center"
+                                        Value="32"
+                                        HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Row="1"
+                                        Grid.Column="0"
+                                        Text="Min:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Row="1"
+                                        Grid.Column="1"
+                                        x:Name="group3_min"
+                                        Value="0"
+                                        HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Row="2"
+                                        Grid.Column="0"
+                                        Text="Max:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Row="2"
+                                        Grid.Column="1"
+                                        x:Name="group3_max"
+                                        HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Row="3"
+                                        Grid.Column="0"
+                                        Text="Deadzone:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Row="3"
+                                        Grid.Column="1"
+                                        x:Name="group3_dead"
+                                        Value="4"
+                                        HorizontalAlignment="Right"/>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    <!-- group4 -->
+                    <Border x:Name="group4"
+                            Width="190"
+                            Height="190"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            Padding="10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="group4Header"
+                                    Grid.Row="0"
+                                    Text="Right Y-axis"
+                                    FontWeight="SemiBold"
+                                    Margin="0,0,0,8"/>
+                            <Grid Grid.Row="1"
+                                    RowSpacing="8">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Row="0"
+                                        Grid.Column="0"
+                                        Text="Center:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Row="0"
+                                        Grid.Column="1"
+                                        x:Name="group4_center"
+                                        Value="32"
+                                        HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Row="1"
+                                        Grid.Column="0"
+                                        Text="Min:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Row="1"
+                                        Grid.Column="1"
+                                        x:Name="group4_min"
+                                        Value="0"
+                                        HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Row="2"
+                                        Grid.Column="0"
+                                        Text="Max:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Row="2"
+                                        Grid.Column="1"
+                                        x:Name="group4_max"
+                                        HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Row="3"
+                                        Grid.Column="0"
+                                        Text="Deadzone:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Row="3"
+                                        Grid.Column="1"
+                                        x:Name="group4_dead"
+                                        Value="4"
+                                        HorizontalAlignment="Right"/>
+                            </Grid>
+                        </Grid>
+                    </Border>
                 </StackPanel>
-            </Grid>
-        </StackPanel>
+
+                <!-- IR and Trigger groups -->
+                <!-- group5: IR bounding box -->
+                <Border x:Name="group5"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        Padding="10"
+                        Margin="0,4,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0"
+                                Text="IR Pointer Bounding Box (Dead Zone)"
+                                FontWeight="SemiBold"
+                                Margin="0,0,0,8"/>
+                        <Grid Grid.Row="1"
+                                ColumnSpacing="16"
+                                RowSpacing="6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                    Text="Center X:"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"/>
+                            <local:NumPicker Grid.Column="1"
+                                    x:Name="group5_centerX"
+                                    Max="1020"
+                                    Min="2"
+                                    Value="512"/>
+                            <TextBlock Grid.Column="2"
+                                    Text="Center Y:"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"/>
+                            <local:NumPicker Grid.Column="3"
+                                    x:Name="group5_centerY"
+                                    Max="1020"
+                                    Min="2"
+                                    Value="512"/>
+                            <TextBlock Grid.Column="4"
+                                    Text="Width:"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"/>
+                            <local:NumPicker Grid.Column="5"
+                                    x:Name="group5_width"
+                                    Min="0"
+                                    Max="512"
+                                    Value="128"/>
+                            <TextBlock Grid.Column="6"
+                                    Text="Height:"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"/>
+                            <local:NumPicker Grid.Column="7"
+                                    x:Name="group5_height"
+                                    Min="0"
+                                    Max="512"
+                                    Value="128"/>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- Trigger groups -->
+                <StackPanel Orientation="Horizontal"
+                        Spacing="8"
+                        Margin="0,4,0,0">
+                    <Border x:Name="groupL"
+                            Visibility="Collapsed"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            Padding="10"
+                            HorizontalAlignment="Left">
+                        <Grid MinWidth="280">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="groupLHeader"
+                                    Grid.Row="0"
+                                    Text="Left Trigger"
+                                    FontWeight="SemiBold"
+                                    Margin="0,0,0,8"/>
+                            <Grid Grid.Row="1"
+                                    ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                        Text="Min:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Column="1"
+                                        x:Name="groupL_min"
+                                        Max="32"/>
+                                <TextBlock Grid.Column="2"
+                                        Text="Max:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Column="3"
+                                        x:Name="groupL_max"
+                                        Max="64"
+                                        Value="32"/>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    <Border x:Name="groupR"
+                            Visibility="Collapsed"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            Padding="10"
+                            HorizontalAlignment="Left">
+                        <Grid MinWidth="280">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="groupRHeader"
+                                    Grid.Row="0"
+                                    Text="Right Trigger"
+                                    FontWeight="SemiBold"
+                                    Margin="0,0,0,8"/>
+                            <Grid Grid.Row="1"
+                                    ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                        Text="Min:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Column="1"
+                                        x:Name="groupR_min"
+                                        Max="32"
+                                        Value="0"/>
+                                <TextBlock Grid.Column="2"
+                                        Text="Max:"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"/>
+                                <local:NumPicker Grid.Column="3"
+                                        x:Name="groupR_max"
+                                        Value="32"
+                                        Max="64"/>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Action buttons row -->
+        <Grid Grid.Row="2"
+                Margin="0,12,0,0">
+            <Button x:Name="skipBtn"
+                    Content="Skip"
+                    Width="80"
+                    Height="36"
+                    HorizontalAlignment="Left"
+                    Click="skipBtn_Click"/>
+            <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+                <Button x:Name="cancelBtn"
+                        Content="Cancel"
+                        Width="80"
+                        Height="36"
+                        Click="cancelBtn_Click"/>
+                <Button x:Name="nextBtn"
+                        Content="Next"
+                        Width="100"
+                        Height="36"
+                        Click="nextBtn_Click"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

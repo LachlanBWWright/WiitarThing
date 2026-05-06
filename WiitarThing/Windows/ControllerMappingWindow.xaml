@@ -2,50 +2,61 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Controller Mapping">
-    <Grid Margin="16"
-            RowSpacing="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+        <Grid Margin="20">
+                <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0"
-                   x:Name="headerText"
-                   Text="Edit mappings for the selected controller. Keys on the left map to Xbox targets on the right."
-                   TextWrapping="Wrap"/>
+                <StackPanel Spacing="6"
+                                Margin="0,0,0,12">
+                        <TextBlock Style="{ThemeResource TitleTextBlockStyle}"
+                                        Text="Controller Mapping"/>
+                        <TextBlock x:Name="headerText"
+                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Text="Edit mappings for the selected controller. Keys on the left map to Xbox targets on the right."
+                                   TextWrapping="Wrap"/>
+                </StackPanel>
 
-        <Border Grid.Row="1"
-                Padding="8"
-                BorderBrush="{StaticResource BrushAntemBlue}"
-                BorderThickness="1"
-                CornerRadius="8">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel x:Name="rowsHost"
-                        Spacing="8"/>
-            </ScrollViewer>
-        </Border>
+                <Border Grid.Row="1"
+                        Margin="0,0,0,12"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel x:Name="rowsHost"
+                                                Spacing="8"/>
+                        </ScrollViewer>
+                </Border>
 
-        <StackPanel Grid.Row="2"
-                Orientation="Horizontal"
-                HorizontalAlignment="Right"
-                Spacing="8">
-            <Button x:Name="btnDefault"
-                    Content="Default"
-                    Width="100"
-                    Click="btnDefault_Click"/>
-            <Button x:Name="btnApply"
-                    Content="Apply"
-                    Width="100"
-                    Click="btnApply_Click"/>
-            <Button x:Name="btnSave"
-                    Content="Save"
-                    Width="100"
-                    Click="btnSave_Click"/>
-            <Button x:Name="btnCancel"
-                    Content="Cancel"
-                    Width="100"
-                    Click="btnCancel_Click"/>
-        </StackPanel>
-    </Grid>
+                <StackPanel Grid.Row="2"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Spacing="8">
+                        <Button x:Name="btnDefault"
+                                Content="Default"
+                                Width="100"
+                                Height="36"
+                                Click="btnDefault_Click"/>
+                        <Button x:Name="btnApply"
+                                Content="Apply"
+                                Width="100"
+                                Height="36"
+                                Click="btnApply_Click"/>
+                        <Button x:Name="btnSave"
+                                Content="Save"
+                                Width="100"
+                                Height="36"
+                                Click="btnSave_Click"/>
+                        <Button x:Name="btnCancel"
+                                Content="Cancel"
+                                Width="100"
+                                Height="36"
+                                Click="btnCancel_Click"/>
+                </StackPanel>
+        </Grid>
 </Window>

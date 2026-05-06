@@ -158,7 +158,7 @@ namespace WiinUSoft
             lowBatteryFired = false;
             ConnectionState = DeviceState.Discovered;
             DispatcherQueue.TryEnqueue(() =>
-                statusGradient.Color = (global::Windows.UI.Color)Application.Current.Resources["AntemBlue"]);
+                statusGradient.Background = new SolidColorBrush(global::Microsoft.UI.Colors.Transparent));
         }
 
         public void SetState(DeviceState newState)
@@ -426,7 +426,7 @@ namespace WiinUSoft
             {
                 DispatcherQueue.TryEnqueue(() =>
                 {
-                    statusGradient.Color = (global::Windows.UI.Color)Application.Current.Resources["LowBattery"];
+                    statusGradient.Background = new SolidColorBrush(global::Microsoft.UI.Colors.OrangeRed);
                     if (_trayService_IsVisible())
                     {
                         lowBatteryFired = true;
@@ -443,7 +443,7 @@ namespace WiinUSoft
             {
                 DispatcherQueue.TryEnqueue(() =>
                 {
-                    statusGradient.Color = (global::Windows.UI.Color)Application.Current.Resources["AntemBlue"];
+                    statusGradient.Background = new SolidColorBrush(global::Microsoft.UI.Colors.Transparent);
                     lowBatteryFired = false;
                 });
             }
