@@ -1,8 +1,6 @@
-﻿using Hardcodet.Wpf.TaskbarNotification;
-using NintrollerLib;
+﻿using NintrollerLib;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.IO;
 using System.Media;
 using System.Runtime.InteropServices;
@@ -10,145 +8,132 @@ using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Threading;
-using System.Windows.Input;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Shared;
 using Shared.Windows;
 using System.Diagnostics;
 
 namespace WiinUSoft
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
-        /// <summary>Returns true if the current application has focus, false otherwise</summary>
-        public static bool ApplicationIsActivated()
-        {
-            var activatedHandle = GetForegroundWindow();
-            if (activatedHandle == IntPtr.Zero)
-            {
-                return false;       // No window is currently activated
-            }
-
-            var procId = Process.GetCurrentProcess().Id;
-            int activeProcId;
-            GetWindowThreadProcessId(activatedHandle, out activeProcId);
-
-            return activeProcId == procId;
-        }
-
-
         [DllImport("user32.dll", CharSet = CharSet.Auto, ExactSpelling = true)]
         private static extern IntPtr GetForegroundWindow();
-
         [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern int GetWindowThreadProcessId(IntPtr handle, out int processId);
 
+        public static bool ApplicationIsActivated()
+        {
+            var activatedHandle = GetForegroundWindow();
+            if (activatedHandle == IntPtr.Zero) return false;
+            var procId = Process.GetCurrentProcess().Id;
+            GetWindowThreadProcessId(activatedHandle, out int activeProcId);
+            return activeProcId == procId;
+        }
+
         public static MainWindow Instance { get; private set; }
 
+        private TrayIconService _trayService;
         private List<DeviceInfo> hidList;
         private List<DeviceControl> deviceList;
-        private ObservableCollection<DeviceControl> _availableDevices;
-        private ObservableCollection<DeviceControl> _connectedDevices;
+        private List<DeviceControl> _availableDevices;
+        private List<DeviceControl> _connectedDevices;
         private Task _refreshTask;
         private CancellationTokenSource _refreshToken;
         private bool _refreshing;
+        private bool _loadedFired;
 
         public MainWindow()
         {
             hidList = new List<DeviceInfo>();
             deviceList = new List<DeviceControl>();
-            _availableDevices = new ObservableCollection<DeviceControl>();
-            _connectedDevices  = new ObservableCollection<DeviceControl>();
+            _availableDevices = new List<DeviceControl>();
+            _connectedDevices = new List<DeviceControl>();
 
             InitializeComponent();
-
             Instance = this;
-
 
             Version version = System.Reflection.Assembly.GetEntryAssembly().GetName().Version;
             Title = "WiitarThing " + string.Format("V{0}.{1}.{2}", version.Major, version.Minor, version.Revision);
-
 #if DEBUG
             Title += " Debug Build";
-
-            //var sb = new StringBuilder();
-            //sb.AppendLine("You are running MEOW'S DEBUG BUILD of WiinUSoft.");
-            //sb.AppendLine();
-            //sb.AppendLine("WII REMOTE Debug Command List:");
-            //sb.AppendLine("-A: Display the next data packet received from the GUITAR.");
-
-
-            //MessageBox.Show(sb.ToString(), "Notice", MessageBoxButton.OK, MessageBoxImage.Information);
-
-
 #else
-            labelDebugBuild.Visibility = Visibility.Hidden;
+            labelDebugBuild.Visibility = Visibility.Collapsed;
 #endif
-
 #if LOW_BANDWIDTH
             Title += " - LIGHT VERSION";
 #endif
+
+            _trayService = new TrayIconService();
+            _trayService.ShowRequested += (s, e) => DispatcherQueue.TryEnqueue(ShowWindow);
+            _trayService.RefreshRequested += (s, e) => DispatcherQueue.TryEnqueue(Refresh);
+            _trayService.ExitRequested += (s, e) => DispatcherQueue.TryEnqueue(() =>
+            {
+                var dl = new List<DeviceControl>(_connectedDevices);
+                foreach (var d in dl) d.Detatch();
+                Application.Current.Exit();
+            });
+
+            AppWindow.Closing += async (sender2, args) =>
+            {
+                if (_connectedDevices.Count > 0)
+                {
+                    args.Cancel = true;
+                    var dlg = new ContentDialog
+                    {
+                        Title = "Close WiitarThing?",
+                        Content = "ALL connected controllers will STOP WORKING!",
+                        PrimaryButtonText = "Close",
+                        CloseButtonText = "Cancel",
+                        XamlRoot = this.Content.XamlRoot
+                    };
+                    if (await dlg.ShowAsync() == ContentDialogResult.Primary)
+                    {
+                        var dl = new List<DeviceControl>(_connectedDevices);
+                        foreach (var d in dl) d.Detatch();
+                        _trayService?.Dispose();
+                        this.Close();
+                    }
+                }
+                else
+                {
+                    _trayService?.Dispose();
+                }
+            };
+
+            this.Activated += Window_Loaded;
         }
 
-        public void HideWindow()
-        {
-            //if (WindowState == WindowState.Minimized)
-            //{
-            //    trayIcon.Visibility = Visibility.Visible;
-            //    Hide();
-            //}
-        }
+        // ── Public interface ────────────────────────────────────────────────
 
         public void ShowWindow()
         {
-            trayIcon.Visibility = Visibility.Hidden;
-            Show();
-            WindowState = WindowState.Normal;
+            _trayService?.Hide();
+            this.Activate();
         }
 
-        public void ShowBalloon(string title, string message, BalloonIcon icon)
+        public void TriggerRefresh() => Refresh();
+
+        public void ShowBalloon(string title, string message, int icon = 0, SystemSound sound = null)
         {
-            ShowBalloon(title, message, icon, null);
+            _trayService?.ShowBalloon(title, message, icon);
+            sound?.Play();
         }
 
-        public void ShowBalloon(string title, string message, BalloonIcon icon, SystemSound sound)
-        {
-            trayIcon.Visibility = Visibility.Visible;
-            trayIcon.ShowBalloonTip(title, message, icon);
-
-            if (sound != null)
-            {
-                sound.Play();
-            }
-
-            Task restoreTray = new Task(new Action(() =>
-            {
-                Thread.Sleep(7000);
-                Application.Current.Dispatcher.BeginInvoke(DispatcherPriority.Normal, new Action(() => trayIcon.Visibility = WindowState == WindowState.Minimized ? Visibility.Visible : Visibility.Hidden));
-            }));
-            restoreTray.Start();
-        }
+        // ── Refresh / device management ────────────────────────────────────
 
         private void Refresh()
         {
             hidList = WinBtStream.GetPaths();
-            List<KeyValuePair<int, DeviceControl>> connectSeq = new List<KeyValuePair<int, DeviceControl>>();
-            
+            var connectSeq = new List<KeyValuePair<int, DeviceControl>>();
+
             foreach (var hid in hidList)
             {
                 DeviceControl existingDevice = null;
-
                 foreach (DeviceControl d in deviceList)
                 {
-                    if (d.DevicePath == hid.DevicePath)
-                    {
-                        existingDevice = d;
-                        break;
-                    }
+                    if (d.DevicePath == hid.DevicePath) { existingDevice = d; break; }
                 }
 
                 if (existingDevice != null)
@@ -157,62 +142,40 @@ namespace WiinUSoft
                     {
                         existingDevice.RefreshState();
                         if (existingDevice.properties.autoConnect && existingDevice.ConnectionState == DeviceState.Discovered)
-                        {
                             connectSeq.Add(new KeyValuePair<int, DeviceControl>(existingDevice.properties.autoNum, existingDevice));
-                        }
                     }
                 }
                 else
                 {
                     var stream = new WinBtStream(
-                        hid.DevicePath, 
-                        UserPrefs.Instance.toshibaMode ? WinBtStream.BtStack.Toshiba : WinBtStream.BtStack.Microsoft, 
+                        hid.DevicePath,
+                        UserPrefs.Instance.toshibaMode ? WinBtStream.BtStack.Toshiba : WinBtStream.BtStack.Microsoft,
                         UserPrefs.Instance.greedyMode ? FileShare.None : FileShare.ReadWrite);
-                    Nintroller n = new Nintroller(stream, hid.Type);
+                    var n = new Nintroller(stream, hid.Type);
 
                     if (stream.OpenConnection() && stream.CanRead)
                     {
-                        deviceList.Add(new DeviceControl(n, hid.DevicePath));
-                        deviceList[deviceList.Count - 1].OnConnectStateChange += DeviceControl_OnConnectStateChange;
-                        deviceList[deviceList.Count - 1].OnConnectionLost += DeviceControl_OnConnectionLost;
-                        deviceList[deviceList.Count - 1].RefreshState();
-                        if (deviceList[deviceList.Count - 1].properties.autoConnect)
-                        {
-                            connectSeq.Add(new KeyValuePair<int, DeviceControl>(deviceList[deviceList.Count - 1].properties.autoNum, deviceList[deviceList.Count - 1]));
-                        }
+                        var dc = new DeviceControl(n, hid.DevicePath);
+                        deviceList.Add(dc);
+                        dc.OnConnectStateChange += DeviceControl_OnConnectStateChange;
+                        dc.OnConnectionLost += DeviceControl_OnConnectionLost;
+                        dc.RefreshState();
+                        if (dc.properties.autoConnect)
+                            connectSeq.Add(new KeyValuePair<int, DeviceControl>(dc.properties.autoNum, dc));
                     }
                 }
             }
 
             int target = -1;
-
             for (int i = 0; i < 4; i++)
             {
-                if (Holders.XInputHolder.availabe.Length > i)
-                {
-                    if (Holders.XInputHolder.availabe[i])
-                    {
-                        target = i;
-                        break;
-                    }
-                }
+                if (Holders.XInputHolder.availabe.Length > i && Holders.XInputHolder.availabe[i]) { target = i; break; }
             }
-            
-            if (target < 0)
-            {
-                return;
-            }
+            if (target < 0) return;
 
-            //while (!Holders.XInputHolder.availabe[target] && target < 4)
-            //{
-            //    target++;
-            //}
-
-            // Auto Connect First Available devices
             for (int a = 0; a < connectSeq.Count; a++)
             {
                 var thingy = connectSeq[a];
-
                 if (thingy.Key == 5)
                 {
                     if (Holders.XInputHolder.availabe[target] && target < 4)
@@ -227,24 +190,19 @@ namespace WiinUSoft
                             target++;
                         }
                     }
-
                     connectSeq.Remove(thingy);
                 }
             }
 
-            // Auto connect in preferred order
             for (int i = 1; i < connectSeq.Count; i++)
             {
                 if (connectSeq[i].Key < connectSeq[i - 1].Key)
                 {
-                    var tmp = connectSeq[i];
-                    connectSeq[i] = connectSeq[i - 1];
-                    connectSeq[i - 1] = tmp;
-                    i = 0;
+                    var tmp = connectSeq[i]; connectSeq[i] = connectSeq[i - 1]; connectSeq[i - 1] = tmp; i = 0;
                 }
             }
-            
-            foreach(KeyValuePair<int, DeviceControl> d in connectSeq)
+
+            foreach (var d in connectSeq)
             {
                 if (Holders.XInputHolder.availabe[target] && target < 4)
                 {
@@ -267,17 +225,16 @@ namespace WiinUSoft
             {
                 _refreshing = true;
                 _refreshToken = new CancellationTokenSource();
-                _refreshTask = new Task(new Action(() =>
+                _refreshTask = new Task(() =>
                 {
                     while (!_refreshToken.IsCancellationRequested)
                     {
                         Thread.Sleep(1000);
                         if (_refreshToken.IsCancellationRequested) break;
-                        Application.Current.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => Refresh()));
+                        DispatcherQueue.TryEnqueue(Refresh);
                     }
-
                     _refreshing = false;
-                }), _refreshToken.Token);
+                }, _refreshToken.Token);
                 _refreshTask.Start();
             }
             else if (!set && _refreshing)
@@ -286,29 +243,28 @@ namespace WiinUSoft
             }
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
-        {
-            // Bind observable collections to the ItemsControls.
-            groupAvailable.ItemsSource = _availableDevices;
-            groupXinput.ItemsSource    = _connectedDevices;
+        // ── Event handlers ──────────────────────────────────────────────────
 
-#if !DEBUG
-            labelDebugBuild.Visibility = Visibility.Collapsed;
-#endif
+        private void Window_Loaded(object sender, object e)
+        {
+            if (_loadedFired) return;
+            _loadedFired = true;
+            this.Activated -= Window_Loaded;
 
             try
             {
-                Version version = System.Reflection.Assembly.GetEntryAssembly().GetName().Version;
-                menu_version.Header = string.Format("Version {0}.{1}.{2}", version.Major, version.Minor, version.Revision);
+                var v = System.Reflection.Assembly.GetEntryAssembly().GetName().Version;
+                menu_version.Text = string.Format("Version {0}.{1}.{2}", v.Major, v.Minor, v.Revision);
             }
             catch { }
 
             if (UserPrefs.Instance.startMinimized)
             {
                 menu_StartMinimized.IsChecked = true;
-                WindowState = WindowState.Minimized;
+                if (this.AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter p)
+                    p.Minimize();
             }
-            
+
             menu_AutoStart.IsChecked = UserPrefs.Instance.autoStartup;
             menu_NoSharing.IsChecked = UserPrefs.Instance.greedyMode;
             menu_AutoRefresh.IsChecked = UserPrefs.Instance.autoRefresh;
@@ -326,111 +282,47 @@ namespace WiinUSoft
 
         private void DeviceControl_OnConnectStateChange(DeviceControl sender, DeviceState oldState, DeviceState newState)
         {
-            if (oldState == newState)
-                return;
-
+            if (oldState == newState) return;
             switch (oldState)
             {
-                case DeviceState.Discovered:
-                    _availableDevices.Remove(sender);
-                    break;
-
-                case DeviceState.Connected_XInput:
-                    _connectedDevices.Remove(sender);
-                    break;
+                case DeviceState.Discovered: groupAvailable.Children.Remove(sender); _availableDevices.Remove(sender); break;
+                case DeviceState.Connected_XInput: groupXinput.Children.Remove(sender); _connectedDevices.Remove(sender); break;
             }
-
             switch (newState)
             {
-                case DeviceState.Discovered:
-                    _availableDevices.Add(sender);
-                    break;
-
-                case DeviceState.Connected_XInput:
-                    _connectedDevices.Add(sender);
-                    break;
+                case DeviceState.Discovered: groupAvailable.Children.Add(sender); _availableDevices.Add(sender); break;
+                case DeviceState.Connected_XInput: groupXinput.Children.Add(sender); _connectedDevices.Add(sender); break;
             }
-            
-            if (menu_AutoRefresh.IsChecked)
-            {
-                AutoRefresh(ApplicationIsActivated());
-            }
+            if (menu_AutoRefresh.IsChecked) AutoRefresh(ApplicationIsActivated());
         }
 
         private void DeviceControl_OnConnectionLost(DeviceControl sender)
         {
+            groupAvailable.Children.Remove(sender);
+            groupXinput.Children.Remove(sender);
             _availableDevices.Remove(sender);
             _connectedDevices.Remove(sender);
             deviceList.Remove(sender);
-
             AutoRefresh(menu_AutoRefresh.IsChecked);
         }
-        
+
         private void btnDetatchAllXInput_Click(object sender, RoutedEventArgs e)
         {
-            var detatchList = new List<DeviceControl>(_connectedDevices);
-            foreach (DeviceControl d in detatchList)
-            {
-                d.Detatch();
-            }
+            var dl = new List<DeviceControl>(_connectedDevices);
+            foreach (DeviceControl d in dl) d.Detatch();
         }
 
-        private void btnRefresh_Click(object sender, RoutedEventArgs e)
-        {
-            Refresh();
-        }
-
-        static System.Threading.Tasks.Task Delay(int milliseconds)
-        {
-            var tcs = new System.Threading.Tasks.TaskCompletionSource<object>();
-            new System.Threading.Timer(_ => tcs.SetResult(null)).Change(milliseconds, -1);
-            return tcs.Task;
-        }
+        private void btnRefresh_Click(object sender, RoutedEventArgs e) => Refresh();
 
         private void btnSync_Click(object sender, RoutedEventArgs e)
         {
-            Windows.SyncWindow sync = new Windows.SyncWindow();
-
-            //foreach (var c in groupAvailable.Children)
-            //{
-            //    DeviceControl devCtrl = (DeviceControl)c;
-            //    devCtrl.
-            //}
-
-            //deviceList[0].Device.
-
-            //sync.ConnectedDeviceAddresses
-
+            var sync = new Windows.SyncWindow();
             sync.NewDeviceFound += Sync_NewDeviceFound;
             sync.Closed += Sync_Closed;
-
-            sync.ShowDialog();
-
-            //var timer = new DispatcherTimer();
-
-            //timer.Interval = new TimeSpan(0, 0, 1);
-
-            //timer.Tick += (sender2, e2) =>
-            //{
-            //    if (sync != null && sync.IsVisible)
-            //    {
-            //        //if (!sync.IsFocused)
-            //        //{
-            //        //    sync.Close();
-            //        //}
-
-            //       // Refresh();
-            //    }
-            //    else
-            //    {
-            //        timer.Stop();
-            //    }
-            //};
-            //timer.Start();
-
+            sync.Activate();
         }
 
-        private void Sync_Closed(object sender, EventArgs e)
+        private void Sync_Closed(object sender, WindowEventArgs e)
         {
             ((Windows.SyncWindow)sender).NewDeviceFound -= Sync_NewDeviceFound;
             ((Windows.SyncWindow)sender).Closed -= Sync_Closed;
@@ -438,111 +330,99 @@ namespace WiinUSoft
 
         private void Sync_NewDeviceFound(object sender, EventArgs e)
         {
-            Application.Current.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => Refresh()));
+            DispatcherQueue.TryEnqueue(Refresh);
         }
 
-        private void Window_StateChanged(object sender, EventArgs e)
-        {
-            HideWindow();
-        }
-
-        private void MenuItem_Show_Click(object sender, RoutedEventArgs e)
-        {
-            ShowWindow();
-        }
-
-        private void MenuItem_Refresh_Click(object sender, RoutedEventArgs e)
-        {
-            Refresh();
-        }
-
-        private void MenuItem_Exit_Click(object sender, RoutedEventArgs e)
-        {
-            //foreach (DeviceControl dc in deviceList)
-            //{
-            //    if (dc.ConnectionState == DeviceState.Connected_XInput
-            //     || dc.ConnectionState == DeviceState.Connected_VJoy)
-            //    {
-            //        dc.Detatch();
-            //    }
-            //}
-
-            //Close();
-        }
-
-        private void btnSettings_Click(object sender, RoutedEventArgs e)
-        {
-            if (btnSettings.ContextMenu != null)
-            {
-                btnSettings.ContextMenu.IsOpen = true;
-            }
-        }
+        private void btnSettings_Click(object sender, RoutedEventArgs e) { /* Flyout opens automatically */ }
 
         private void menu_AutoStart_Click(object sender, RoutedEventArgs e)
         {
-            menu_AutoStart.IsChecked = !menu_AutoStart.IsChecked;
             UserPrefs.AutoStart = menu_AutoStart.IsChecked;
             UserPrefs.SavePrefs();
         }
 
         private void menu_StartMinimized_Click(object sender, RoutedEventArgs e)
         {
-            menu_StartMinimized.IsChecked = !menu_StartMinimized.IsChecked;
             UserPrefs.Instance.startMinimized = menu_StartMinimized.IsChecked;
             UserPrefs.SavePrefs();
         }
 
         private void menu_NoSharing_Click(object sender, RoutedEventArgs e)
         {
-            menu_NoSharing.IsChecked = !menu_NoSharing.IsChecked;
             UserPrefs.Instance.greedyMode = menu_NoSharing.IsChecked;
             UserPrefs.SavePrefs();
             WinBtStream.OverrideSharingMode = UserPrefs.Instance.greedyMode;
-            if (UserPrefs.Instance.greedyMode)
-            {
-                WinBtStream.OverridenFileShare = FileShare.None;
-            }
+            if (UserPrefs.Instance.greedyMode) WinBtStream.OverridenFileShare = FileShare.None;
         }
 
         private void menu_AutoRefresh_Click(object sender, RoutedEventArgs e)
         {
-            menu_AutoRefresh.IsChecked = !menu_AutoRefresh.IsChecked;
             UserPrefs.Instance.autoRefresh = menu_AutoRefresh.IsChecked;
             UserPrefs.SavePrefs();
             AutoRefresh(menu_AutoRefresh.IsChecked && ApplicationIsActivated());
         }
 
-        private void menu_SetDefaultCalibration_Click(object sender, RoutedEventArgs e)
+        private async void menu_SetDefaultCalibration_Click(object sender, RoutedEventArgs e)
         {
-            var dWin = new Windows.CalDefaultWindow();
-            dWin.ShowDialog();
+            var dWin = new Windows.DefaultCalibrationWindow();
+            await dWin.ShowAsDialogAsync();
         }
 
         private void menu_MsBluetooth_Click(object sender, RoutedEventArgs e)
         {
-            menu_MsBluetooth.IsChecked = !menu_MsBluetooth.IsChecked;
             WinBtStream.ForceToshibaMode = !menu_MsBluetooth.IsChecked;
             UserPrefs.Instance.toshibaMode = !menu_MsBluetooth.IsChecked;
             UserPrefs.SavePrefs();
         }
 
-        #region Shortcut Creation
+        private async void btnRemoveAllWiimotes_Click(object sender, RoutedEventArgs e)
+        {
+            var confirmDlg = new ContentDialog
+            {
+                Title = "Remove All Wiimotes?",
+                Content = "Are you sure you want to remove all Wii remotes from this PC?\n\nNote: this cannot be cancelled once it begins and may take a couple of minutes.",
+                PrimaryButtonText = "Yes",
+                CloseButtonText = "No",
+                XamlRoot = this.Content.XamlRoot
+            };
+            if (await confirmDlg.ShowAsync() != ContentDialogResult.Primary) return;
+
+            var dlg = new Windows.RemoveAllWiimotesWindow();
+            await dlg.ShowAsDialogAsync();
+
+            var restartDlg = new ContentDialog
+            {
+                Title = "Wiimotes Removed",
+                Content = "WiitarThing will now restart.\n\nDon't forget to reconnect your controllers afterward!",
+                CloseButtonText = "OK",
+                XamlRoot = this.Content.XamlRoot
+            };
+            await restartDlg.ShowAsync();
+
+            string exePath = Path.Combine(AppContext.BaseDirectory, "WiitarThing.exe");
+            Process.Start(exePath);
+            Application.Current.Exit();
+        }
+
+        private void buttonTestInputs_Click(object sender, RoutedEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo("joy.cpl") { UseShellExecute = true });
+        }
+
+        // ── Shortcut creation ───────────────────────────────────────────────
+
         public void CreateShortcut(string path)
         {
             IShellLink link = (IShellLink)new ShellLink();
-
             link.SetDescription("WiinUSoft");
-            link.SetPath(new Uri(System.Reflection.Assembly.GetEntryAssembly().CodeBase).LocalPath);
-
+            link.SetPath(AppContext.BaseDirectory.TrimEnd('\\', '/'));
             IPersistFile file = (IPersistFile)link;
             file.Save(Path.Combine(path, "WiinUSoft.lnk"), false);
         }
 
         [ComImport]
         [Guid("00021401-0000-0000-C000-000000000046")]
-        internal class ShellLink
-        {
-        }
+        internal class ShellLink { }
 
         [ComImport]
         [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -568,63 +448,12 @@ namespace WiinUSoft
             void Resolve(IntPtr hwnd, int fFlags);
             void SetPath([MarshalAs(UnmanagedType.LPWStr)] string pszFile);
         }
-        #endregion
 
-        private void btnRemoveAllWiimotes_Click(object sender, RoutedEventArgs e)
+        static Task Delay(int ms)
         {
-            if (MessageBox.Show("Are you sure you want to remove all Wii remotes from this PC?\n\nNote: this cannot be cancelled once it begins and may take a couple of minutes depending on how many bluetooth devices you have connected to your PC.", "Remove All Wiimotes?", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
-            {
-                var dlg = new Windows.RemoveAllWiimotesWindow();
-                dlg.Owner = this;
-                dlg.ShowDialog();
-                MessageBox.Show("WiitarThing will now restart.\n\nDon't forget to reconnect your controllers afterward!", "Wiimotes Removed", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                //Refresh();
-
-                System.Diagnostics.Process.Start(Application.ResourceAssembly.Location);
-                Application.Current.Shutdown();
-            }
+            var tcs = new TaskCompletionSource<object>();
+            new System.Threading.Timer(_ => tcs.SetResult(null)).Change(ms, -1);
+            return tcs.Task;
         }
-
-        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            var dlg = _connectedDevices.Count == 0
-                ? MessageBoxResult.Yes
-                : MessageBox.Show("Are you sure you want to close WiitarThing?\n\nALL connected controllers will STOP WORKING!", "Close WiitarThing?", MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-            e.Cancel = (dlg != MessageBoxResult.Yes);
-
-            if (!e.Cancel)
-            {
-                var detatchList = new List<DeviceControl>(_connectedDevices);
-                foreach (DeviceControl d in detatchList)
-                {
-                    d.Detatch();
-                }
-            }
-        }
-
-        private void buttonTestInputs_Click(object sender, RoutedEventArgs e)
-        {
-            Process.Start("joy.cpl");
-        }
-    }
-
-    class ShowWindowCommand : ICommand
-    {
-        public void Execute(object parameter)
-        {
-            if (MainWindow.Instance != null)
-            {
-                MainWindow.Instance.ShowWindow();
-            }
-        }
-
-        public bool CanExecute(object parameter)
-        {
-            return true;
-        }
-
-        public event EventHandler CanExecuteChanged;
     }
 }

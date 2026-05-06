@@ -1,95 +1,51 @@
 ﻿using System;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Media3D;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 
 namespace WiinUSoft
 {
-    /// <summary> 
-    /// A Canvas which manages dragging of the UIElements it contains.   
-    /// </summary> 
-    /// <remarks> 
-    /// Documentation: http://www.codeproject.com/KB/WPF/DraggingElementsInCanvas.aspx 
-    /// </remarks> 
+    /// <summary>
+    /// A Canvas which manages dragging of the UIElements it contains.
+    /// </summary>
     public class DragCanvas : Canvas
     {
-        #region Data
-
-
         private UIElement elementBeingDragged;
-        private Point origCursorLocation;
+        private global::Windows.Foundation.Point origCursorLocation;
         private double origHorizOffset, origVertOffset;
         private bool modifyLeftOffset, modifyTopOffset;
         private bool isDragInProgress;
-        #endregion
-        #region Static Constructor
+        private Microsoft.UI.Xaml.Input.Pointer _currentPointer;
+
         static DragCanvas()
         {
             AllowDraggingProperty = DependencyProperty.Register(
-                "AllowDragging",
-                typeof(bool),
-                typeof(DragCanvas),
-                new PropertyMetadata(true));
-
+                "AllowDragging", typeof(bool), typeof(DragCanvas), new PropertyMetadata(true));
             AllowDragOutOfViewProperty = DependencyProperty.Register(
-                "AllowDragOutOfView",
-                typeof(bool),
-                typeof(DragCanvas),
-                new UIPropertyMetadata(false));
-
+                "AllowDragOutOfView", typeof(bool), typeof(DragCanvas), new PropertyMetadata(false));
             CanBeDraggedProperty = DependencyProperty.RegisterAttached(
-                "CanBeDragged",
-                typeof(bool),
-                typeof(DragCanvas),
-                new UIPropertyMetadata(true));
+                "CanBeDragged", typeof(bool), typeof(DragCanvas), new PropertyMetadata(true));
         }
 
-        #endregion
-        #region Constructor
         public DragCanvas()
         {
+            PointerPressed += DragCanvas_PointerPressed;
+            PointerMoved += DragCanvas_PointerMoved;
+            PointerReleased += DragCanvas_PointerReleased;
         }
-
-        #endregion
-
-        #region Attached Properties
-
-        #region CanBeDragged
-
 
         public static readonly DependencyProperty CanBeDraggedProperty;
-        public static bool GetCanBeDragged(UIElement uiElement)
-        {
-            if (uiElement == null)
-                return false;
+        public static bool GetCanBeDragged(UIElement uiElement) => uiElement == null ? false : (bool)uiElement.GetValue(CanBeDraggedProperty);
+        public static void SetCanBeDragged(UIElement uiElement, bool value) { if (uiElement != null) uiElement.SetValue(CanBeDraggedProperty, value); }
 
-            return (bool)uiElement.GetValue(CanBeDraggedProperty);
-        }
-        public static void SetCanBeDragged(UIElement uiElement, bool value)
-        {
-            if (uiElement != null)
-                uiElement.SetValue(CanBeDraggedProperty, value);
-        }
-
-        #endregion
-
-        #endregion
-
-        #region Interface
-
-        #region AllowDragging
         public static readonly DependencyProperty AllowDraggingProperty;
         public bool AllowDragging
         {
-            get { return (bool)base.GetValue(AllowDraggingProperty); }
-            set { base.SetValue(AllowDraggingProperty, value); }
+            get { return (bool)GetValue(AllowDraggingProperty); }
+            set { SetValue(AllowDraggingProperty, value); }
         }
 
-        #endregion
-
-        #region AllowDragOutOfView
         public static readonly DependencyProperty AllowDragOutOfViewProperty;
         public bool AllowDragOutOfView
         {
@@ -97,234 +53,117 @@ namespace WiinUSoft
             set { SetValue(AllowDragOutOfViewProperty, value); }
         }
 
-        #endregion
-        #region BringToFront / SendToBack
-        public void BringToFront(UIElement element)
-        {
-            this.UpdateZOrder(element, true);
-        }
-        public void SendToBack(UIElement element)
-        {
-            this.UpdateZOrder(element, false);
-        }
+        public void BringToFront(UIElement element) => UpdateZOrder(element, true);
+        public void SendToBack(UIElement element) => UpdateZOrder(element, false);
 
-        #endregion
-
-        #region ElementBeingDragged
         public UIElement ElementBeingDragged
         {
-            get
-            {
-                if (!this.AllowDragging)
-                    return null;
-                else
-                    return this.elementBeingDragged;
-            }
+            get => AllowDragging ? elementBeingDragged : null;
             protected set
             {
-                if (this.elementBeingDragged != null)
-                    this.elementBeingDragged.ReleaseMouseCapture();
+                if (elementBeingDragged != null)
+                    elementBeingDragged.ReleasePointerCaptures();
 
-                if (!this.AllowDragging)
-                    this.elementBeingDragged = null;
-                else
+                if (!AllowDragging)
+                    elementBeingDragged = null;
+                else if (GetCanBeDragged(value))
                 {
-                    if (DragCanvas.GetCanBeDragged(value))
-                    {
-                        this.elementBeingDragged = value;
-                        this.elementBeingDragged.CaptureMouse();
-                    }
-                    else
-                        this.elementBeingDragged = null;
+                    elementBeingDragged = value;
+                    if (_currentPointer != null)
+                        elementBeingDragged.CapturePointer(_currentPointer);
                 }
+                else
+                    elementBeingDragged = null;
             }
         }
 
-        #endregion
-
-        #region FindCanvasChild
         public UIElement FindCanvasChild(DependencyObject depObj)
         {
             while (depObj != null)
             {
-                UIElement elem = depObj as UIElement;
-                if (elem != null && base.Children.Contains(elem))
+                if (depObj is UIElement elem && base.Children.Contains(elem))
                     break;
-                if (depObj is Visual || depObj is Visual3D)
-                    depObj = VisualTreeHelper.GetParent(depObj);
-                else
-                    depObj = LogicalTreeHelper.GetParent(depObj);
+                depObj = VisualTreeHelper.GetParent(depObj);
             }
             return depObj as UIElement;
         }
 
-        #endregion
-
-        #endregion
-
-        #region Overrides
-
-        #region OnPreviewMouseLeftButtonDown
-
-
-        protected override void OnPreviewMouseLeftButtonDown(MouseButtonEventArgs e)
+        private void DragCanvas_PointerPressed(object sender, PointerRoutedEventArgs e)
         {
-            base.OnPreviewMouseLeftButtonDown(e);
-            this.isDragInProgress = false;
-            this.origCursorLocation = e.GetPosition(this);
-            this.ElementBeingDragged = this.FindCanvasChild(e.Source as DependencyObject);
+            isDragInProgress = false;
+            _currentPointer = e.Pointer;
+            origCursorLocation = e.GetCurrentPoint(this).Position;
+            ElementBeingDragged = FindCanvasChild(e.OriginalSource as DependencyObject);
 
-            if (this.ElementBeingDragged == null)
-                return;
+            if (ElementBeingDragged == null) return;
 
-            double left = Canvas.GetLeft(this.ElementBeingDragged);
-            double right = Canvas.GetRight(this.ElementBeingDragged);
-            double top = Canvas.GetTop(this.ElementBeingDragged);
-            double bottom = Canvas.GetBottom(this.ElementBeingDragged);
-            this.origHorizOffset = ResolveOffset(left, right, out this.modifyLeftOffset);
-            this.origVertOffset = ResolveOffset(top, bottom, out this.modifyTopOffset);
+            double left = Canvas.GetLeft(ElementBeingDragged);
+            double top = Canvas.GetTop(ElementBeingDragged);
+            origHorizOffset = double.IsNaN(left) ? 0 : left;
+            origVertOffset = double.IsNaN(top) ? 0 : top;
+            modifyLeftOffset = true;
+            modifyTopOffset = true;
             e.Handled = true;
-
-            this.isDragInProgress = true;
+            isDragInProgress = true;
         }
 
-        #endregion
-
-        #region OnPreviewMouseMove
-        protected override void OnPreviewMouseMove(MouseEventArgs e)
+        private void DragCanvas_PointerMoved(object sender, PointerRoutedEventArgs e)
         {
-            base.OnPreviewMouseMove(e);
-            if (this.ElementBeingDragged == null || !this.isDragInProgress)
+            if (ElementBeingDragged == null || !isDragInProgress) return;
+
+            var cursorLocation = e.GetCurrentPoint(this).Position;
+            double newH, newV;
+
+            if (modifyLeftOffset) newH = origHorizOffset + (cursorLocation.X - origCursorLocation.X);
+            else newH = origHorizOffset - (cursorLocation.X - origCursorLocation.X);
+            if (modifyTopOffset) newV = origVertOffset + (cursorLocation.Y - origCursorLocation.Y);
+            else newV = origVertOffset - (cursorLocation.Y - origCursorLocation.Y);
+
+            if (!AllowDragOutOfView)
             {
-                return;
+                var elemRect = CalculateDragElementRect(newH, newV);
+                if (elemRect.Left < 0) newH = modifyLeftOffset ? 0 : ActualWidth - elemRect.Width;
+                else if (elemRect.Right > ActualWidth) newH = modifyLeftOffset ? ActualWidth - elemRect.Width : 0;
+                if (elemRect.Top < 0) newV = modifyTopOffset ? 0 : ActualHeight - elemRect.Height;
+                else if (elemRect.Bottom > ActualHeight) newV = modifyTopOffset ? ActualHeight - elemRect.Height : 0;
             }
 
-            Point cursorLocation = e.GetPosition(this);
-            double newHorizontalOffset, newVerticalOffset;
-
-            #region Calculate Offsets
-            if (this.modifyLeftOffset)
-                newHorizontalOffset = this.origHorizOffset + (cursorLocation.X - this.origCursorLocation.X);
-            else
-                newHorizontalOffset = this.origHorizOffset - (cursorLocation.X - this.origCursorLocation.X);
-            if (this.modifyTopOffset)
-                newVerticalOffset = this.origVertOffset + (cursorLocation.Y - this.origCursorLocation.Y);
-            else
-                newVerticalOffset = this.origVertOffset - (cursorLocation.Y - this.origCursorLocation.Y);
-
-            #endregion
-
-            if (!this.AllowDragOutOfView)
-            {
-                #region Verify Drag Element Location
-
-                Rect elemRect = this.CalculateDragElementRect(newHorizontalOffset, newVerticalOffset);
-                bool leftAlign = elemRect.Left < 0;
-                bool rightAlign = elemRect.Right > this.ActualWidth;
-
-                if (leftAlign)
-                    newHorizontalOffset = modifyLeftOffset ? 0 : this.ActualWidth - elemRect.Width;
-                else if (rightAlign)
-                    newHorizontalOffset = modifyLeftOffset ? this.ActualWidth - elemRect.Width : 0;
-
-                bool topAlign = elemRect.Top < 0;
-                bool bottomAlign = elemRect.Bottom > this.ActualHeight;
-
-                if (topAlign)
-                    newVerticalOffset = modifyTopOffset ? 0 : this.ActualHeight - elemRect.Height;
-                else if (bottomAlign)
-                    newVerticalOffset = modifyTopOffset ? this.ActualHeight - elemRect.Height : 0;
-
-                #endregion
-            }
-
-            #region Move Drag Element
-
-            if (this.modifyLeftOffset)
-                Canvas.SetLeft(this.ElementBeingDragged, newHorizontalOffset);
-            else
-                Canvas.SetRight(this.ElementBeingDragged, newHorizontalOffset);
-
-            if (this.modifyTopOffset)
-                Canvas.SetTop(this.ElementBeingDragged, newVerticalOffset);
-            else
-                Canvas.SetBottom(this.ElementBeingDragged, newVerticalOffset);
-
-            // TOOD: Find element this is being dragged over
-
-            #endregion
+            Canvas.SetLeft(ElementBeingDragged, newH);
+            Canvas.SetTop(ElementBeingDragged, newV);
         }
 
-        #endregion
-
-        #region OnHostPreviewMouseUp
-        protected override void OnPreviewMouseUp(MouseButtonEventArgs e)
+        private void DragCanvas_PointerReleased(object sender, PointerRoutedEventArgs e)
         {
-            base.OnPreviewMouseUp(e);
-            this.ElementBeingDragged = null;
+            ElementBeingDragged = null;
         }
 
-        #endregion
-        #endregion
-        #region Private Helpers
-        #region CalculateDragElementRect
-        private Rect CalculateDragElementRect(double newHorizOffset, double newVertOffset)
+        private global::Windows.Foundation.Rect CalculateDragElementRect(double newH, double newV)
         {
-            if (this.ElementBeingDragged == null)
-                throw new InvalidOperationException("ElementBeingDragged is null.");
-            Size elemSize = this.ElementBeingDragged.RenderSize;
-            double x, y;
-            if (this.modifyLeftOffset)
-                x = newHorizOffset;
-            else
-                x = this.ActualWidth - newHorizOffset - elemSize.Width;
-            if (this.modifyTopOffset)
-                y = newVertOffset;
-            else
-                y = this.ActualHeight - newVertOffset - elemSize.Height;
-            Point elemLoc = new Point(x, y);
-            return new Rect(elemLoc, elemSize);
+            if (ElementBeingDragged == null) throw new InvalidOperationException("ElementBeingDragged is null.");
+            double w = ElementBeingDragged.ActualSize.X;
+            double h = ElementBeingDragged.ActualSize.Y;
+            double x = modifyLeftOffset ? newH : ActualWidth - newH - w;
+            double y = modifyTopOffset ? newV : ActualHeight - newV - h;
+            return new global::Windows.Foundation.Rect(x, y, w, h);
         }
-        #endregion
-        #region ResolveOffset
+
         private static double ResolveOffset(double side1, double side2, out bool useSide1)
         {
-
             useSide1 = true;
-            double result;
-            if (Double.IsNaN(side1))
+            if (double.IsNaN(side1))
             {
-                if (Double.IsNaN(side2))
-                {
-                    result = 0;
-                }
-                else
-                {
-                    result = side2;
-                    useSide1 = false;
-                }
+                if (double.IsNaN(side2)) return 0;
+                useSide1 = false;
+                return side2;
             }
-            else
-            {
-                result = side1;
-            }
-            return result;
+            return side1;
         }
-        #endregion
-        #region UpdateZOrder
+
         private void UpdateZOrder(UIElement element, bool bringToFront)
         {
-            #region Safety Check
+            if (element == null) throw new ArgumentNullException("element");
+            if (!base.Children.Contains(element)) throw new ArgumentException("Must be a child element of the Canvas.", "element");
 
-            if (element == null)
-                throw new ArgumentNullException("element");
-
-            if (!base.Children.Contains(element))
-                throw new ArgumentException("Must be a child element of the Canvas.", "element");
-
-            #endregion
-
-            #region Calculate Z-Indici And Offset
             int elementNewZIndex = -1;
             if (bringToFront)
             {
@@ -332,15 +171,11 @@ namespace WiinUSoft
                     if (elem.Visibility != Visibility.Collapsed)
                         ++elementNewZIndex;
             }
-            else
-            {
-                elementNewZIndex = 0;
-            }
-            int offset = (elementNewZIndex == 0) ? +1 : -1;
+            else elementNewZIndex = 0;
 
+            int offset = (elementNewZIndex == 0) ? +1 : -1;
             int elementCurrentZIndex = Canvas.GetZIndex(element);
-            #endregion
-            #region Update Z-Indici
+
             foreach (UIElement childElement in base.Children)
             {
                 if (childElement == element)
@@ -350,14 +185,9 @@ namespace WiinUSoft
                     int zIndex = Canvas.GetZIndex(childElement);
                     if (bringToFront && elementCurrentZIndex < zIndex ||
                         !bringToFront && zIndex < elementCurrentZIndex)
-                    {
                         Canvas.SetZIndex(childElement, zIndex + offset);
-                    }
                 }
             }
-            #endregion
         }
-        #endregion
-        #endregion
-    }     
+    }
 }

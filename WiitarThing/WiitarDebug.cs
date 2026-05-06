@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Windows;
 
 namespace WiinUSoft
 {
@@ -24,7 +23,7 @@ namespace WiinUSoft
 #endif
             var utcDate = DateTime.Now.ToUniversalTime();
             string date = $"{utcDate.Hour:D2}:{utcDate.Minute:D2}:{utcDate.Second:D2}.{utcDate.Millisecond:D3}";
-            string logFilePath = Frankenpath(new FileInfo(Application.ResourceAssembly.Location).DirectoryName, "WiitarLog.log");
+            string logFilePath = Frankenpath(AppContext.BaseDirectory.TrimEnd('\\'), "WiitarLog.log");
 
             using (var logFile = File.Open(logFilePath, FileMode.Append, FileAccess.Write))
             {

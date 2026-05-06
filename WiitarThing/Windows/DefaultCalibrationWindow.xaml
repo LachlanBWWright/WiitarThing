@@ -1,0 +1,67 @@
+<Window x:Class="WiinUSoft.Windows.DefaultCalibrationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Default Calibration">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="Choose a calibration setting to use by default, or copy preferences from an existing device profile."
+                   TextWrapping="Wrap"
+                   FontSize="13"
+                   Margin="0,0,0,12"/>
+
+        <StackPanel Grid.Row="1"
+                Margin="4,0,0,0"
+                Spacing="6">
+            <RadioButton x:Name="radioMin"
+                    Content="Minimum"
+                    GroupName="selection"
+                    FontSize="13"/>
+            <RadioButton x:Name="radioDefault"
+                    Content="Default"
+                    GroupName="selection"
+                    FontSize="13"
+                    IsChecked="True"/>
+            <RadioButton x:Name="radioMod"
+                    Content="Moderate"
+                    GroupName="selection"
+                    FontSize="13"/>
+            <RadioButton x:Name="radioExt"
+                    Content="Extra"
+                    GroupName="selection"
+                    FontSize="13"/>
+            <StackPanel Orientation="Horizontal"
+                    Spacing="8">
+                <RadioButton x:Name="radioCopy"
+                        Content="Copy From:"
+                        GroupName="selection"
+                        FontSize="13"
+                        IsEnabled="False"
+                        VerticalAlignment="Center"/>
+                <ComboBox x:Name="copyCombo"
+                        IsEnabled="False"
+                        MinWidth="170"/>
+            </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2"
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Margin="0,12,0,0"
+                Spacing="8">
+            <Button x:Name="clearBtn"
+                    Content="Clear"
+                    Width="90"
+                    Click="clearBtn_Click"/>
+            <Button x:Name="saveBtn"
+                    Content="Save"
+                    Width="90"
+                    Click="saveBtn_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

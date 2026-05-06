@@ -71,7 +71,7 @@ namespace Shared
 
         public override void Flush()
         {
-            
+
         }
 
         public override int Read(byte[] buffer, int offset, int count)
@@ -319,18 +319,18 @@ namespace Shared
                     break;
             }
 
-            buf[0] |= (byte)(left  ? 0x01 : 0x00);
+            buf[0] |= (byte)(left ? 0x01 : 0x00);
             buf[0] |= (byte)(right ? 0x02 : 0x00);
-            buf[0] |= (byte)(down  ? 0x04 : 0x00);
-            buf[0] |= (byte)(up    ? 0x08 : 0x00);
-            buf[0] |= (byte)(plus  ? 0x10 : 0x00);
+            buf[0] |= (byte)(down ? 0x04 : 0x00);
+            buf[0] |= (byte)(up ? 0x08 : 0x00);
+            buf[0] |= (byte)(plus ? 0x10 : 0x00);
 
-            buf[1] |= (byte)(two   ? 0x01 : 0x00);
-            buf[1] |= (byte)(one   ? 0x02 : 0x00);
-            buf[1] |= (byte)(b     ? 0x04 : 0x00);
-            buf[1] |= (byte)(a     ? 0x08 : 0x00);
+            buf[1] |= (byte)(two ? 0x01 : 0x00);
+            buf[1] |= (byte)(one ? 0x02 : 0x00);
+            buf[1] |= (byte)(b ? 0x04 : 0x00);
+            buf[1] |= (byte)(a ? 0x08 : 0x00);
             buf[1] |= (byte)(minus ? 0x10 : 0x00);
-            buf[1] |= (byte)(home  ? 0x80 : 0x00);
+            buf[1] |= (byte)(home ? 0x80 : 0x00);
 
             return buf;
         }
@@ -380,33 +380,33 @@ namespace Shared
                 buf[7] = ry[1];
 
                 buf[8] = 0x00;
-                buf[8] += (byte)(!pro.R     ? 0x02 : 0x00);
-                buf[8] += (byte)(!pro.Plus  ? 0x04 : 0x00);
-                buf[8] += (byte)(!pro.Home  ? 0x08 : 0x00);
+                buf[8] += (byte)(!pro.R ? 0x02 : 0x00);
+                buf[8] += (byte)(!pro.Plus ? 0x04 : 0x00);
+                buf[8] += (byte)(!pro.Home ? 0x08 : 0x00);
                 buf[8] += (byte)(!pro.Minus ? 0x10 : 0x00);
-                buf[8] += (byte)(!pro.L     ? 0x20 : 0x00);
-                buf[8] += (byte)(!pro.Down  ? 0x40 : 0x00);
+                buf[8] += (byte)(!pro.L ? 0x20 : 0x00);
+                buf[8] += (byte)(!pro.Down ? 0x40 : 0x00);
                 buf[8] += (byte)(!pro.Right ? 0x80 : 0x00);
 
                 buf[9] = 0x00;
-                buf[9] += (byte)(!pro.Up   ? 0x01 : 0x00);
+                buf[9] += (byte)(!pro.Up ? 0x01 : 0x00);
                 buf[9] += (byte)(!pro.Left ? 0x02 : 0x00);
-                buf[9] += (byte)(!pro.ZR   ? 0x04 : 0x00);
-                buf[9] += (byte)(!pro.X    ? 0x08 : 0x00);
-                buf[9] += (byte)(!pro.A    ? 0x10 : 0x00);
-                buf[9] += (byte)(!pro.Y    ? 0x20 : 0x00);
-                buf[9] += (byte)(!pro.B    ? 0x40 : 0x00);
-                buf[9] += (byte)(!pro.ZL   ? 0x80 : 0x00);
+                buf[9] += (byte)(!pro.ZR ? 0x04 : 0x00);
+                buf[9] += (byte)(!pro.X ? 0x08 : 0x00);
+                buf[9] += (byte)(!pro.A ? 0x10 : 0x00);
+                buf[9] += (byte)(!pro.Y ? 0x20 : 0x00);
+                buf[9] += (byte)(!pro.B ? 0x40 : 0x00);
+                buf[9] += (byte)(!pro.ZL ? 0x80 : 0x00);
 
                 buf[10] = 0x00;
-                buf[10] += (byte)(!pro.RStick       ? 0x01 : 0x00);
-                buf[10] += (byte)(!pro.LStick       ? 0x02 : 0x00);
-                buf[10] += (byte)(!pro.charging     ? 0x04 : 0x00);
+                buf[10] += (byte)(!pro.RStick ? 0x01 : 0x00);
+                buf[10] += (byte)(!pro.LStick ? 0x02 : 0x00);
+                buf[10] += (byte)(!pro.charging ? 0x04 : 0x00);
                 buf[10] += (byte)(!pro.usbConnected ? 0x08 : 0x00);
             }
             else if (t == typeof(Nunchuk))
             {
-                
+
             }
             else if (t == typeof(ClassicController))
             {

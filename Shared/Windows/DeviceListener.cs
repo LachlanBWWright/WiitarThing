@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Runtime.InteropServices;
-using System.Windows;
-using System.Windows.Interop;
 
 namespace Shared.Windows
 {
@@ -9,10 +7,10 @@ namespace Shared.Windows
     {
         #region Class Constants
         // https://msdn.microsoft.com/en-us/library/aa363480(v=vs.85).aspx
-        private const int DbtDeviceArrival        = 0x8000;  // system detected a new device        
+        private const int DbtDeviceArrival = 0x8000;  // system detected a new device        
         private const int DbtDeviceRemoveComplete = 0x8004;  // device is gone     
-        private const int DbtDevNodesChanged      = 0x0007;  // A device has been added to or removed from the system.
-  
+        private const int DbtDevNodesChanged = 0x0007;  // A device has been added to or removed from the system.
+
         private const int DbtDevtypDeviceinterface = 5;
         private const int WmDevicechange = 0x0219;          // device change event message
 
@@ -22,7 +20,7 @@ namespace Shared.Windows
         // https://msdn.microsoft.com/en-us/library/windows/hardware/ff553426(v=vs.85).aspx
         public static readonly Guid GuidInterfaceUSB = new Guid("A5DCBF10-6530-11D2-901F-00C04FB951ED");
         public static readonly Guid GuidInterfaceHID = new Guid("745A17A0-74D3-11D0-B6FE-00A0C90f57DA");
-        public static readonly Guid GuidInterfaceBT  = new Guid("E0CBF06C-CD8B-4647-BB8A-263B43F0F974");
+        public static readonly Guid GuidInterfaceBT = new Guid("E0CBF06C-CD8B-4647-BB8A-263B43F0F974");
         #endregion
 
         public static DeviceListener Instance { get; private set; }
@@ -30,21 +28,16 @@ namespace Shared.Windows
         public event Action OnDevicesUpdated;
 
         private IntPtr notificationHandle;
-        
+
         static DeviceListener()
         {
             Instance = new DeviceListener();
         }
 
         private DeviceListener() { }
-        
-        public void RegisterDeviceNotification(Window window, Guid deviceClass, bool usbOnly = false)
+
+        public void RegisterDeviceNotification(IntPtr windowHandle, Guid deviceClass, bool usbOnly = false)
         {
-            var source = HwndSource.FromHwnd(new WindowInteropHelper(window).Handle);
-            source.AddHook(HwndHandler);
-
-            IntPtr windowHandle = source.Handle;
-
             var deviceInterface = new DevBroadcastDeviceInterface
             {
                 DeviceType = DbtDevtypDeviceinterface,
@@ -59,7 +52,7 @@ namespace Shared.Windows
 
             notificationHandle = RegisterDeviceNotification(windowHandle, buffer, usbOnly ? 0 : DEVICE_NOTIFY_ALL_INTERFACE_CLASSES);
         }
-        
+
         public void UnregisterDeviceNotification()
         {
             UnregisterDeviceNotification(notificationHandle);

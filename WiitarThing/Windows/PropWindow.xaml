@@ -1,12 +1,7 @@
-﻿<Window
+﻿<Window x:Class="WiinUSoft.PropWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:System="clr-namespace:System;assembly=mscorlib" x:Class="WiinUSoft.PropWindow"
-        Title="Device Properties" Height="160" Width="360"
-        Background="{DynamicResource BrushSocialBlue}"
-        Icon="../Images/WiinUSoft_Icon32.png"
-        ResizeMode="NoResize"
-        WindowStartupLocation="CenterOwner">
+        Title="Device Properties">
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -22,10 +17,7 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Text="Device Name:" VerticalAlignment="Center" FontSize="13"/>
-            <TextBox x:Name="nameInput"
-                     Grid.Column="1"
-                     Height="26"
-                     VerticalContentAlignment="Center"
+            <TextBox x:Name="nameInput" Grid.Column="1" Height="26" VerticalContentAlignment="Center"
                      TextChanged="nameInput_TextChanged"/>
         </Grid>
 
@@ -36,41 +28,36 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Text="Auto Connect:" VerticalAlignment="Center" FontSize="13"/>
-            <ComboBox x:Name="autoConnectNumber"
-                      Grid.Column="1"
-                      Height="26"
-                      SelectedIndex="0"
-                      SelectionChanged="AutoConnect_SelectionChanged">
-                <System:String>None</System:String>
-                <System:String>Controller 1</System:String>
-                <System:String>Controller 2</System:String>
-                <System:String>Controller 3</System:String>
-                <System:String>Controller 4</System:String>
-                <System:String>First Available</System:String>
+            <ComboBox x:Name="autoConnectNumber" Grid.Column="1" Height="26"
+                      SelectedIndex="0" SelectionChanged="AutoConnect_SelectionChanged">
+                <ComboBoxItem Content="None"/>
+                <ComboBoxItem Content="Controller 1"/>
+                <ComboBoxItem Content="Controller 2"/>
+                <ComboBoxItem Content="Controller 3"/>
+                <ComboBoxItem Content="Controller 4"/>
+                <ComboBoxItem Content="First Available"/>
             </ComboBox>
         </Grid>
 
-        <!-- Hidden / collapsed controls (kept for code-behind compatibility) -->
-        <CheckBox x:Name="autoCheckbox" Visibility="Collapsed" Click="autoCheckbox_Click"/>
-        <TextBox  x:Name="defaultInput" Visibility="Collapsed" TextChanged="defaultInput_TextChanged"/>
-        <Button   x:Name="defaultBtn"   Visibility="Collapsed" Click="defaultBtn_Click" Content="..."/>
-        <ComboBox x:Name="rumbleSelection"      Visibility="Collapsed" SelectedIndex="2" SelectionChanged="Rumble_SelectionChanged"/>
-        <ComboBox x:Name="calibrationSelection" Visibility="Collapsed" SelectedIndex="0" SelectionChanged="Calibration_SelectionChanged" DropDownClosed="calibrationSelection_DropDownClosed"/>
-        <ComboBox x:Name="pointerSelection"     Visibility="Collapsed" SelectedIndex="0" SelectionChanged="pointerSelection_SelectionChanged"/>
+        <!-- Hidden controls for code-behind compatibility -->
+        <CheckBox  x:Name="autoCheckbox"      Visibility="Collapsed" Click="autoCheckbox_Click"/>
+        <TextBox   x:Name="defaultInput"      Visibility="Collapsed" TextChanged="defaultInput_TextChanged"/>
+        <Button    x:Name="defaultBtn"        Visibility="Collapsed" Click="defaultBtn_Click" Content="..."/>
+        <ComboBox  x:Name="rumbleSelection"   Visibility="Collapsed" SelectedIndex="2"  SelectionChanged="Rumble_SelectionChanged"/>
+        <ComboBox  x:Name="calibrationSelection" Visibility="Collapsed" SelectedIndex="0"
+                   SelectionChanged="Calibration_SelectionChanged" DropDownClosed="calibrationSelection_DropDownClosed">
+            <ComboBoxItem Content="Default"/>
+            <ComboBoxItem Content="Minimal"/>
+            <ComboBoxItem Content="More"/>
+            <ComboBoxItem Content="Extra"/>
+            <ComboBoxItem Content="Custom"/>
+        </ComboBox>
+        <ComboBox  x:Name="pointerSelection"  Visibility="Collapsed" SelectedIndex="0"  SelectionChanged="pointerSelection_SelectionChanged"/>
 
         <!-- Bottom action row -->
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-            <Button x:Name="cancelBtn"
-                    Style="{StaticResource BaseButtonStyle}"
-                    Content="Cancel"
-                    Width="72" Height="28"
-                    Margin="0,0,8,0"
-                    Click="cancelBtn_Click"/>
-            <Button x:Name="saveBtn"
-                    Style="{StaticResource PrimaryButtonStyle}"
-                    Content="Save"
-                    Width="72" Height="28"
-                    Click="saveBtn_Click"/>
+            <Button x:Name="cancelBtn" Style="{StaticResource BaseButtonStyle}"   Content="Cancel" Width="72" Height="28" Margin="0,0,8,0" Click="cancelBtn_Click"/>
+            <Button x:Name="saveBtn"   Style="{StaticResource PrimaryButtonStyle}" Content="Save"  Width="72" Height="28" Click="saveBtn_Click"/>
         </StackPanel>
     </Grid>
 </Window>

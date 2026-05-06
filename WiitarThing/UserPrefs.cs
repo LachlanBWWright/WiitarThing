@@ -229,14 +229,14 @@ namespace WiinUSoft
             {
                 if (pref.hid == property.hid)
                 {
-                    pref.name            = property.name;
-                    pref.autoConnect     = property.autoConnect;
-                    pref.profile         = property.profile;
-                    pref.connType        = property.connType;
-                    pref.autoNum         = property.autoNum;
+                    pref.name = property.name;
+                    pref.autoConnect = property.autoConnect;
+                    pref.profile = property.profile;
+                    pref.connType = property.connType;
+                    pref.autoNum = property.autoNum;
                     pref.rumbleIntensity = property.rumbleIntensity;
-                    pref.useRumble       = property.useRumble;
-                    pref.calPref         = property.calPref;
+                    pref.useRumble = property.useRumble;
+                    pref.calPref = property.calPref;
 
                     return;
                 }
@@ -281,20 +281,20 @@ namespace WiinUSoft
 
         public enum CalibrationPreference
         {
-            Raw     = -2,
+            Raw = -2,
             Minimal = -1,
             Default = 0,
             Defalut = 0,
-            More    = 1,
-            Extra   = 2,
-            Custom  = 3
+            More = 1,
+            Extra = 2,
+            Custom = 3
         }
 
         public enum PointerOffScreenMode
         {
             Center = 0,
-            SnapX  = 1,
-            SnapY  = 2,
+            SnapX = 1,
+            SnapY = 2,
             SnapXY = 3
         }
 

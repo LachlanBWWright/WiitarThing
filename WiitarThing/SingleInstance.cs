@@ -16,8 +16,6 @@ namespace Microsoft.Shell
     using System.IO;
     using System.IO.Pipes;
     using System.Threading;
-    using System.Windows;
-    using System.Windows.Threading;
     using System.Security;
     using System.Runtime.InteropServices;
     using System.ComponentModel;
@@ -205,7 +203,7 @@ namespace Microsoft.Shell
     /// For most apps, this will not be much of an issue.
     /// </remarks>
     public static class SingleInstance<TApplication>
-                where TApplication : Application, ISingleInstanceApp
+                where TApplication : class, ISingleInstanceApp
     {
         #region Private Fields
 
@@ -225,6 +223,14 @@ namespace Microsoft.Shell
         private static volatile bool pipeServerRunning;
 
         /// <summary>
+        /// Captured UI synchronization context so callbacks can be marshalled back to the UI thread.
+        /// </summary>
+        private static SynchronizationContext _uiSyncContext;
+
+        /// <summary>
+        /// The first-instance app object. Stored after InitializeAsFirstInstance is called.
+        /// </summary>
+        private static TApplication _application;
         /// List of command line arguments for the application.
         /// </summary>
         private static IList<string> commandLineArgs;
@@ -264,6 +270,8 @@ namespace Microsoft.Shell
             singleInstanceMutex = new Mutex(true, applicationIdentifier, out firstInstance);
             if (firstInstance)
             {
+                // Capture the UI SynchronizationContext so we can marshal back to it later.
+                _uiSyncContext = SynchronizationContext.Current;
                 CreateRemoteService(pipeName);
             }
             else
@@ -272,6 +280,16 @@ namespace Microsoft.Shell
             }
 
             return firstInstance;
+        }
+
+        /// <summary>
+        /// Registers the application instance for receiving signals from subsequent instances.
+        /// Must be called on the UI thread.
+        /// </summary>
+        public static void RegisterApplication(TApplication app)
+        {
+            _application = app;
+            _uiSyncContext = SynchronizationContext.Current ?? _uiSyncContext;
         }
 
         /// <summary>
@@ -374,12 +392,17 @@ namespace Microsoft.Shell
                                 args.Add(reader.ReadString());
                             }
 
-                            if (Application.Current != null)
+                            if (_application != null)
                             {
-                                Application.Current.Dispatcher.BeginInvoke(
-                                    DispatcherPriority.Normal,
-                                    new DispatcherOperationCallback(SingleInstance<TApplication>.ActivateFirstInstanceCallback),
-                                    args);
+                                var capturedArgs = args;
+                                if (_uiSyncContext != null)
+                                {
+                                    _uiSyncContext.Post(_ => ActivateFirstInstance(capturedArgs), null);
+                                }
+                                else
+                                {
+                                    ActivateFirstInstance(capturedArgs);
+                                }
                             }
                         }
                     }
@@ -397,28 +420,19 @@ namespace Microsoft.Shell
         /// Callback for activating first instance of the application.
         /// </summary>
         /// <param name="arg">Callback argument.</param>
-        /// <returns>Always null.</returns>
         private static object ActivateFirstInstanceCallback(object arg)
         {
-            // Get command line args to be passed to first instance
             IList<string> args = arg as IList<string>;
             ActivateFirstInstance(args);
             return null;
         }
 
-        /// <summary>
-        /// Activates the first instance of the application with arguments from a second instance.
-        /// </summary>
-        /// <param name="args">List of arguments to supply the first instance of the application.</param>
         private static void ActivateFirstInstance(IList<string> args)
         {
-            // Set main window state and process command line args
-            if (Application.Current == null)
-            {
+            if (_application == null)
                 return;
-            }
 
-            ((TApplication)Application.Current).SignalExternalCommandLineArgs(args);
+            _application.SignalExternalCommandLineArgs(args);
         }
 
         #endregion

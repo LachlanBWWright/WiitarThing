@@ -1,17 +1,7 @@
 ﻿<Window x:Class="WiinUSoft.Windows.SyncWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:WiinUSoft.Windows"
-        mc:Ignorable="d"
-        Title="Sync Devices" Height="340" Width="560"
-        MinWidth="440" MinHeight="300"
-        Background="{DynamicResource BrushSocialBlue}"
-        Icon="../Images/WiinUSoft_Icon32.png"
-        WindowStartupLocation="CenterOwner"
-        Closing="Window_Closing"
-        Loaded="Window_Loaded">
+        Title="Sync Devices">
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -23,37 +13,41 @@
         <TextBlock Grid.Row="0"
                    TextWrapping="Wrap"
                    Margin="0,0,0,4"
-                   FontSize="13">
-            <Run Text="Press the red SYNC button on the controller to pair. If that fails, press 1+2."/>
-        </TextBlock>
+                   FontSize="13"
+                   Text="Press the red SYNC button on the controller to pair. If that fails, press 1+2."/>
 
         <TextBlock Grid.Row="1"
                    TextWrapping="Wrap"
-                   FontSize="11" FontStyle="Italic"
-                   Foreground="{DynamicResource Brush.Text.Secondary}"
+                   FontSize="11"
+                   FontStyle="Italic"
+                   Foreground="{StaticResource Brush.Text.Secondary}"
                    Margin="0,0,0,8">
-            <Run FontWeight="Bold" Foreground="{DynamicResource Brush.Warning}"
-                 Text="Close this window before playing — it causes input lag while scanning."/>
+            <Run FontWeight="Bold"
+                 Foreground="{StaticResource Brush.Warning}"
+                 Text="Close this window before playing - it causes input lag while scanning."/>
             <LineBreak/>
             <Run Text="You can copy the output below when asking for help."/>
         </TextBlock>
 
-        <Border Grid.Row="2" Style="{StaticResource SectionPanelStyle}" Margin="0,0,0,8">
-            <RichTextBox x:Name="promptBoxContainer"
-                         Background="Transparent"
-                         BorderThickness="0"
-                         ScrollViewer.VerticalScrollBarVisibility="Visible"
-                         FontSize="13"
-                         IsReadOnly="True">
-                <FlowDocument x:Name="prompt" PagePadding="2"/>
-            </RichTextBox>
+        <Border Grid.Row="2"
+                Style="{StaticResource SectionPanelStyle}"
+                Margin="0,0,0,8">
+            <TextBox x:Name="promptBox"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     ScrollViewer.VerticalScrollBarVisibility="Visible"
+                     FontSize="13"
+                     IsReadOnly="True"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"/>
         </Border>
 
         <Button Grid.Row="3"
                 x:Name="cancelBtn"
                 Style="{StaticResource BaseButtonStyle}"
                 Content="Cancel Scan"
-                Width="100" Height="28"
+                Width="100"
+                Height="28"
                 HorizontalAlignment="Right"
                 Click="cancelBtn_Click"/>
     </Grid>

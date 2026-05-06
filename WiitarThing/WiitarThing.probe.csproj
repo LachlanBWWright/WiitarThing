@@ -1,8 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <!-- WinUI 3 with net8.0-windows -->
-    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <!-- WinUI 3 requires the Windows 10 SDK TFM -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <UseWinUI>true</UseWinUI>
     <!-- WPF removed; WinUI 3 is used instead -->
     <RootNamespace>WiinUSoft</RootNamespace>
@@ -51,6 +51,7 @@
 
   <ItemGroup>
     <!-- Images are content (copied to output dir) so WinUI 3 can load them by path -->
+    <Page Remove='Windows\ErrorWindow.xaml' />
     <None Remove="Images\**\*" />
     <None Remove="GHWT_Wii_Guitar.ico" />
     <Content Include="Images\**\*">
@@ -67,24 +68,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.250907003" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.0.*" />
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
   </ItemGroup>
 
   <Import Project="..\Shared\Shared.projitems" Label="Shared" />
-
 </Project>
-
-
-
-
-
-
-
-
-
-
-
-
-
 

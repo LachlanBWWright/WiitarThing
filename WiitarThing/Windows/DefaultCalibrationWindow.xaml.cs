@@ -1,31 +1,32 @@
-﻿using System.Windows;
+using Microsoft.UI.Xaml;
 
 namespace WiinUSoft.Windows
 {
-    /// <summary>
-    /// Interaction logic for CalDefaultWindow.xaml
-    /// </summary>
-    public partial class CalDefaultWindow : Window
+    public partial class DefaultCalibrationWindow : Window
     {
-        public CalDefaultWindow()
+        private bool _activated;
+
+        public DefaultCalibrationWindow()
         {
             InitializeComponent();
+            Activated += OnActivated;
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
+        private void OnActivated(object sender, WindowActivatedEventArgs args)
         {
+            if (_activated)
+                return;
+
+            _activated = true;
+
             if (UserPrefs.Instance.defaultProperty != null)
             {
                 switch (UserPrefs.Instance.defaultProperty.calPref)
                 {
-                    case Property.CalibrationPreference.Minimal:
-                        radioMin.IsChecked = true; break;
-                    case Property.CalibrationPreference.Default:
-                        radioDefault.IsChecked = true; break;
-                    case Property.CalibrationPreference.More:
-                        radioMod.IsChecked = true; break;
-                    case Property.CalibrationPreference.Extra:
-                        radioExt.IsChecked = true; break;
+                    case Property.CalibrationPreference.Minimal: radioMin.IsChecked = true; break;
+                    case Property.CalibrationPreference.Default: radioDefault.IsChecked = true; break;
+                    case Property.CalibrationPreference.More: radioMod.IsChecked = true; break;
+                    case Property.CalibrationPreference.Extra: radioExt.IsChecked = true; break;
                 }
             }
 
@@ -45,27 +46,29 @@ namespace WiinUSoft.Windows
 
         private void saveBtn_Click(object sender, RoutedEventArgs e)
         {
-            Property prop = new Property();
-            prop.hid = "all";
-            prop.name = "Default";
-            
-            if (radioDefault.IsChecked ?? false)
+            var prop = new Property
+            {
+                hid = "all",
+                name = "Default"
+            };
+
+            if (radioDefault.IsChecked == true)
             {
                 prop.calPref = Property.CalibrationPreference.Default;
             }
-            else if (radioMin.IsChecked ?? false)
+            else if (radioMin.IsChecked == true)
             {
                 prop.calPref = Property.CalibrationPreference.Minimal;
             }
-            else if (radioMod.IsChecked ?? false)
+            else if (radioMod.IsChecked == true)
             {
                 prop.calPref = Property.CalibrationPreference.More;
             }
-            else if (radioExt.IsChecked ?? false)
+            else if (radioExt.IsChecked == true)
             {
                 prop.calPref = Property.CalibrationPreference.Extra;
             }
-            else if (radioCopy.IsChecked ?? false)
+            else if (radioCopy.IsChecked == true && copyCombo.SelectedIndex >= 0)
             {
                 prop.calPref = Property.CalibrationPreference.Custom;
                 var copy = UserPrefs.Instance.devicePrefs[copyCombo.SelectedIndex];
