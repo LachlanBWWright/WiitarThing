@@ -26,7 +26,6 @@ namespace Shared.Windows
             out uint lpNumberOfBytesWritten, // LPDWORD
             [In] ref NativeOverlapped lpOverlapped);
 
-
         /// <summary>
         /// Async Callback for WriteFileEx
         /// </summary>

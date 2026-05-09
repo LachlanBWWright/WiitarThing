@@ -360,7 +360,7 @@ namespace Shared.Windows
         {
             System.Diagnostics.Debug.WriteLine("Writing: " + BitConverter.ToString(buffer));
 
-            if (UseFullReportSize)
+            if (UseFullReportSize || UseWriteFile)
             {
                 var buf = new byte[22];
                 buffer.CopyTo(buf, 0);
@@ -371,31 +371,7 @@ namespace Shared.Windows
             {
                 if (UseWriteFile)
                 {
-                    uint written = 0;
-                    var nativeOverlap = new NativeOverlapped();
-
-                    // Provide a reset event that will get set once asynchronouse writing has completed
-                    var resetEvent = new ManualResetEvent(false);
-                    nativeOverlap.EventHandle = resetEvent.SafeWaitHandle.DangerousGetHandle();
-
-                    // success is most likely to be false which can mean it is being completed asynchronously, in this case we need to wait
-                    var dh = _fileHandle.DangerousGetHandle();
-                    bool success = false;
-                    try
-                    {
-                        success = WriteFile(dh, buffer, (uint)buffer.Length, out written, ref nativeOverlap);
-                    }
-                    catch
-                    {
-                        System.Diagnostics.Debug.WriteLine("caught!");
-                    }
-                    uint error = GetLastError();
-
-                    // Wait for the async operation to complete
-                    if (!success && error == 997)
-                    {
-                        resetEvent.WaitOne(8000);
-                    }
+                    _fileStream?.Write(buffer, 0, buffer.Length);
 
                     // Example for async and callback
                     //bool success = WriteFileEx(_fileHandle.DangerousGetHandle(), buffer, out written, ref nativeOverlap, 
