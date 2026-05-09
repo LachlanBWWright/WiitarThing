@@ -11,65 +11,49 @@
                         <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Button Bar -->
-                <StackPanel Grid.Row="0"
-                            Orientation="Horizontal"
-                            Spacing="8"
-                            Padding="12,8,12,8"
-                            Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-                        <Button x:Name="btnSync"
-                                Content="Sync"
-                                ToolTipService.ToolTip="Sync a new Wiimote"
-                                Click="btnSync_Click"
-                                Padding="12,8"/>
-                        <Button x:Name="btnRefresh"
-                                Content="Refresh"
-                                ToolTipService.ToolTip="Refresh detected device list"
-                                Click="btnRefresh_Click"
-                                Padding="12,8"/>
-                        <Button x:Name="buttonTestInputs"
-                                Content="Test Controllers"
-                                ToolTipService.ToolTip="Open controller test panel (joy.cpl)"
-                                Click="buttonTestInputs_Click"
-                                Padding="12,8"/>
-                        <Button x:Name="btnSettings"
-                                Content="Advanced Settings"
-                                ToolTipService.ToolTip="Advanced configuration"
-                                Click="btnSettings_Click"
-                                Padding="12,8">
-                                <Button.Flyout>
-                                        <MenuFlyout>
-                                                <MenuFlyoutItem x:Name="menu_version"
-                                                                Text="Version"
-                                                                IsEnabled="False"/>
-                                                <MenuFlyoutSeparator/>
-                                                <ToggleMenuFlyoutItem x:Name="menu_AutoStart"
-                                                                Text="Start with Windows"
-                                                                Click="menu_AutoStart_Click"/>
-                                                <ToggleMenuFlyoutItem x:Name="menu_StartMinimized"
-                                                                Text="Start minimized"
-                                                                Click="menu_StartMinimized_Click"/>
-                                                <ToggleMenuFlyoutItem x:Name="menu_NoSharing"
-                                                                Text="Exclusive Bluetooth access"
-                                                                Click="menu_NoSharing_Click"/>
-                                                <ToggleMenuFlyoutItem x:Name="menu_AutoRefresh"
-                                                                Text="Auto refresh"
-                                                                Click="menu_AutoRefresh_Click"/>
-                                                <ToggleMenuFlyoutItem x:Name="menu_MsBluetooth"
-                                                                Text="Use Microsoft Bluetooth stack"
-                                                                Click="menu_MsBluetooth_Click"/>
-                                                <MenuFlyoutSeparator/>
-                                                <MenuFlyoutItem Text="Default Calibration"
-                                                                Click="menu_SetDefaultCalibration_Click"/>
-                                        </MenuFlyout>
-                                </Button.Flyout>
-                        </Button>
-                        <Button x:Name="btnRemoveAllWiimotes"
-                                Content="Remove All Wiimotes"
-                                ToolTipService.ToolTip="Remove all paired Wiimotes from this PC"
-                                Click="btnRemoveAllWiimotes_Click"
-                                Padding="12,8"/>
-                </StackPanel>
+                <MenuBar Grid.Row="0"
+                         Padding="8,4"
+                         Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+                        <MenuBarItem Title="Device">
+                                <MenuFlyoutItem x:Name="menuSync"
+                                                Text="Sync New Controller"
+                                                Click="btnSync_Click"/>
+                                <MenuFlyoutItem Text="Refresh"
+                                                Click="btnRefresh_Click"/>
+                                <MenuFlyoutSeparator/>
+                                <MenuFlyoutItem Text="Remove All Wiimotes"
+                                                Click="btnRemoveAllWiimotes_Click"/>
+                                <MenuFlyoutItem Text="Disconnect All Controllers"
+                                                Click="btnDetatchAllXInput_Click"/>
+                        </MenuBarItem>
+                        <MenuBarItem Title="Tools">
+                                <MenuFlyoutItem Text="Test Controllers"
+                                                Click="buttonTestInputs_Click"/>
+                                <MenuFlyoutItem Text="Default Calibration"
+                                                Click="menu_SetDefaultCalibration_Click"/>
+                        </MenuBarItem>
+                        <MenuBarItem Title="Settings">
+                                <MenuFlyoutItem x:Name="menu_version"
+                                                Text="Version"
+                                                IsEnabled="False"/>
+                                <MenuFlyoutSeparator/>
+                                <ToggleMenuFlyoutItem x:Name="menu_AutoStart"
+                                                       Text="Start with Windows"
+                                                       Click="menu_AutoStart_Click"/>
+                                <ToggleMenuFlyoutItem x:Name="menu_StartMinimized"
+                                                       Text="Start minimized"
+                                                       Click="menu_StartMinimized_Click"/>
+                                <ToggleMenuFlyoutItem x:Name="menu_NoSharing"
+                                                       Text="Exclusive Bluetooth access"
+                                                       Click="menu_NoSharing_Click"/>
+                                <ToggleMenuFlyoutItem x:Name="menu_AutoRefresh"
+                                                       Text="Auto refresh"
+                                                       Click="menu_AutoRefresh_Click"/>
+                                <ToggleMenuFlyoutItem x:Name="menu_MsBluetooth"
+                                                       Text="Use Microsoft Bluetooth stack"
+                                                       Click="menu_MsBluetooth_Click"/>
+                        </MenuBarItem>
+                </MenuBar>
 
                 <!-- Main Content -->
                 <Grid Grid.Row="1"

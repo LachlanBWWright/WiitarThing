@@ -1,0 +1,46 @@
+﻿<ContentDialog
+        x:Class="WiinUSoft.Windows.SyncDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sync Devices"
+        CloseButtonText="Cancel Scan"
+        Opened="ContentDialog_Opened"
+        CloseButtonClick="ContentDialog_CloseButtonClick">
+    <Grid MaxWidth="520"
+          HorizontalAlignment="Stretch">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="320"/>
+        </Grid.RowDefinitions>
+
+
+
+        <StackPanel Grid.Row="1"
+                    Spacing="6"
+                    Margin="0,0,0,12">
+            <TextBlock Style="{ThemeResource BodyTextBlockStyle}"
+                       Text="Press the red SYNC button on your controller to pair."/>
+            <TextBlock Style="{ThemeResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       TextWrapping="Wrap">
+                <Run FontWeight="SemiBold"
+                     Text="Close this dialog before playing"/>
+                <Run Text=" - it causes input lag while scanning. You can copy the output below for troubleshooting."/>
+            </TextBlock>
+        </StackPanel>
+
+        <TextBox Grid.Row="2"
+                 x:Name="promptBox"
+                 Header="Scan output"
+                 ScrollViewer.VerticalScrollBarVisibility="Visible"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 FontSize="12"
+                 MinHeight="240"
+                 MaxHeight="320"
+                 HorizontalAlignment="Stretch"/>
+    </Grid>
+</ContentDialog>

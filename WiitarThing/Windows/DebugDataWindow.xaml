@@ -30,7 +30,6 @@
                      IsReadOnly="True"
                      AcceptsReturn="True"
                      TextWrapping="Wrap"
-                     FontFamily="Consolas"
                      FontSize="11"/>
         </Border>
 

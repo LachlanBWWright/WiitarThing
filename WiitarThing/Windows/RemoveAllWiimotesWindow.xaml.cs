@@ -21,7 +21,7 @@ namespace WiinUSoft.Windows
 
             _workThread = new System.Threading.Thread(() =>
             {
-                SyncWindow.RemoveAllWiimotes();
+                SyncDialog.RemoveAllWiimotes();
                 DispatcherQueue.TryEnqueue(Close);
             });
             _workThread.IsBackground = true;

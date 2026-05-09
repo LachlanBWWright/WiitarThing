@@ -43,6 +43,7 @@ namespace WiinUSoft
         private CancellationTokenSource _refreshToken;
         private bool _refreshing;
         private bool _loadedFired;
+        private bool _syncDialogOpen;
 
         public MainWindow()
         {
@@ -314,18 +315,24 @@ namespace WiinUSoft
 
         private void btnRefresh_Click(object sender, RoutedEventArgs e) => Refresh();
 
-        private void btnSync_Click(object sender, RoutedEventArgs e)
+        private async void btnSync_Click(object sender, RoutedEventArgs e)
         {
-            var sync = new Windows.SyncWindow();
-            sync.NewDeviceFound += Sync_NewDeviceFound;
-            sync.Closed += Sync_Closed;
-            sync.Activate();
-        }
+            if (_syncDialogOpen) return;
 
-        private void Sync_Closed(object sender, WindowEventArgs e)
-        {
-            ((Windows.SyncWindow)sender).NewDeviceFound -= Sync_NewDeviceFound;
-            ((Windows.SyncWindow)sender).Closed -= Sync_Closed;
+            _syncDialogOpen = true;
+            menuSync.IsEnabled = false;
+            var sync = new Windows.SyncDialog { XamlRoot = Content.XamlRoot };
+            sync.NewDeviceFound += Sync_NewDeviceFound;
+            try
+            {
+                await sync.ShowAsync();
+            }
+            finally
+            {
+                sync.NewDeviceFound -= Sync_NewDeviceFound;
+                menuSync.IsEnabled = true;
+                _syncDialogOpen = false;
+            }
         }
 
         private void Sync_NewDeviceFound(object sender, EventArgs e)

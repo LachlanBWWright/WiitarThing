@@ -48,7 +48,6 @@
                      ScrollViewer.VerticalScrollBarVisibility="Auto"
                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
                      IsReadOnly="True"
-                     FontFamily="Consolas"
                      FontSize="11"/>
         </Border>
 
