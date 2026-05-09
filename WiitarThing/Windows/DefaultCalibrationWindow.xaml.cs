@@ -1,23 +1,24 @@
-using Microsoft.UI.Xaml;
+using System.Collections.Generic;
+using Microsoft.UI.Xaml.Controls;
 
 namespace WiinUSoft.Windows
 {
-    public partial class DefaultCalibrationWindow : Window
+    public partial class DefaultCalibrationWindow : ContentDialog
     {
-        private bool _activated;
+        private bool _opened;
+        private readonly List<Property> _copyPrefs = new List<Property>();
 
         public DefaultCalibrationWindow()
         {
             InitializeComponent();
-            Activated += OnActivated;
         }
 
-        private void OnActivated(object sender, WindowActivatedEventArgs args)
+        private void ContentDialog_Opened(ContentDialog sender, ContentDialogOpenedEventArgs args)
         {
-            if (_activated)
+            if (_opened)
                 return;
 
-            _activated = true;
+            _opened = true;
 
             if (UserPrefs.Instance.defaultProperty != null)
             {
@@ -33,7 +34,10 @@ namespace WiinUSoft.Windows
             foreach (var pref in UserPrefs.Instance.devicePrefs)
             {
                 if (pref.hid != "all")
+                {
                     copyCombo.Items.Add(pref.name);
+                    _copyPrefs.Add(pref);
+                }
             }
 
             if (copyCombo.Items.Count > 0)
@@ -44,7 +48,7 @@ namespace WiinUSoft.Windows
             }
         }
 
-        private void saveBtn_Click(object sender, RoutedEventArgs e)
+        private void ContentDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
         {
             var prop = new Property
             {
@@ -71,7 +75,7 @@ namespace WiinUSoft.Windows
             else if (radioCopy.IsChecked == true && copyCombo.SelectedIndex >= 0)
             {
                 prop.calPref = Property.CalibrationPreference.Custom;
-                var copy = UserPrefs.Instance.devicePrefs[copyCombo.SelectedIndex];
+                var copy = _copyPrefs[copyCombo.SelectedIndex];
                 prop.autoConnect = copy.autoConnect;
                 prop.autoNum = copy.autoNum;
                 prop.calString = copy.calString;
@@ -81,15 +85,13 @@ namespace WiinUSoft.Windows
 
             UserPrefs.Instance.defaultProperty = prop;
             UserPrefs.SavePrefs();
-            Close();
         }
 
-        private void clearBtn_Click(object sender, RoutedEventArgs e)
+        private void ContentDialog_SecondaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
         {
             UserPrefs.Instance.devicePrefs.Remove(UserPrefs.Instance.defaultProperty);
             UserPrefs.Instance.defaultProfile = null;
             UserPrefs.SavePrefs();
-            Close();
         }
     }
 }

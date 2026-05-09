@@ -369,9 +369,9 @@ namespace WiinUSoft.Holders
             }
 #endif
 
-            byte[] rumble = new byte[8];
-            byte[] report = new byte[28];
-            byte[] parsed = new byte[28];
+            byte[] rumble = new byte[BusDevice.RumbleSize];
+            byte[] report = new byte[BusDevice.ReportSize];
+            byte[] parsed = new byte[BusDevice.ReportSize];
 
             #region Populate Report Revised
             report[0] = (byte)ID;
@@ -617,7 +617,12 @@ namespace WiinUSoft.Holders
 
         public override int Parse(byte[] Input, byte[] Output, DsModel Type = DsModel.DS3)
         {
-            for (int index = 0; index < 28; index++)
+            if (Input == null) throw new ArgumentNullException("Input");
+            if (Output == null) throw new ArgumentNullException("Output");
+            if (Input.Length < ReportSize) throw new ArgumentException("Input buffer is smaller than the bus report size.", "Input");
+            if (Output.Length < ReportSize) throw new ArgumentException("Output buffer is smaller than the bus report size.", "Output");
+
+            for (int index = 0; index < ReportSize; index++)
             {
                 Output[index] = 0x00;
             }

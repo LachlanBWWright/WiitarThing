@@ -603,8 +603,19 @@ namespace WiinUSoft
 
         private void btnIdentify_Click(object sender, RoutedEventArgs e)
         {
+            Console.WriteLine("Start of btnIdentify_click");
             bool wasConnected = Connected;
-            if (wasConnected || ((device.DataStream as WinBtStream).OpenConnection() && device.DataStream.CanRead))
+
+            WinBtStream? localDatastream = device.DataStream as WinBtStream;
+
+            if(localDatastream == null)
+            {
+                // console log
+                Console.WriteLine("Device.datastream is null!");
+                return;
+            }
+
+            if (wasConnected || (localDatastream.OpenConnection() && device.DataStream.CanRead))
             {
                 if (!wasConnected) device.BeginReading();
                 identifying = true;
@@ -620,6 +631,8 @@ namespace WiinUSoft
                 Delay((L / 7) * 6).ContinueWith(o => device.SetPlayerLED(1));
                 if (targetXDevice != 0) Delay(L).ContinueWith(o => device.SetPlayerLED(targetXDevice));
             }
+
+            Console.WriteLine("end of btnIdentify_Click");
         }
 
         private void btnXinput_IsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e)

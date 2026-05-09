@@ -7,12 +7,11 @@
              d:DesignHeight="80"
              d:DesignWidth="300">
 
-    <!-- Device row card with WinUI Fluent styling -->
+    <!-- Device row for WinUI-style list surfaces -->
     <Border CornerRadius="8"
-            BorderThickness="1"
-            Padding="12"
-            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="0"
+            Padding="10"
+            Background="Transparent"
             x:Name="statusGradient">
 
         <Grid>

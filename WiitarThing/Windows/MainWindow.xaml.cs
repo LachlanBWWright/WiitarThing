@@ -54,9 +54,12 @@ namespace WiinUSoft
 
             InitializeComponent();
             Instance = this;
+            ExtendsContentIntoTitleBar = true;
+            SetTitleBar(AppTitleBar);
 
             Version version = System.Reflection.Assembly.GetEntryAssembly().GetName().Version;
-            Title = "WiitarThing " + string.Format("V{0}.{1}.{2}", version.Major, version.Minor, version.Revision);
+            string displayTitle = "WiitarThing " + string.Format("V{0}.{1}.{2}", version.Major, version.Minor, version.Revision);
+            Title = displayTitle;
 #if DEBUG
             Title += " Debug Build";
 #else
@@ -64,7 +67,9 @@ namespace WiinUSoft
 #endif
 #if LOW_BANDWIDTH
             Title += " - LIGHT VERSION";
+            displayTitle += " - LIGHT VERSION";
 #endif
+            AppTitleText.Text = displayTitle;
 
             _trayService = new TrayIconService();
             _trayService.ShowRequested += (s, e) => DispatcherQueue.TryEnqueue(ShowWindow);
@@ -371,8 +376,8 @@ namespace WiinUSoft
 
         private async void menu_SetDefaultCalibration_Click(object sender, RoutedEventArgs e)
         {
-            var dWin = new Windows.DefaultCalibrationWindow();
-            await dWin.ShowAsDialogAsync();
+            var dialog = new Windows.DefaultCalibrationWindow { XamlRoot = Content.XamlRoot };
+            await dialog.ShowAsync();
         }
 
         private void menu_MsBluetooth_Click(object sender, RoutedEventArgs e)
