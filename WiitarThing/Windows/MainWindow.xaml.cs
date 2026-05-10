@@ -45,6 +45,12 @@ namespace WiinUSoft
         private bool _loadedFired;
         private bool _syncDialogOpen;
 
+        private static void LogPrefsResult(Result<Unit, PreferencesError> result)
+        {
+            if (result.IsError)
+                Debug.WriteLine(result.Error.ToDisplayString());
+        }
+
         public MainWindow()
         {
             hidList = new List<DeviceInfo>();
@@ -265,7 +271,10 @@ namespace WiinUSoft
                 if (v != null)
                     menu_version.Text = string.Format("Version {0}.{1}.{2}", v.Major, v.Minor, v.Revision);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to read assembly version: {ex.Message}");
+            }
 
             if (UserPrefs.Instance.startMinimized)
             {
@@ -352,20 +361,20 @@ namespace WiinUSoft
 
         private void menu_AutoStart_Click(object sender, RoutedEventArgs e)
         {
-            UserPrefs.AutoStart = menu_AutoStart.IsChecked;
-            UserPrefs.SavePrefs();
+            LogPrefsResult(UserPrefs.SetAutoStart(menu_AutoStart.IsChecked));
+            LogPrefsResult(UserPrefs.SavePrefs());
         }
 
         private void menu_StartMinimized_Click(object sender, RoutedEventArgs e)
         {
             UserPrefs.Instance.startMinimized = menu_StartMinimized.IsChecked;
-            UserPrefs.SavePrefs();
+            LogPrefsResult(UserPrefs.SavePrefs());
         }
 
         private void menu_NoSharing_Click(object sender, RoutedEventArgs e)
         {
             UserPrefs.Instance.greedyMode = menu_NoSharing.IsChecked;
-            UserPrefs.SavePrefs();
+            LogPrefsResult(UserPrefs.SavePrefs());
             WinBtStream.OverrideSharingMode = UserPrefs.Instance.greedyMode;
             if (UserPrefs.Instance.greedyMode) WinBtStream.OverridenFileShare = FileShare.None;
         }
@@ -373,7 +382,7 @@ namespace WiinUSoft
         private void menu_AutoRefresh_Click(object sender, RoutedEventArgs e)
         {
             UserPrefs.Instance.autoRefresh = menu_AutoRefresh.IsChecked;
-            UserPrefs.SavePrefs();
+            LogPrefsResult(UserPrefs.SavePrefs());
             AutoRefresh(menu_AutoRefresh.IsChecked && ApplicationIsActivated());
         }
 
@@ -387,7 +396,7 @@ namespace WiinUSoft
         {
             WinBtStream.ForceToshibaMode = !menu_MsBluetooth.IsChecked;
             UserPrefs.Instance.toshibaMode = !menu_MsBluetooth.IsChecked;
-            UserPrefs.SavePrefs();
+            LogPrefsResult(UserPrefs.SavePrefs());
         }
 
         private async void btnRemoveAllWiimotes_Click(object sender, RoutedEventArgs e)

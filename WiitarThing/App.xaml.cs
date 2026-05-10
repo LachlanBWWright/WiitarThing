@@ -106,8 +106,17 @@ namespace WiinUSoft
                     Path.Combine(AppContext.BaseDirectory, "WiitarStartup.log"),
                     $"[{DateTime.Now:O}] {message}{Environment.NewLine}");
             }
-            catch
+            catch (UnauthorizedAccessException)
             {
+                // Logging failures should not crash startup.
+            }
+            catch (IOException)
+            {
+                // Logging failures should not crash startup.
+            }
+            catch (System.Security.SecurityException)
+            {
+                // Logging failures should not crash startup.
             }
         }
 

@@ -19,6 +19,7 @@ namespace Microsoft.Shell
     using System.Security;
     using System.Runtime.InteropServices;
     using System.ComponentModel;
+    using Shared;
 
     internal enum WM
     {
@@ -155,6 +156,15 @@ namespace Microsoft.Shell
 
         public static string[] CommandLineToArgvW(string cmdLine)
         {
+            var parseResult = TryCommandLineToArgvW(cmdLine);
+            if (parseResult.IsOk)
+                return parseResult.Value;
+
+            throw new Win32Exception(parseResult.Error);
+        }
+
+        public static Result<string[], int> TryCommandLineToArgvW(string cmdLine)
+        {
             IntPtr argv = IntPtr.Zero;
             try
             {
@@ -163,7 +173,7 @@ namespace Microsoft.Shell
                 argv = _CommandLineToArgvW(cmdLine, out numArgs);
                 if (argv == IntPtr.Zero)
                 {
-                    throw new Win32Exception();
+                    return Result<string[], int>.Err(Marshal.GetLastWin32Error());
                 }
                 var result = new string[numArgs];
 
@@ -173,7 +183,7 @@ namespace Microsoft.Shell
                     result[i] = Marshal.PtrToStringUni(currArg) ?? string.Empty;
                 }
 
-                return result;
+                return Result<string[], int>.Ok(result);
             }
             finally
             {
@@ -343,6 +353,11 @@ namespace Microsoft.Shell
         /// </param>
         private static void SignalFirstInstance(string pipeName, IList<string> args)
         {
+            TrySignalFirstInstance(pipeName, args);
+        }
+
+        private static Result<Unit, BluetoothError> TrySignalFirstInstance(string pipeName, IList<string> args)
+        {
             try
             {
                 using (NamedPipeClientStream client = new NamedPipeClientStream(".", pipeName, PipeDirection.Out))
@@ -357,12 +372,18 @@ namespace Microsoft.Shell
                         }
                     }
                 }
+
+                return Result<Unit, BluetoothError>.Ok(Unit.Value);
             }
-            catch (IOException)
+            catch (IOException ex)
             {
+                return Result<Unit, BluetoothError>.Err(
+                    BluetoothError.ConnectionNotFound($"Failed to signal first instance through pipe '{pipeName}'.", ex));
             }
-            catch (TimeoutException)
+            catch (TimeoutException ex)
             {
+                return Result<Unit, BluetoothError>.Err(
+                    BluetoothError.Cancelled($"Timed out signaling first instance through pipe '{pipeName}'.", ex));
             }
         }
 
@@ -370,41 +391,56 @@ namespace Microsoft.Shell
         {
             while (pipeServerRunning)
             {
-                try
+                var result = TryListenForSecondInstance(pipeName);
+                if (result.IsError && result.Error.Kind != BluetoothErrorKind.Cancelled)
                 {
-                    using (NamedPipeServerStream server = new NamedPipeServerStream(pipeName, PipeDirection.In, 1))
-                    {
-                        server.WaitForConnection();
-                        using (BinaryReader reader = new BinaryReader(server))
-                        {
-                            int count = reader.ReadInt32();
-                            List<string> args = new List<string>(count);
-                            for (int i = 0; i < count; i++)
-                            {
-                                args.Add(reader.ReadString());
-                            }
+                    // Keep listener resilient: the loop continues to allow subsequent attempts.
+                }
+            }
+        }
 
-                            if (_application != null)
-                            {
-                                var capturedArgs = args;
-                                if (_uiSyncContext != null)
-                                {
-                                    _uiSyncContext.Post(_ => ActivateFirstInstance(capturedArgs), null);
-                                }
-                                else
-                                {
-                                    ActivateFirstInstance(capturedArgs);
-                                }
-                            }
+        private static Result<Unit, BluetoothError> TryListenForSecondInstance(string pipeName)
+        {
+            try
+            {
+                using (NamedPipeServerStream server = new NamedPipeServerStream(pipeName, PipeDirection.In, 1))
+                {
+                    server.WaitForConnection();
+                    using (BinaryReader reader = new BinaryReader(server))
+                    {
+                        int count = reader.ReadInt32();
+                        List<string> args = new List<string>(count);
+                        for (int i = 0; i < count; i++)
+                        {
+                            args.Add(reader.ReadString());
+                        }
+
+                        if (_application == null)
+                            return Result<Unit, BluetoothError>.Ok(Unit.Value);
+
+                        var capturedArgs = args;
+                        if (_uiSyncContext != null)
+                        {
+                            _uiSyncContext.Post(_ => ActivateFirstInstance(capturedArgs), null);
+                        }
+                        else
+                        {
+                            ActivateFirstInstance(capturedArgs);
                         }
                     }
                 }
-                catch (IOException)
-                {
-                }
-                catch (ObjectDisposedException)
-                {
-                }
+
+                return Result<Unit, BluetoothError>.Ok(Unit.Value);
+            }
+            catch (IOException ex)
+            {
+                return Result<Unit, BluetoothError>.Err(
+                    BluetoothError.ConnectionNotFound($"Pipe '{pipeName}' read failed.", ex));
+            }
+            catch (ObjectDisposedException ex)
+            {
+                return Result<Unit, BluetoothError>.Err(
+                    BluetoothError.Cancelled($"Pipe '{pipeName}' was disposed.", ex));
             }
         }
 

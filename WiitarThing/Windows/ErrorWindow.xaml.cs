@@ -28,7 +28,10 @@ namespace WiinUSoft
                         _dontSendBtn.Content = "Close";
                     }
                 }
-                catch { }
+                catch (Exception loadEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Failed to read Nintroller version: {loadEx.Message}");
+                }
             }
         }
 

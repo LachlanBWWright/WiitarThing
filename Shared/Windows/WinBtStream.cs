@@ -20,6 +20,7 @@ using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
 using static Shared.Windows.NativeImports;
 using NintrollerLib;
+using Shared;
 
 namespace Shared.Windows
 {
@@ -125,10 +126,14 @@ namespace Shared.Windows
 
         public bool OpenConnection()
         {
+            var result = TryOpenConnection();
+            return result.IsOk;
+        }
+
+        public Result<WinBtStream, HidStreamError> TryOpenConnection()
+        {
             if (string.IsNullOrWhiteSpace(_hidPath))
-            {
-                return false;
-            }
+                return Result<WinBtStream, HidStreamError>.Err(HidStreamError.InvalidPath("Device path is empty.", _hidPath));
 
             try
             {
@@ -142,21 +147,83 @@ namespace Shared.Windows
                     _fileHandle = CreateFile(_hidPath, FileAccess.ReadWrite, SharingMode, IntPtr.Zero, FileMode.Open, EFileAttributes.Overlapped, IntPtr.Zero);
                 }
                 _fileStream = new FileStream(_fileHandle, FileAccess.ReadWrite, 22, true);
+
+                return Result<WinBtStream, HidStreamError>.Ok(this);
             }
-            catch (Exception)
+            catch (UnauthorizedAccessException ex)
             {
                 _fileHandle = null;
-                // If we were tring to get exclusive access try again
+                return Result<WinBtStream, HidStreamError>.Err(HidStreamError.AccessDenied("Access denied opening HID stream.", _hidPath, ex));
+            }
+            catch (IOException ex)
+            {
+                _fileHandle = null;
                 if (SharingMode == FileShare.None)
                 {
                     SharingMode = FileShare.ReadWrite;
-                    return OpenConnection();
+                    return TryOpenConnection();
                 }
 
-                return false;
+                return Result<WinBtStream, HidStreamError>.Err(HidStreamError.OpenFailed("I/O failure opening HID stream.", _hidPath, ex));
             }
+            catch (Exception ex)
+            {
+                _fileHandle = null;
+                if (SharingMode == FileShare.None)
+                {
+                    SharingMode = FileShare.ReadWrite;
+                    return TryOpenConnection();
+                }
 
-            return true;
+                return Result<WinBtStream, HidStreamError>.Err(HidStreamError.Unknown("Unexpected failure opening HID stream.", _hidPath, ex));
+            }
+        }
+
+        public Result<Unit, HidStreamError> TryWrite(byte[] buffer, int offset, int count)
+        {
+            if (_fileStream == null)
+                return Result<Unit, HidStreamError>.Err(HidStreamError.DeviceDisappeared("Stream is not open.", _hidPath));
+
+            try
+            {
+                _fileStream.Write(buffer, offset, count);
+                return Result<Unit, HidStreamError>.Ok(Unit.Value);
+            }
+            catch (IOException ex)
+            {
+                return Result<Unit, HidStreamError>.Err(HidStreamError.WriteFailed("Failed writing HID report.", _hidPath, ex));
+            }
+            catch (ObjectDisposedException ex)
+            {
+                return Result<Unit, HidStreamError>.Err(HidStreamError.DeviceDisappeared("Stream was disposed while writing.", _hidPath, ex));
+            }
+            catch (Exception ex)
+            {
+                return Result<Unit, HidStreamError>.Err(HidStreamError.Unknown("Unexpected HID write failure.", _hidPath, ex));
+            }
+        }
+
+        public Result<int, HidStreamError> TryRead(byte[] buffer, int offset, int count)
+        {
+            if (_fileStream == null)
+                return Result<int, HidStreamError>.Err(HidStreamError.DeviceDisappeared("Stream is not open.", _hidPath));
+
+            try
+            {
+                return Result<int, HidStreamError>.Ok(_fileStream.Read(buffer, offset, count));
+            }
+            catch (IOException ex)
+            {
+                return Result<int, HidStreamError>.Err(HidStreamError.ReadFailed("Failed reading HID report.", _hidPath, ex));
+            }
+            catch (ObjectDisposedException ex)
+            {
+                return Result<int, HidStreamError>.Err(HidStreamError.DeviceDisappeared("Stream was disposed while reading.", _hidPath, ex));
+            }
+            catch (Exception ex)
+            {
+                return Result<int, HidStreamError>.Err(HidStreamError.Unknown("Unexpected HID read failure.", _hidPath, ex));
+            }
         }
 
         public static BtStack CheckBtStack(SP_DEVINFO_DATA data)
@@ -371,22 +438,9 @@ namespace Shared.Windows
 
             lock (_writerBlock)
             {
-                if (UseWriteFile)
-                {
-                    _fileStream?.Write(buffer, 0, buffer.Length);
-
-                    // Example for async and callback
-                    //bool success = WriteFileEx(_fileHandle.DangerousGetHandle(), buffer, out written, ref nativeOverlap, 
-                    //    (errorCode, bytesTransfered, nativeOver) =>
-                    //{
-                    //    System.Diagnostics.Debug.Write(errorCode);
-                    //});
-                }
-                else
-                {
-                    _fileStream?.Write(buffer, 0, buffer.Length);
-                    // Should we even bother using SetOutputReport?
-                }
+                var writeResult = TryWrite(buffer, 0, buffer.Length);
+                if (writeResult.IsError)
+                    throw new IOException(writeResult.Error.Message, writeResult.Error.Exception);
             }
         }
 
@@ -398,26 +452,35 @@ namespace Shared.Windows
 
         public override void Flush()
         {
-            System.Diagnostics.Debug.WriteLine("Flushing");
-            throw new NotImplementedException();
+            if (_fileStream == null)
+                throw new ObjectDisposedException(nameof(WinBtStream));
+
+            _fileStream.Flush();
         }
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            System.Diagnostics.Debug.WriteLine("Seeking");
-            throw new NotImplementedException();
+            if (_fileStream == null)
+                throw new ObjectDisposedException(nameof(WinBtStream));
+
+            return _fileStream.Seek(offset, origin);
         }
 
         public override void SetLength(long value)
         {
-            System.Diagnostics.Debug.WriteLine("Setting Length");
-            throw new NotImplementedException();
+            if (_fileStream == null)
+                throw new ObjectDisposedException(nameof(WinBtStream));
+
+            _fileStream.SetLength(value);
         }
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            System.Diagnostics.Debug.WriteLine("Read");
-            throw new NotImplementedException();
+            var readResult = TryRead(buffer, offset, count);
+            if (readResult.IsOk)
+                return readResult.Value;
+
+            throw new IOException(readResult.Error.Message, readResult.Error.Exception);
         }
         #endregion
     }

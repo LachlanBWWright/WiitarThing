@@ -60,46 +60,89 @@ namespace WiinUSoft
             get { return Instance.autoStartup; }
             set
             {
-                try
-                {
-                    using RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
+                var result = SetAutoStart(value);
+                if (result.IsError)
+                    System.Diagnostics.Debug.WriteLine(result.Error);
+            }
+        }
 
-                    if (key != null)
-                    {
-                        if (value)
-                        {
-                            if (key.GetValue("WiinUSoft") == null)
-                            {
-                                key.SetValue("WiinUSoft", System.Reflection.Assembly.GetEntryAssembly()?.Location ?? AppContext.BaseDirectory);
-                            }
-                        }
-                        else
-                        {
-                            key.DeleteValue("WiinUSoft", false);
-                        }
-                    }
-                }
-                catch
-                {
-                    string dir = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
+        public static Result<Unit, PreferencesError> SetAutoStart(bool value)
+        {
+            var registryResult = TrySetAutoStartRegistry(value);
+            if (registryResult.IsError)
+            {
+                var shortcutResult = TrySetAutoStartShortcut(value);
+                if (shortcutResult.IsError)
+                    return shortcutResult;
+            }
 
-                    if (value)
-                    {
-                        if (!File.Exists(Path.Combine(dir, "WiinUSoft.lnk")))
-                        {
-                            MainWindow.Instance?.CreateShortcut(dir);
-                        }
-                    }
-                    else
-                    {
-                        if (File.Exists(Path.Combine(dir, "WiinUSoft.lnk")))
-                        {
-                            File.Delete(Path.Combine(dir, "WiinUSoft.lnk"));
-                        }
-                    }
+            Instance.autoStartup = value;
+            return Result<Unit, PreferencesError>.Ok(Unit.Value);
+        }
+
+        private static Result<Unit, PreferencesError> TrySetAutoStartRegistry(bool value)
+        {
+            try
+            {
+                using RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
+                if (key == null)
+                {
+                    return Result<Unit, PreferencesError>.Err(
+                        PreferencesError.Unknown("registry://HKCU/Software/Microsoft/Windows/CurrentVersion/Run",
+                            new InvalidOperationException("Run registry key was not available.")));
                 }
 
-                Instance.autoStartup = value;
+                if (value)
+                {
+                    if (key.GetValue("WiinUSoft") != null)
+                        return Result<Unit, PreferencesError>.Ok(Unit.Value);
+
+                    key.SetValue("WiinUSoft", System.Reflection.Assembly.GetEntryAssembly()?.Location ?? AppContext.BaseDirectory);
+                    return Result<Unit, PreferencesError>.Ok(Unit.Value);
+                }
+
+                key.DeleteValue("WiinUSoft", false);
+                return Result<Unit, PreferencesError>.Ok(Unit.Value);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Result<Unit, PreferencesError>.Err(
+                    PreferencesError.AccessDenied("registry://HKCU/Software/Microsoft/Windows/CurrentVersion/Run", ex));
+            }
+            catch (Exception ex)
+            {
+                return Result<Unit, PreferencesError>.Err(
+                    PreferencesError.Unknown("registry://HKCU/Software/Microsoft/Windows/CurrentVersion/Run", ex));
+            }
+        }
+
+        private static Result<Unit, PreferencesError> TrySetAutoStartShortcut(bool value)
+        {
+            var dir = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
+            var shortcutPath = Path.Combine(dir, "WiinUSoft.lnk");
+
+            try
+            {
+                if (value)
+                {
+                    if (!File.Exists(shortcutPath))
+                        MainWindow.Instance?.CreateShortcut(dir);
+
+                    return Result<Unit, PreferencesError>.Ok(Unit.Value);
+                }
+
+                if (File.Exists(shortcutPath))
+                    File.Delete(shortcutPath);
+
+                return Result<Unit, PreferencesError>.Ok(Unit.Value);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Result<Unit, PreferencesError>.Err(PreferencesError.AccessDenied(shortcutPath, ex));
+            }
+            catch (Exception ex)
+            {
+                return Result<Unit, PreferencesError>.Err(PreferencesError.Unknown(shortcutPath, ex));
             }
         }
 
@@ -129,7 +172,7 @@ namespace WiinUSoft
         {
             if (string.IsNullOrEmpty(DataPath))
                 return Result<UserPrefs, PreferencesError>.Err(
-                    new PreferencesError(PreferencesErrorKind.MissingPath, "DataPath has not been set."));
+                    PreferencesError.MissingPath());
 
             if (!File.Exists(DataPath))
                 return Result<UserPrefs, PreferencesError>.Err(
@@ -185,7 +228,7 @@ namespace WiinUSoft
         {
             if (string.IsNullOrEmpty(DataPath))
                 return Result<Unit, PreferencesError>.Err(
-                    new PreferencesError(PreferencesErrorKind.MissingPath, "DataPath has not been set."));
+                    PreferencesError.MissingPath());
 
             var serializer = new XmlSerializer(typeof(UserPrefs));
             try

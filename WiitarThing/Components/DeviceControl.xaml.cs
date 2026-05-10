@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Input;
 using NintrollerLib;
+using Shared;
 using Shared.Windows;
 
 namespace WiinUSoft
@@ -469,7 +470,10 @@ namespace WiinUSoft
                     using var reader = new System.IO.StreamReader(stream);
                     loadedProfile = serializer.Deserialize(reader) as Profile;
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Failed to load profile '{profilePath}': {ex.Message}");
+                }
             }
             if (loadedProfile == null) loadedProfile = UserPrefs.Instance.defaultProfile;
             if (loadedProfile != null)
@@ -670,7 +674,9 @@ namespace WiinUSoft
                 snapIRpointer = properties.pointerMode != Property.PointerOffScreenMode.Center;
                 SetName(properties.name);
                 UserPrefs.Instance.AddDevicePref(properties);
-                UserPrefs.SavePrefs();
+                var saveResult = UserPrefs.SavePrefs();
+                if (saveResult.IsError)
+                    System.Diagnostics.Debug.WriteLine(saveResult.Error.ToDisplayString());
             }
         }
 

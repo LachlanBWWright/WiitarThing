@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Microsoft.UI.Xaml.Controls;
+using System.Diagnostics;
 
 namespace WiinUSoft.Windows
 {
@@ -84,7 +85,9 @@ namespace WiinUSoft.Windows
             }
 
             UserPrefs.Instance.defaultProperty = prop;
-            UserPrefs.SavePrefs();
+            var saveResult = UserPrefs.SavePrefs();
+            if (saveResult.IsError)
+                Debug.WriteLine(saveResult.Error.ToDisplayString());
         }
 
         private void ContentDialog_SecondaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
@@ -92,7 +95,9 @@ namespace WiinUSoft.Windows
             if (UserPrefs.Instance.defaultProperty != null)
                 UserPrefs.Instance.devicePrefs.Remove(UserPrefs.Instance.defaultProperty);
             UserPrefs.Instance.defaultProfile = null;
-            UserPrefs.SavePrefs();
+            var saveResult = UserPrefs.SavePrefs();
+            if (saveResult.IsError)
+                Debug.WriteLine(saveResult.Error.ToDisplayString());
         }
     }
 }

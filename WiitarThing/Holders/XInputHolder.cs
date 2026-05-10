@@ -397,37 +397,31 @@ namespace WiinUSoft.Holders
             {
                 var map = Mappings.ElementAt(i);
 
-                if (!Values.ContainsKey(map.Key))
-                {
+                if (!Values.TryGetValue(map.Key, out float mappedValue))
                     continue;
-                }
 
                 if (writeReport.ContainsKey(map.Value))
                 {
-                    try
-                    {
-                        writeReport[map.Value] += Values[map.Key];
-                    }
-                    catch (KeyNotFoundException) { }
+                    writeReport[map.Value] += mappedValue;
                 }
-                else if (Values.ContainsKey(map.Key))
+                else
                 {
                     switch (map.Value)
                     {
-                        case Inputs.Xbox360.LLEFT: try { LX -= Values[map.Key]; } catch { } break;
-                        case Inputs.Xbox360.LRIGHT: try { LX += Values[map.Key]; } catch { } break;
-                        case Inputs.Xbox360.LUP: try { LY += Values[map.Key]; } catch { } break;
-                        case Inputs.Xbox360.LDOWN: try { LY -= Values[map.Key]; } catch { } break;
-                        case Inputs.Xbox360.RLEFT: try { RX -= Values[map.Key]; } catch { } break;
-                        case Inputs.Xbox360.RRIGHT: try { RX += Values[map.Key]; } catch { } break;
-                        case Inputs.Xbox360.RUP: try { RY += Values[map.Key]; } catch { } break;
-                        case Inputs.Xbox360.RDOWN: try { RY -= Values[map.Key]; } catch { } break;
-                        case Inputs.Xbox360.LT: try { LT += Values[map.Key]; } catch { } break;
-                        case Inputs.Xbox360.RT: try { RT += Values[map.Key]; } catch { } break;
+                        case Inputs.Xbox360.LLEFT: LX -= mappedValue; break;
+                        case Inputs.Xbox360.LRIGHT: LX += mappedValue; break;
+                        case Inputs.Xbox360.LUP: LY += mappedValue; break;
+                        case Inputs.Xbox360.LDOWN: LY -= mappedValue; break;
+                        case Inputs.Xbox360.RLEFT: RX -= mappedValue; break;
+                        case Inputs.Xbox360.RRIGHT: RX += mappedValue; break;
+                        case Inputs.Xbox360.RUP: RY += mappedValue; break;
+                        case Inputs.Xbox360.RDOWN: RY -= mappedValue; break;
+                        case Inputs.Xbox360.LT: LT += mappedValue; break;
+                        case Inputs.Xbox360.RT: RT += mappedValue; break;
 
 #if MouseMode
                         case "MouseMode": 
-                            if (Values[map.Key] > 0f && DateTime.Now.Subtract(_mmLastTime).TotalSeconds > 3)
+                            if (mappedValue > 0f && DateTime.Now.Subtract(_mmLastTime).TotalSeconds > 3)
                             {
                                 _mmLastTime = DateTime.Now;
                                 InMouseMode = true;
