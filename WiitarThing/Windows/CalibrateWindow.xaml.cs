@@ -25,7 +25,7 @@ namespace WiinUSoft
         public bool doSave = false;
         public CalibrationStorage Calibration => _calibrations;
 
-        private Nintroller _device;
+        private Nintroller _device = null!;
         private bool _changingType;
         private ControllerType _calibrationToSave = ControllerType.Unknown;
         private List<ControllerType> _calibratedTypes = new List<ControllerType>();
@@ -75,10 +75,10 @@ namespace WiinUSoft
             _changingType = false;
         }
 
-        void _device_ExtensionChange(object sender, NintrollerExtensionEventArgs e)
+        void _device_ExtensionChange(object? sender, NintrollerExtensionEventArgs e)
             => DispatcherQueue.TryEnqueue(() => SelectStep(e.controllerType));
 
-        void _device_StateUpdate(object sender, NintrollerStateEventArgs e)
+        void _device_StateUpdate(object? sender, NintrollerStateEventArgs e)
         {
             if (_changingType) return;
             DispatcherQueue.TryEnqueue(() =>

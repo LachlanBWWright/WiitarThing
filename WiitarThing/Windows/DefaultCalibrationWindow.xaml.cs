@@ -89,7 +89,8 @@ namespace WiinUSoft.Windows
 
         private void ContentDialog_SecondaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
         {
-            UserPrefs.Instance.devicePrefs.Remove(UserPrefs.Instance.defaultProperty);
+            if (UserPrefs.Instance.defaultProperty != null)
+                UserPrefs.Instance.devicePrefs.Remove(UserPrefs.Instance.defaultProperty);
             UserPrefs.Instance.defaultProfile = null;
             UserPrefs.SavePrefs();
         }

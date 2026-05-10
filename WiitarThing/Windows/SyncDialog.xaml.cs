@@ -16,14 +16,14 @@ namespace WiinUSoft.Windows
         private bool _notCompatable;
         private bool _startFired;
         private bool _scanRunning;
-        private Task _scanTask;
+        private Task? _scanTask;
 
         public SyncDialog()
         {
             InitializeComponent();
         }
 
-        public event EventHandler NewDeviceFound;
+        public event EventHandler? NewDeviceFound;
 
         const int ERROR_SUCCESS                  = 0x00000000;
         const int ERROR_DEVICE_NOT_CONNECTED     = 0x0000048F;

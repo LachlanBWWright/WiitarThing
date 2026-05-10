@@ -30,10 +30,10 @@ namespace Shared.Windows
         public static FileShare OverridenFileShare = FileShare.None;
         public static bool ForceToshibaMode = false;
 
-        protected string _hidPath;
-        protected SafeFileHandle _fileHandle;
-        protected FileStream _fileStream;
-        protected object _writerBlock;
+        protected string _hidPath = null!;
+        protected SafeFileHandle? _fileHandle;
+        protected FileStream? _fileStream;
+        protected object _writerBlock = null!;
         #endregion
 
         #region Properties
@@ -345,9 +345,11 @@ namespace Shared.Windows
             _fileHandle?.Close();
         }
 
-        public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
+        public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback? callback, object? state)
         {
-            return _fileStream?.BeginRead(buffer, 0, count, callback, state);
+            if (_fileStream == null)
+                throw new ObjectDisposedException(nameof(WinBtStream));
+            return _fileStream.BeginRead(buffer, 0, count, callback, state);
         }
 
         public override int EndRead(IAsyncResult asyncResult)

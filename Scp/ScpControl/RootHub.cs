@@ -114,7 +114,7 @@ namespace ScpControl
         {
             bool Opened = false;
 
-            LogDebug(String.Format("++ {0} {1}", Assembly.GetExecutingAssembly().Location, Assembly.GetExecutingAssembly().GetName().Version.ToString()));
+            LogDebug(String.Format("++ {0} {1}", Assembly.GetExecutingAssembly().Location, Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? String.Empty));
             LogDebug(String.Format("++ {0}", OSInfo()));
 
             scpMap.Open();
@@ -238,7 +238,7 @@ namespace ScpControl
             return DsPadId.None;
         }
 
-        protected virtual void UDP_Worker_Thread(object sender, DoWorkEventArgs e)  
+        protected virtual void UDP_Worker_Thread(object? sender, DoWorkEventArgs e)  
         {
             Byte Serial;
             StringBuilder sb = new StringBuilder();
@@ -418,12 +418,17 @@ namespace ScpControl
         }
 
 
-        protected override void On_Arrival(object sender, ArrivalEventArgs e) 
+        protected override void On_Arrival(object? sender, ArrivalEventArgs e) 
         {
             lock (this)
             {
                 Boolean bFound = false;
-                IDsDevice Arrived = e.Device;
+                IDsDevice? Arrived = e.Device;
+                if (Arrived == null)
+                {
+                    e.Handled = false;
+                    return;
+                }
 
                 for (Int32 Index = 0; Index < m_Pad.Length && !bFound; Index++)
                 {
@@ -474,7 +479,7 @@ namespace ScpControl
             }
         }
 
-        protected override void On_Report(object sender, ReportEventArgs e)   
+        protected override void On_Report(object? sender, ReportEventArgs e)   
         {
             Int32   Serial = e.Report[(Int32) DsOffset.Pad];
             DsModel Model  = (DsModel) e.Report[(Int32) DsOffset.Model];
@@ -528,7 +533,7 @@ namespace ScpControl
                     {
                         try
                         {
-                            Info = Regex.Replace(mo.GetPropertyValue("Caption").ToString(), "[^A-Za-z0-9 ]", "").Trim();
+                            Info = Regex.Replace(mo.GetPropertyValue("Caption")?.ToString() ?? String.Empty, "[^A-Za-z0-9 ]", "").Trim();
 
                             try
                             {

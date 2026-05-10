@@ -27,16 +27,13 @@ namespace ScpControl
             return Index + m_Offset + 1;
         }
 
-        public event EventHandler<DebugEventArgs> Debug = null;
+        public event EventHandler<DebugEventArgs>? Debug;
 
         protected virtual void LogDebug(String Data) 
         {
             DebugEventArgs args = new DebugEventArgs(Data);
 
-            if (Debug != null)
-            {
-                Debug(this, args);
-            }
+            Debug?.Invoke(this, args);
         }
 
 

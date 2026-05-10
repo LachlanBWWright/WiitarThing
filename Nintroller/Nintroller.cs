@@ -30,7 +30,7 @@ namespace NintrollerLib
         
         // General
         private bool               _connected                   = false;
-        private INintrollerState   _state                       = new Wiimote();
+        private INintrollerState?  _state                       = new Wiimote();
         private CalibrationStorage _calibrations                = new CalibrationStorage();
         private ControllerType     _currentType                 = ControllerType.Unknown;
         private ControllerType     _forceType                   = ControllerType.Unknown;
@@ -42,7 +42,7 @@ namespace NintrollerLib
         private bool               _led1, _led2, _led3, _led4;
 
         // Read/Writing Variables
-        private Stream           _stream;                    // Read and Write Stream
+        private Stream           _stream = null!;             // Read and Write Stream
         private bool             _reading    = false;        // true if actively reading
         private readonly object  _readingObj = new object(); // for locking/blocking
         
@@ -427,8 +427,8 @@ namespace NintrollerLib
         {
             if (_stream != null && _stream.CanRead)
             {
-                IAsyncResult ar = null;
-                System.Threading.WaitHandle wh = null;
+                IAsyncResult? ar = null;
+                System.Threading.WaitHandle? wh = null;
 
                 lock (_readingObj)
                 {
@@ -477,7 +477,8 @@ namespace NintrollerLib
             try
             {
                 // Convert the result
-                byte[] result = data.AsyncState as byte[];
+                if (data.AsyncState is not byte[] result)
+                    return;
 
                 // Must be called for each BeginRead()
                 _stream.EndRead(data);
@@ -1031,7 +1032,7 @@ namespace NintrollerLib
 
                         case AcknowledgementType.IR_Step1:
 #region IR Step 1
-                            byte[] sensitivityBlock1 = null;
+                            byte[] sensitivityBlock1;
                             
                             switch (_irSensitivity)
                             {
@@ -1076,7 +1077,7 @@ namespace NintrollerLib
 
                         case AcknowledgementType.IR_Step2:
 #region IR Step 2
-                            byte[] sensitivityBlock2 = null;
+                            byte[] sensitivityBlock2;
                             
                             switch (_irSensitivity)
                             {
@@ -1477,7 +1478,7 @@ namespace NintrollerLib
         {
             _calibrations.NunchukCalibration = nunchukCalibration;
 
-            if (_currentType == ControllerType.Nunchuk || _currentType == ControllerType.NunchukB)
+            if (_state != null && (_currentType == ControllerType.Nunchuk || _currentType == ControllerType.NunchukB))
             {
                 _state.SetCalibration(nunchukCalibration);
             }
@@ -1490,7 +1491,7 @@ namespace NintrollerLib
         {
             _calibrations.ClassicCalibration = classicCalibration;
 
-            if (_currentType == ControllerType.ClassicController)
+            if (_state != null && _currentType == ControllerType.ClassicController)
             {
                 _state.SetCalibration(classicCalibration);
             }
@@ -1503,7 +1504,7 @@ namespace NintrollerLib
         {
             _calibrations.ClassicProCalibration = classicProCalibration;
 
-            if (_currentType == ControllerType.ClassicControllerPro)
+            if (_state != null && _currentType == ControllerType.ClassicControllerPro)
             {
                 _state.SetCalibration(classicProCalibration);
             }

@@ -26,7 +26,7 @@ namespace Shared
         public bool LED_4 { get; set; }
         #endregion
 
-        protected byte[] _lastReport;
+        protected byte[]? _lastReport;
         protected InputReport DataReportMode = InputReport.BtnsOnly;
         protected Queue<InputReport> _nextQueue;
         protected Queue<byte[]> _reportQueue;
@@ -153,7 +153,7 @@ namespace Shared
                     buffer[10] = 0x01;
                     buffer[11] = 0x20;
 
-                    if (_lastReport.Length >= 4 && _lastReport[4] == 250)
+                    if (_lastReport != null && _lastReport.Length >= 4 && _lastReport[4] == 250)
                     {
                         //NextReport = DataReportMode;
                         _nextQueue.Enqueue(DataReportMode);

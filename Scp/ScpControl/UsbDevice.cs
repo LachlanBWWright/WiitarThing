@@ -12,8 +12,8 @@ namespace ScpControl
         protected Boolean  m_IsDisconnect = false;
         protected DateTime m_Last = DateTime.Now, m_Tick = DateTime.Now, m_Disconnect = DateTime.Now;
 
-        public event EventHandler<DebugEventArgs>  Debug  = null;
-        public event EventHandler<ReportEventArgs> Report = null;
+        public event EventHandler<DebugEventArgs>?  Debug;
+        public event EventHandler<ReportEventArgs>? Report;
 
         protected Byte[] m_Buffer = new Byte[64];
         protected Byte[] m_Master = new Byte[6];
@@ -87,17 +87,14 @@ namespace ScpControl
             m_ReportArgs.Report[0] = m_ControllerId;
             m_ReportArgs.Report[1] = (Byte) m_State;
 
-            if (Report != null) Report(this, m_ReportArgs);
+            Report?.Invoke(this, m_ReportArgs);
         }
 
         protected virtual void LogDebug(String Data) 
         {
             DebugEventArgs args = new DebugEventArgs(Data);
 
-            if (Debug != null)
-            {
-                Debug(this, args);
-            }
+            Debug?.Invoke(this, args);
         }
 
 
@@ -212,7 +209,7 @@ namespace ScpControl
         }
 
 
-        protected void HID_Worker_Thread(object sender, DoWorkEventArgs e) 
+        protected void HID_Worker_Thread(object? sender, DoWorkEventArgs e) 
         {
             Int32  Transfered = 0;
             Byte[] Buffer = new Byte[64];
@@ -234,7 +231,7 @@ namespace ScpControl
             LogDebug("-- USB Device : HID_Worker_Thread Exiting");
         }
 
-        protected void On_Timer(object sender, EventArgs e) 
+        protected void On_Timer(object? sender, EventArgs e) 
         {
             lock (this)
             {

@@ -1,0 +1,6 @@
+{
+  "dotnet.defaultSolution": "WiitarThing.sln",
+  "omnisharp.enableEditorConfigSupport": true,
+  "omnisharp.enableRoslynAnalyzers": true,
+  "omnisharp.enableMsBuildLoadProjectsOnDemand": false
+}

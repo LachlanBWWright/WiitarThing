@@ -143,7 +143,7 @@ namespace Shared.Windows
           SP_DEVINFO_DATA DeviceInfoData,
           DEVPROPKEY PropertyKey,
           out ulong PropertyType,
-          char[] PropertyBuffer,
+          char[]? PropertyBuffer,
           int PropertyBufferSize,
           out int RequiredSize,
           uint Flags
@@ -158,7 +158,7 @@ namespace Shared.Windows
         [DllImport(@"setupapi.dll", CharSet = CharSet.Auto, SetLastError = true)]
         public static extern IntPtr SetupDiGetClassDevs(
             ref Guid ClassGuid,
-            [MarshalAs(UnmanagedType.LPTStr)] string Enumerator,
+            [MarshalAs(UnmanagedType.LPTStr)] string? Enumerator,
             IntPtr hwndParent,
             uint Flags
         );

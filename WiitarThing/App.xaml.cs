@@ -15,8 +15,8 @@ namespace WiinUSoft
         internal const string PROFILE_FILTER = "WiinUSoft Profile|*.wsp";
         private const string Unique = "wiinupro-or-wiinusoft-instance";
 
-        private static MainWindow _mainWindow;
-        internal static MainWindow MainWindowInstance => _mainWindow;
+        private static MainWindow? _mainWindow;
+        internal static MainWindow? MainWindowInstance => _mainWindow;
 
         [STAThread]
         public static void Main()

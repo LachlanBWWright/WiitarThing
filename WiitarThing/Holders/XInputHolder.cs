@@ -15,10 +15,10 @@ namespace WiinUSoft.Holders
         internal int rumbleLeft = 0;
         internal int rumbleDecrement = 10;
 
-        private XBus bus;
+        private XBus bus = null!;
         private bool connected;
         private int ID;
-        private Dictionary<string, float> writeReport;
+        private Dictionary<string, float> writeReport = null!;
 
         public static Dictionary<string, string> GetDefaultMapping(ControllerType type)
         {
@@ -582,7 +582,7 @@ namespace WiinUSoft.Holders
 
     public class XBus : BusDevice
     {
-        private static XBus defaultInstance;
+        private static XBus? defaultInstance;
 
         // Default Bus
         public static XBus Default
@@ -606,7 +606,7 @@ namespace WiinUSoft.Holders
             AppDomain.CurrentDomain.ProcessExit += StopDevice;
         }
 
-        private void StopDevice(object sender, object e)
+        private void StopDevice(object? sender, EventArgs e)
         {
             if (defaultInstance != null)
             {

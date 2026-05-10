@@ -3,6 +3,7 @@
     <OutputType>WinExe</OutputType>
     <!-- WinUI 3 with net8.0-windows -->
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
     <UseWinUI>true</UseWinUI>
     <!-- WPF removed; WinUI 3 is used instead -->
@@ -75,7 +76,6 @@
   <Import Project="..\Shared\Shared.projitems" Label="Shared" />
 
 </Project>
-
 
 
 

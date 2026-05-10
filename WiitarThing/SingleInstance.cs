@@ -170,7 +170,7 @@ namespace Microsoft.Shell
                 for (int i = 0; i < numArgs; i++)
                 {
                     IntPtr currArg = Marshal.ReadIntPtr(argv, i * Marshal.SizeOf(typeof(IntPtr)));
-                    result[i] = Marshal.PtrToStringUni(currArg);
+                    result[i] = Marshal.PtrToStringUni(currArg) ?? string.Empty;
                 }
 
                 return result;
@@ -217,23 +217,23 @@ namespace Microsoft.Shell
         /// <summary>
         /// Application mutex.
         /// </summary>
-        private static Mutex singleInstanceMutex;
+        private static Mutex? singleInstanceMutex;
 
-        private static Thread pipeServerThread;
+        private static Thread? pipeServerThread;
         private static volatile bool pipeServerRunning;
 
         /// <summary>
         /// Captured UI synchronization context so callbacks can be marshalled back to the UI thread.
         /// </summary>
-        private static SynchronizationContext _uiSyncContext;
+        private static SynchronizationContext? _uiSyncContext;
 
         /// <summary>
         /// The first-instance app object. Stored after InitializeAsFirstInstance is called.
         /// </summary>
-        private static TApplication _application;
+        private static TApplication? _application;
         /// List of command line arguments for the application.
         /// </summary>
-        private static IList<string> commandLineArgs;
+        private static IList<string> commandLineArgs = new List<string>();
 
         #endregion
 
@@ -317,15 +317,7 @@ namespace Microsoft.Shell
         /// <returns>List of command line arg strings.</returns>
         private static IList<string> GetCommandLineArgs(string uniqueApplicationName)
         {
-            string[] args = null;
-            args = Environment.GetCommandLineArgs();
-
-            if (args == null)
-            {
-                args = new string[] { };
-            }
-
-            return new List<string>(args);
+            return new List<string>(Environment.GetCommandLineArgs());
         }
 
         /// <summary>
@@ -420,9 +412,9 @@ namespace Microsoft.Shell
         /// Callback for activating first instance of the application.
         /// </summary>
         /// <param name="arg">Callback argument.</param>
-        private static object ActivateFirstInstanceCallback(object arg)
+        private static object? ActivateFirstInstanceCallback(object arg)
         {
-            IList<string> args = arg as IList<string>;
+            IList<string> args = arg as IList<string> ?? new List<string>();
             ActivateFirstInstance(args);
             return null;
         }

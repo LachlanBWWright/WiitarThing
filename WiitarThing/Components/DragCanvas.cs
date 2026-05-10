@@ -11,12 +11,12 @@ namespace WiinUSoft
     /// </summary>
     public class DragCanvas : Canvas
     {
-        private UIElement elementBeingDragged;
+        private UIElement? elementBeingDragged;
         private global::Windows.Foundation.Point origCursorLocation;
         private double origHorizOffset, origVertOffset;
         private bool modifyLeftOffset, modifyTopOffset;
         private bool isDragInProgress;
-        private Microsoft.UI.Xaml.Input.Pointer _currentPointer;
+        private Microsoft.UI.Xaml.Input.Pointer? _currentPointer;
 
         static DragCanvas()
         {
@@ -56,7 +56,7 @@ namespace WiinUSoft
         public void BringToFront(UIElement element) => UpdateZOrder(element, true);
         public void SendToBack(UIElement element) => UpdateZOrder(element, false);
 
-        public UIElement ElementBeingDragged
+        public UIElement? ElementBeingDragged
         {
             get => AllowDragging ? elementBeingDragged : null;
             protected set
@@ -66,7 +66,7 @@ namespace WiinUSoft
 
                 if (!AllowDragging)
                     elementBeingDragged = null;
-                else if (GetCanBeDragged(value))
+                else if (value != null && GetCanBeDragged(value))
                 {
                     elementBeingDragged = value;
                     if (_currentPointer != null)
@@ -77,7 +77,7 @@ namespace WiinUSoft
             }
         }
 
-        public UIElement FindCanvasChild(DependencyObject depObj)
+        public UIElement? FindCanvasChild(DependencyObject? depObj)
         {
             while (depObj != null)
             {

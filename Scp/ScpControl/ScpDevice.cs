@@ -202,10 +202,10 @@ namespace ScpControl
             public Int32 dbcc_reserved;
 
             [MarshalAs(UnmanagedType.ByValArray, ArraySubType = UnmanagedType.U1, SizeConst = 16)]
-            public Byte[] dbcc_classguid;
+            public Byte[]? dbcc_classguid;
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 255)]
-            public Char[] dbcc_name;
+            public Char[]? dbcc_name;
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -427,7 +427,7 @@ namespace ScpControl
                         {
                             IntPtr pDevicePathName = detailDataBuffer + 4;
 
-                            Path = Marshal.PtrToStringAuto(pDevicePathName).ToUpper();
+                            Path = (Marshal.PtrToStringAuto(pDevicePathName) ?? String.Empty).ToUpper();
                             Marshal.FreeHGlobal(detailDataBuffer);
 
                             if (memberIndex == Instance) return true;
@@ -480,7 +480,7 @@ namespace ScpControl
                         {
                             IntPtr pDevicePathName = detailDataBuffer + 4;
 
-                            String Current = Marshal.PtrToStringAuto(pDevicePathName).ToUpper();
+                            String Current = (Marshal.PtrToStringAuto(pDevicePathName) ?? String.Empty).ToUpper();
                             Marshal.FreeHGlobal(detailDataBuffer);
 
                             if (Current == Path)
@@ -489,7 +489,7 @@ namespace ScpControl
                                 IntPtr ptrInstanceBuf = Marshal.AllocHGlobal(nBytes);
 
                                 CM_Get_Device_ID(da.Flags, ptrInstanceBuf, nBytes, 0);
-                                Instance = Marshal.PtrToStringAuto(ptrInstanceBuf).ToUpper();
+                                Instance = (Marshal.PtrToStringAuto(ptrInstanceBuf) ?? String.Empty).ToUpper();
 
                                 Marshal.FreeHGlobal(ptrInstanceBuf);
                                 return true;
@@ -694,7 +694,7 @@ namespace ScpControl
         public static extern IntPtr RegisterServiceCtrlHandlerEx(String ServiceName, ServiceControlHandlerEx Callback, IntPtr Context);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        protected static extern Boolean DeviceIoControl(IntPtr DeviceHandle, Int32 IoControlCode, Byte[] InBuffer, Int32 InBufferSize, Byte[] OutBuffer, Int32 OutBufferSize, ref Int32 BytesReturned, IntPtr Overlapped);
+        protected static extern Boolean DeviceIoControl(IntPtr DeviceHandle, Int32 IoControlCode, Byte[] InBuffer, Int32 InBufferSize, Byte[]? OutBuffer, Int32 OutBufferSize, ref Int32 BytesReturned, IntPtr Overlapped);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         protected static extern Boolean CloseHandle(IntPtr Handle);

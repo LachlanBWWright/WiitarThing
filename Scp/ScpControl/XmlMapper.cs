@@ -7,16 +7,13 @@ namespace ScpControl
 {
     public partial class XmlMapper : Component 
     {        
-        public event EventHandler<DebugEventArgs> Debug = null;
+        public event EventHandler<DebugEventArgs>? Debug;
 
         protected virtual void LogDebug(String Data) 
         {
             DebugEventArgs args = new DebugEventArgs(Data);
 
-            if (Debug != null)
-            {
-                Debug(this, args);
-            }
+            Debug?.Invoke(this, args);
         }
 
         protected Profile    m_Empty  = new Profile(true, DsMatch.None.ToString(), DsMatch.Global.ToString(), String.Empty);
@@ -119,26 +116,36 @@ namespace ScpControl
             {
                 m_Remapping = false; m_Mapper.Clear();
 
-                XmlNode Node = Map.SelectSingleNode("/ScpMapper");
-
-                m_Description = Node.SelectSingleNode("Description").FirstChild.Value;
-                m_Version     = Node.SelectSingleNode("Version"    ).FirstChild.Value;
-                m_Active      = Node.SelectSingleNode("Active"     ).FirstChild.Value;
-
-                foreach (XmlNode ProfileNode in Node.SelectNodes("Mapping/Profile"))
+                XmlNode? Node = Map.SelectSingleNode("/ScpMapper");
+                if (Node is null)
                 {
-                    String Name = ProfileNode.SelectSingleNode("Name").FirstChild.Value;
-                    String Type = ProfileNode.SelectSingleNode("Type").FirstChild.Value;
+                    return false;
+                }
+
+                m_Description = Node.SelectSingleNode("Description")?.FirstChild?.Value ?? String.Empty;
+                m_Version     = Node.SelectSingleNode("Version"    )?.FirstChild?.Value ?? String.Empty;
+                m_Active      = Node.SelectSingleNode("Active"     )?.FirstChild?.Value ?? String.Empty;
+
+                XmlNodeList? profileNodes = Node.SelectNodes("Mapping/Profile");
+                if (profileNodes is null)
+                {
+                    return false;
+                }
+
+                foreach (XmlNode ProfileNode in profileNodes)
+                {
+                    String Name = ProfileNode.SelectSingleNode("Name")?.FirstChild?.Value ?? String.Empty;
+                    String Type = ProfileNode.SelectSingleNode("Type")?.FirstChild?.Value ?? DsMatch.Global.ToString();
 
                     String Qualifier = String.Empty;
 
                     try
                     {
-                        XmlNode QualifierNode = ProfileNode.SelectSingleNode("Value");
+                        XmlNode? QualifierNode = ProfileNode.SelectSingleNode("Value");
 
-                        if (QualifierNode.HasChildNodes)
+                        if (QualifierNode?.HasChildNodes == true)
                         {
-                            Qualifier = QualifierNode.FirstChild.Value;
+                            Qualifier = QualifierNode.FirstChild?.Value ?? String.Empty;
                         }
                     }
                     catch { }
@@ -147,12 +154,18 @@ namespace ScpControl
 
                     try
                     {
-                        foreach (XmlNode Mapping in ProfileNode.SelectSingleNode("DS3/Button"))
+                        XmlNode? mappings = ProfileNode.SelectSingleNode("DS3/Button");
+                        if (mappings is null)
+                        {
+                            continue;
+                        }
+
+                        foreach (XmlNode Mapping in mappings)
                         {
                             foreach (XmlNode Item in Mapping.ChildNodes)
                             {
-                                Ds3Button Target = (Ds3Button) Enum.Parse(typeof(Ds3Button), Item.ParentNode.Name);
-                                Ds3Button Mapped = (Ds3Button) Enum.Parse(typeof(Ds3Button), Item.Value);
+                                Ds3Button Target = (Ds3Button) Enum.Parse(typeof(Ds3Button), Item.ParentNode?.Name ?? String.Empty);
+                                Ds3Button Mapped = (Ds3Button) Enum.Parse(typeof(Ds3Button), Item.Value ?? String.Empty);
 
                                 Profile.Ds3Button[Target] = Mapped;
                             }
@@ -162,12 +175,18 @@ namespace ScpControl
 
                     try
                     {
-                        foreach (XmlNode Mapping in ProfileNode.SelectSingleNode("DS3/Axis"))
+                        XmlNode? mappings = ProfileNode.SelectSingleNode("DS3/Axis");
+                        if (mappings is null)
+                        {
+                            continue;
+                        }
+
+                        foreach (XmlNode Mapping in mappings)
                         {
                             foreach (XmlNode Item in Mapping.ChildNodes)
                             {
-                                Ds3Axis Target = (Ds3Axis) Enum.Parse(typeof(Ds3Axis), Item.ParentNode.Name);
-                                Ds3Axis Mapped = (Ds3Axis) Enum.Parse(typeof(Ds3Axis), Item.Value);
+                                Ds3Axis Target = (Ds3Axis) Enum.Parse(typeof(Ds3Axis), Item.ParentNode?.Name ?? String.Empty);
+                                Ds3Axis Mapped = (Ds3Axis) Enum.Parse(typeof(Ds3Axis), Item.Value ?? String.Empty);
 
                                 Profile.Ds3Axis[Target] = Mapped;
                             }
@@ -177,12 +196,18 @@ namespace ScpControl
 
                     try
                     {
-                        foreach (XmlNode Mapping in ProfileNode.SelectSingleNode("DS4/Button"))
+                        XmlNode? mappings = ProfileNode.SelectSingleNode("DS4/Button");
+                        if (mappings is null)
+                        {
+                            continue;
+                        }
+
+                        foreach (XmlNode Mapping in mappings)
                         {
                             foreach (XmlNode Item in Mapping.ChildNodes)
                             {
-                                Ds4Button Target = (Ds4Button) Enum.Parse(typeof(Ds4Button), Item.ParentNode.Name);
-                                Ds4Button Mapped = (Ds4Button) Enum.Parse(typeof(Ds4Button), Item.Value);
+                                Ds4Button Target = (Ds4Button) Enum.Parse(typeof(Ds4Button), Item.ParentNode?.Name ?? String.Empty);
+                                Ds4Button Mapped = (Ds4Button) Enum.Parse(typeof(Ds4Button), Item.Value ?? String.Empty);
 
                                 Profile.Ds4Button[Target] = Mapped;
                             }
@@ -192,12 +217,18 @@ namespace ScpControl
 
                     try
                     {
-                        foreach (XmlNode Mapping in ProfileNode.SelectSingleNode("DS4/Axis"))
+                        XmlNode? mappings = ProfileNode.SelectSingleNode("DS4/Axis");
+                        if (mappings is null)
+                        {
+                            continue;
+                        }
+
+                        foreach (XmlNode Mapping in mappings)
                         {
                             foreach (XmlNode Item in Mapping.ChildNodes)
                             {
-                                Ds4Axis Target = (Ds4Axis) Enum.Parse(typeof(Ds4Axis), Item.ParentNode.Name);
-                                Ds4Axis Mapped = (Ds4Axis) Enum.Parse(typeof(Ds4Axis), Item.Value);
+                                Ds4Axis Target = (Ds4Axis) Enum.Parse(typeof(Ds4Axis), Item.ParentNode?.Name ?? String.Empty);
+                                Ds4Axis Mapped = (Ds4Axis) Enum.Parse(typeof(Ds4Axis), Item.Value ?? String.Empty);
 
                                 Profile.Ds4Axis[Target] = Mapped;
                             }
@@ -208,7 +239,9 @@ namespace ScpControl
                     m_Mapper[Profile.Name] = Profile;
                 }
 
-                Int32 Mappings = m_Mapper[m_Active].Ds3Button.Count + m_Mapper[m_Active].Ds3Axis.Count + m_Mapper[m_Active].Ds4Button.Count + m_Mapper[m_Active].Ds4Axis.Count;
+                Int32 Mappings = m_Mapper.TryGetValue(m_Active, out Profile? activeProfile)
+                    ? activeProfile.Ds3Button.Count + activeProfile.Ds3Axis.Count + activeProfile.Ds4Button.Count + activeProfile.Ds4Axis.Count
+                    : 0;
                 LogDebug(String.Format("## Mapper.Initialize() - Profiles [{0}] Active [{1}] Mappings [{2}]", m_Mapper.Count, m_Active, Mappings));
 
                 m_Remapping = true;
@@ -244,7 +277,7 @@ namespace ScpControl
                 Node = Doc.CreateNode(XmlNodeType.Element, "ScpMapper", null);
                 {
                     CreateTextNode(Doc, Node, "Description", "SCP Mapping File");
-                    CreateTextNode(Doc, Node, "Version",     Assembly.GetExecutingAssembly().GetName().Version.ToString());
+                    CreateTextNode(Doc, Node, "Version",     Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? String.Empty);
 
                     XmlNode Mapping = Doc.CreateNode(XmlNodeType.Element, "Mapping", null);
                     {

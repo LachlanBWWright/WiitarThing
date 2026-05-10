@@ -7,7 +7,7 @@ namespace ScpControl
     {
         protected static UInt16 m_DCID = 0x40;
 
-        protected BthHandle   m_HCI_Handle;
+        protected BthHandle   m_HCI_Handle = new BthHandle(0);
         protected BthHandle[] m_L2CAP_Cmd_Handle = new BthHandle[2];
         protected BthHandle[] m_L2CAP_Int_Handle = new BthHandle[2];
         protected BthHandle[] m_L2CAP_Svc_Handle = new BthHandle[2];
@@ -253,8 +253,10 @@ namespace ScpControl
 
         #region IEquatable<ScpBthConnection> Members
 
-        public virtual bool Equals(BthConnection other) 
+        public virtual bool Equals(BthConnection? other) 
         {
+            if (other is null) return false;
+
             return m_HCI_Handle.Equals(other.m_HCI_Handle);
         }
 
@@ -272,8 +274,10 @@ namespace ScpControl
 
         #region IComparable<ScpBthConnection> Members
 
-        public virtual int CompareTo(BthConnection other) 
+        public virtual int CompareTo(BthConnection? other) 
         {
+            if (other is null) return 1;
+
             return m_HCI_Handle.CompareTo(other.m_HCI_Handle);
         }
 

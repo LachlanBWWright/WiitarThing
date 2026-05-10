@@ -26,9 +26,9 @@ namespace ScpControl
         protected EventArgs     m_Args = new EventArgs();
         protected TimerCallback m_Callback;
 
-        public event EventHandler Tick;
+        public event EventHandler? Tick;
 
-        public object Tag 
+        public object? Tag 
         {
             get;
             set;
@@ -106,10 +106,7 @@ namespace ScpControl
 
         protected void OnTick(UInt32 uTimerID, UInt32 uMsg, UIntPtr dwUser, UIntPtr dw1, UIntPtr dw2) 
         {
-            if (Tick != null)
-            {
-                Tick(this, m_Args);
-            }
+            Tick?.Invoke(this, m_Args);
         }
     }
 }

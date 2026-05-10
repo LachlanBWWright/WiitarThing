@@ -8,10 +8,10 @@ namespace WiinUSoft.Holders
 {
     public abstract class Holder
     {
-        public System.Collections.Concurrent.ConcurrentDictionary<string, float> Values { get; protected set; }
+        public System.Collections.Concurrent.ConcurrentDictionary<string, float> Values { get; protected set; } = null!;
         //public Dictionary<string, float> Values { get; protected set; }
-        public Dictionary<string, string> Mappings { get; protected set; }
-        public Dictionary<string, bool> Flags { get; protected set; }
+        public Dictionary<string, string> Mappings { get; protected set; } = null!;
+        public Dictionary<string, bool> Flags { get; protected set; } = null!;
         public float RumbleAmount { get; protected set; }
         
         

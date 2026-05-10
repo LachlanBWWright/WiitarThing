@@ -12,9 +12,9 @@ namespace ScpControl
     {
         protected XmlDocument   m_Map      = new XmlDocument();
         protected static String m_FileName = "ScpMapper.xml";
-        protected static String m_FilePath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "\\" + m_FileName;
+        protected static String m_FilePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? AppContext.BaseDirectory, m_FileName);
 
-        protected FileSystemWatcher m_Watcher = new FileSystemWatcher(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), m_FileName);
+        protected FileSystemWatcher m_Watcher = new FileSystemWatcher(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? AppContext.BaseDirectory, m_FileName);
         protected DateTime m_Last = DateTime.Now;
 
 
@@ -24,24 +24,18 @@ namespace ScpControl
             get { return m_Started; }
         }
 
-        public event EventHandler<DebugEventArgs> Debug = null;
+        public event EventHandler<DebugEventArgs>? Debug;
 
         protected virtual void LogDebug(String Data) 
         {
             DebugEventArgs args = new DebugEventArgs(Data);
 
-            if (Debug != null)
-            {
-                Debug(this, args);
-            }
+            Debug?.Invoke(this, args);
         }
 
-        protected virtual void OnDebug(object sender, DebugEventArgs e) 
+        protected virtual void OnDebug(object? sender, DebugEventArgs e) 
         {
-            if (Debug != null)
-            {
-                Debug(this, e);
-            }
+            Debug?.Invoke(this, e);
         }
 
 
@@ -204,7 +198,11 @@ namespace ScpControl
                 {
                     try
                     {
-                        m_Map.SelectSingleNode("/ScpMapper/Active").FirstChild.Value = value;
+                        XmlNode? activeNode = m_Map.SelectSingleNode("/ScpMapper/Active");
+                        if (activeNode?.FirstChild != null)
+                        {
+                            activeNode.FirstChild.Value = value;
+                        }
                         m_Map.Save(m_FilePath);
                     }
                     catch { }

@@ -22,7 +22,7 @@ namespace ScpControl
         protected XmlMapper   m_Mapper  = new XmlMapper();
         protected Boolean     m_Active  = false;
 
-        public event EventHandler<DsPacket> Packet = null;
+        public event EventHandler<DsPacket>? Packet;
 
 
         public virtual XmlMapper Mapper 
@@ -220,9 +220,9 @@ namespace ScpControl
             return Selected;
         }
 
-        public virtual DsDetail Detail(DsPadId Pad) 
+        public virtual DsDetail? Detail(DsPadId Pad) 
         {
-            DsDetail Detail = null;
+            DsDetail? Detail = null;
 
             try
             {
@@ -311,7 +311,7 @@ namespace ScpControl
         }
 
 
-        protected virtual void NativeFeed_Worker_DoWork(object sender, DoWorkEventArgs e) 
+        protected virtual void NativeFeed_Worker_DoWork(object? sender, DoWorkEventArgs e) 
         {
             DsPacket Packet = new DsPacket();
             Byte[]   Buffer = new Byte[ReportEventArgs.Length];
@@ -332,10 +332,7 @@ namespace ScpControl
 
         protected virtual void LogPacket(DsPacket Data) 
         {
-            if (Packet != null)
-            {
-                Packet(this, Data);
-            }
+            Packet?.Invoke(this, Data);
         }
     }
 

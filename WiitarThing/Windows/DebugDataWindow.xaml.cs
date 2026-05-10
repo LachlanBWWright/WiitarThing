@@ -8,7 +8,7 @@ namespace WiinUSoft.Windows
     public partial class DebugDataWindow : Window
     {
         public bool Cancelled { get; protected set; }
-        public Nintroller nintroller;
+        public Nintroller? nintroller;
 
         public DebugDataWindow()
         {
@@ -22,7 +22,7 @@ namespace WiinUSoft.Windows
                 nintroller.StateUpdate += Nintroller_StateUpdate;
         }
 
-        private void Nintroller_StateUpdate(object sender, NintrollerStateEventArgs e)
+        private void Nintroller_StateUpdate(object? sender, NintrollerStateEventArgs e)
         {
 #if DEBUG
             if (!Cancelled && e.state is WiiGuitar wgt)

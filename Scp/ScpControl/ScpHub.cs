@@ -8,9 +8,9 @@ namespace ScpControl
         protected IntPtr m_Reference = IntPtr.Zero;
         protected volatile Boolean m_Started = false;
 
-        public event EventHandler<DebugEventArgs>   Debug   = null;
-        public event EventHandler<ArrivalEventArgs> Arrival = null;
-        public event EventHandler<ReportEventArgs>  Report  = null;
+        public event EventHandler<DebugEventArgs>?   Debug;
+        public event EventHandler<ArrivalEventArgs>? Arrival;
+        public event EventHandler<ReportEventArgs>?  Report;
 
         protected virtual Boolean LogDebug(String Data) 
         {
@@ -96,19 +96,19 @@ namespace ScpControl
             return DsPadId.None;
         }
 
-        protected virtual void On_Debug(object sender, DebugEventArgs e)     
+        protected virtual void On_Debug(object? sender, DebugEventArgs e)     
         {
-            if (Debug != null) Debug(sender, e);
+            Debug?.Invoke(sender, e);
         }
 
-        protected virtual void On_Arrival(object sender, ArrivalEventArgs e) 
+        protected virtual void On_Arrival(object? sender, ArrivalEventArgs e) 
         {
-            if (Arrival != null) Arrival(this, e);
+            Arrival?.Invoke(this, e);
         }
 
-        protected virtual void On_Report(object sender, ReportEventArgs e)   
+        protected virtual void On_Report(object? sender, ReportEventArgs e)   
         {
-            if (Report != null) Report(sender, e);
+            Report?.Invoke(sender, e);
         }
     }
 }

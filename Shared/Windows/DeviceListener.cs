@@ -25,7 +25,7 @@ namespace Shared.Windows
 
         public static DeviceListener Instance { get; private set; }
 
-        public event Action OnDevicesUpdated;
+        public event Action? OnDevicesUpdated;
 
         private IntPtr notificationHandle;
 

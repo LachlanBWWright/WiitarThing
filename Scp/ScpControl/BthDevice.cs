@@ -5,8 +5,8 @@ namespace ScpControl
 {
     public partial class BthDevice : BthConnection, IDsDevice 
     {
-        public event EventHandler<DebugEventArgs>  Debug  = null;
-        public event EventHandler<ReportEventArgs> Report = null;
+        public event EventHandler<DebugEventArgs>?  Debug;
+        public event EventHandler<ReportEventArgs>? Report;
 
         protected ReportEventArgs m_ReportArgs = new ReportEventArgs();
 
@@ -15,7 +15,12 @@ namespace ScpControl
         protected Boolean    m_Blocked = false, m_IsIdle = true, m_IsDisconnect = false;
         protected UInt32     m_Queued = 0;
         protected DateTime   m_Last = DateTime.Now, m_Idle = DateTime.Now, m_Tick = DateTime.Now, m_Disconnect = DateTime.Now;
-        protected IBthDevice m_Device;
+        protected IBthDevice? m_Device;
+
+        protected IBthDevice AttachedDevice
+        {
+            get { return m_Device ?? throw new InvalidOperationException("Bluetooth device is not attached."); }
+        }
 
         protected Byte[] m_Master = new Byte[6];
 
@@ -62,17 +67,14 @@ namespace ScpControl
             m_ReportArgs.Report[0] = m_ControllerId;
             m_ReportArgs.Report[1] = (Byte) m_State;
 
-            if (Report != null) Report(this, m_ReportArgs);
+            Report?.Invoke(this, m_ReportArgs);
         }
 
         protected virtual void LogDebug(String Data) 
         {
             DebugEventArgs args = new DebugEventArgs(Data);
 
-            if (Debug != null)
-            {
-                Debug(this, args);
-            }
+            Debug?.Invoke(this, args);
         }
 
 
@@ -160,7 +162,7 @@ namespace ScpControl
         public virtual Boolean Disconnect() 
         {
             m_Publish = false;
-            return m_Device.HCI_Disconnect(m_HCI_Handle) > 0;
+            return m_Device != null && m_Device.HCI_Disconnect(m_HCI_Handle) > 0;
         }
 
 
@@ -207,7 +209,7 @@ namespace ScpControl
         {
         }
 
-        protected virtual void On_Timer(object sender, EventArgs e) 
+        protected virtual void On_Timer(object? sender, EventArgs e) 
         {
             if (m_State == DsState.Connected)
             {

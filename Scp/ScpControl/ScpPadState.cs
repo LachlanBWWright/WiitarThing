@@ -6,7 +6,7 @@ namespace ScpControl
 {
     public partial class ScpPadState : Component 
     {
-        protected ScpProxy m_Proxy = null;
+        protected ScpProxy? m_Proxy;
 
         protected const Int32 Centre       = 127;
         protected const Int32 Accelerate   =  75;
@@ -20,10 +20,23 @@ namespace ScpControl
         protected Int32 m_vx = 0, m_vy = 0;
         protected Int32 m_dx = 0, m_dy = 0;
 
-        public ScpProxy Proxy 
+        public ScpProxy? Proxy 
         {
             get { return m_Proxy; }
-            set { m_Proxy = value; Proxy.Packet += Sample; }
+            set
+            {
+                if (m_Proxy != null)
+                {
+                    m_Proxy.Packet -= Sample;
+                }
+
+                m_Proxy = value;
+
+                if (m_Proxy != null)
+                {
+                    m_Proxy.Packet += Sample;
+                }
+            }
         }
 
         public DsPadId Pad 
@@ -86,7 +99,7 @@ namespace ScpControl
         }
 
 
-        public virtual void Sample(object sender, DsPacket Packet) 
+        public virtual void Sample(object? sender, DsPacket Packet) 
         {
             lock (this)
             {
@@ -222,7 +235,7 @@ namespace ScpControl
         }
 
 
-        internal virtual void tmUpdate_Tick(object sender, EventArgs e) 
+        internal virtual void tmUpdate_Tick(object? sender, EventArgs e) 
         {
             lock (this)
             {

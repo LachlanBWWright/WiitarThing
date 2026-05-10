@@ -34,9 +34,9 @@ namespace ScpControl
             set { m_LMP_Version = value; }
         }
 
-        public event EventHandler<DebugEventArgs>   Debug   = null;
-        public event EventHandler<ArrivalEventArgs> Arrival = null;
-        public event EventHandler<ReportEventArgs>  Report  = null;
+        public event EventHandler<DebugEventArgs>?   Debug;
+        public event EventHandler<ArrivalEventArgs>? Arrival;
+        public event EventHandler<ReportEventArgs>?  Report;
 
         protected DsState m_State = DsState.Disconnected;
         public DsState State 
@@ -55,20 +55,14 @@ namespace ScpControl
         {
             DebugEventArgs args = new DebugEventArgs(Data);
 
-            if (Debug != null)
-            {
-                Debug(this, args);
-            }
+            Debug?.Invoke(this, args);
         }
 
         protected Boolean LogArrival(IDsDevice Arrived) 
         {
             ArrivalEventArgs args = new ArrivalEventArgs(Arrived);
 
-            if (Arrival != null)
-            {
-                Arrival(this, args);
-            }
+            Arrival?.Invoke(this, args);
 
             return args.Handled;
         }
@@ -189,9 +183,9 @@ namespace ScpControl
         }
 
 
-        protected virtual BthDevice Add(Byte Lsb, Byte Msb, String Name) 
+        protected virtual BthDevice? Add(Byte Lsb, Byte Msb, String Name) 
         {
-            BthDevice Connection = null;
+            BthDevice? Connection = null;
 
             if (m_Connected.Count < 4)
             {
@@ -237,17 +231,14 @@ namespace ScpControl
         }
 
 
-        protected void On_Debug(object sender, DebugEventArgs e) 
+        protected void On_Debug(object? sender, DebugEventArgs e) 
         {
-            if (Debug != null)
-            {
-                Debug(this, e);
-            }
+            Debug?.Invoke(this, e);
         }
 
-        protected void On_Report(object sender, ReportEventArgs e) 
+        protected void On_Report(object? sender, ReportEventArgs e) 
         {
-            if (Report != null) Report(sender, e);
+            Report?.Invoke(sender, e);
         }
 
         #region Worker Threads
@@ -556,7 +547,7 @@ namespace ScpControl
             Int32         Transfered = 0;
             HCI.Event     Event;
             HCI.Command   Command = HCI.Command.HCI_Null;
-            BthConnection Connection = new BthConnection();
+            BthConnection? Connection = null;
 
             LogDebug(String.Format("-- Bluetooth  : HCI_Worker_Thread Starting [{0:X2}]", m_IntIn));
 
@@ -761,6 +752,7 @@ namespace ScpControl
                                     bd = String.Format("{0:X2}:{1:X2}:{2:X2}:{3:X2}:{4:X2}:{5:X2}", Buffer[10], Buffer[9], Buffer[8], Buffer[7], Buffer[6], Buffer[5]);
 
                                     Connection = Add(Buffer[3], (Byte)(Buffer[4] | 0x20), NameList[bd]);
+                                    if (Connection == null) break;
 
                                     if (NameList[bd].Contains("-ghic") || bd.StartsWith("00:26:5C") || bd.StartsWith("00:16:FE:71")) Connection.ServiceByPass = true;
 
@@ -815,7 +807,8 @@ namespace ScpControl
                                     for (int i = 0; i < 6; i++) BD_Addr[i] = Buffer[i + 2];
 
                                     Transfered = HCI_Link_Key_Request_Reply(BD_Addr);
-                                    Transfered = HCI_Set_Connection_Encryption(Connection.HCI_Handle);
+                                    if (Connection != null)
+                                        Transfered = HCI_Set_Connection_Encryption(Connection.HCI_Handle);
                                     break;
 
                                 case HCI.Event.HCI_PIN_Code_Request_EV:
@@ -840,7 +833,8 @@ namespace ScpControl
                                     for (Int32 Index = 0; Index <  6; Index++) BD_Addr[Index] = Buffer[Index + 2];
                                     for (Int32 Index = 0; Index < 16; Index++) BD_Link[Index] = Buffer[Index + 8];
 
-                                    Transfered = HCI_Set_Connection_Encryption(Connection.HCI_Handle);
+                                    if (Connection != null)
+                                        Transfered = HCI_Set_Connection_Encryption(Connection.HCI_Handle);
                                     break;
 
                                 default:

@@ -9,7 +9,7 @@ namespace WiinUSoft
 {
     public class UserPrefs
     {
-        private static UserPrefs _instance;
+        private static UserPrefs? _instance;
 
         public static UserPrefs Instance
         {
@@ -49,11 +49,11 @@ namespace WiinUSoft
                     }
                 }
 
-                return _instance;
+                return _instance ??= new UserPrefs();
             }
         }
 
-        public static string DataPath { get; protected set; }
+        public static string DataPath { get; protected set; } = string.Empty;
 
         public static bool AutoStart
         {
@@ -62,18 +62,21 @@ namespace WiinUSoft
             {
                 try
                 {
-                    RegistryKey key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
+                    using RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
 
-                    if (value)
+                    if (key != null)
                     {
-                        if (key.GetValue("WiinUSoft") == null)
+                        if (value)
                         {
-                            key.SetValue("WiinUSoft", (new Uri(System.Reflection.Assembly.GetEntryAssembly().CodeBase)).LocalPath);
+                            if (key.GetValue("WiinUSoft") == null)
+                            {
+                                key.SetValue("WiinUSoft", System.Reflection.Assembly.GetEntryAssembly()?.Location ?? AppContext.BaseDirectory);
+                            }
                         }
-                    }
-                    else
-                    {
-                        key.DeleteValue("WiinUSoft", false);
+                        else
+                        {
+                            key.DeleteValue("WiinUSoft", false);
+                        }
                     }
                 }
                 catch
@@ -84,7 +87,7 @@ namespace WiinUSoft
                     {
                         if (!File.Exists(Path.Combine(dir, "WiinUSoft.lnk")))
                         {
-                            MainWindow.Instance.CreateShortcut(dir);
+                            MainWindow.Instance?.CreateShortcut(dir);
                         }
                     }
                     else
@@ -102,9 +105,9 @@ namespace WiinUSoft
 
         // devicePrefs is always initialized; never null.
         public List<Property> devicePrefs = new List<Property>();
-        public Profile defaultProfile;
+        public Profile? defaultProfile;
         // defaultProperty is explicitly nullable: absent when no "all" entry exists.
-        public Property defaultProperty;
+        public Property? defaultProperty;
         public bool autoStartup;
         public bool startMinimized;
         public bool greedyMode;
@@ -138,7 +141,7 @@ namespace WiinUSoft
                 using (var stream = File.OpenRead(DataPath))
                 using (var reader = new StreamReader(stream))
                 {
-                    _instance = (UserPrefs)serializer.Deserialize(reader);
+                    _instance = serializer.Deserialize(reader) as UserPrefs ?? new UserPrefs();
                 }
 
                 // Ensure collections are never null after deserialization.
@@ -212,7 +215,7 @@ namespace WiinUSoft
         /// Returns the saved preference for the given HID path,
         /// or the global "all" default if one exists, or <c>null</c> if absent.
         /// </summary>
-        public Property GetDevicePref(string hid)
+        public Property? GetDevicePref(string hid)
         {
             foreach (var pref in devicePrefs)
             {

@@ -85,7 +85,7 @@ namespace ScpControl
             }
 
             m_Queued = 1; m_Blocked = true; m_Last = DateTime.Now;
-            m_Device.HID_Command(HCI_Handle.Bytes, Get_SCID(L2CAP.PSM.HID_Command), m_Enable);
+            AttachedDevice.HID_Command(HCI_Handle.Bytes, Get_SCID(L2CAP.PSM.HID_Command), m_Enable);
 
             return base.Start();
         }
@@ -183,7 +183,7 @@ namespace ScpControl
                 {
                     m_Last = DateTime.Now; m_Blocked = true;
 
-                    m_Device.HID_Command(HCI_Handle.Bytes, Get_SCID(L2CAP.PSM.HID_Command), m_Report);
+                    AttachedDevice.HID_Command(HCI_Handle.Bytes, Get_SCID(L2CAP.PSM.HID_Command), m_Report);
                 }
                 else
                 {
@@ -199,7 +199,7 @@ namespace ScpControl
 
             if (m_Init < m_InitReport.Length)
             {
-                m_Device.HID_Command(HCI_Handle.Bytes, Get_SCID(L2CAP.PSM.HID_Service), m_InitReport[m_Init++]);
+                AttachedDevice.HID_Command(HCI_Handle.Bytes, Get_SCID(L2CAP.PSM.HID_Service), m_InitReport[m_Init++]);
             }
             else if (m_Init == m_InitReport.Length)
             {
@@ -240,7 +240,7 @@ namespace ScpControl
                         {
                             m_Last = Now; m_Blocked = true; m_Queued--;
 
-                            m_Device.HID_Command(HCI_Handle.Bytes, Get_SCID(L2CAP.PSM.HID_Command), m_Report);
+                            AttachedDevice.HID_Command(HCI_Handle.Bytes, Get_SCID(L2CAP.PSM.HID_Command), m_Report);
                         }
                     }
                 }

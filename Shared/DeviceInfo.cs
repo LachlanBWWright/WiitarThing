@@ -14,13 +14,13 @@ namespace Shared
         }
 
         // For Wii/U Controllers
-        public string DevicePath { get; set; }
+        public string DevicePath { get; set; } = string.Empty;
         public ControllerType Type { get; set; }
 
         // For Joysticks
         public Guid InstanceGUID { get; set; } = Guid.Empty;
-        public string VID { get; set; }
-        public string PID { get; set; }
+        public string VID { get; set; } = string.Empty;
+        public string PID { get; set; } = string.Empty;
 
         public bool SameDevice(string identifier)
         {
@@ -28,12 +28,7 @@ namespace Shared
             {
                 return identifier == DevicePath;
             }
-            else
-            {
-                return identifier == InstanceGUID.ToString();
-            }
-
-            return false;
+            return identifier == InstanceGUID.ToString();
         }
 
         public bool SameDevice(Guid guid)

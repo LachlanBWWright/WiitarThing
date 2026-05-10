@@ -11,9 +11,9 @@ namespace WiinUSoft
     /// </summary>
     internal sealed class TrayIconService : IDisposable
     {
-        public event EventHandler ShowRequested;
-        public event EventHandler RefreshRequested;
-        public event EventHandler ExitRequested;
+        public event EventHandler? ShowRequested;
+        public event EventHandler? RefreshRequested;
+        public event EventHandler? ExitRequested;
 
         private readonly NotifyIcon _notifyIcon;
         private bool _disposed;

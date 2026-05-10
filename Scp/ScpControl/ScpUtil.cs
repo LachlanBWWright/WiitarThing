@@ -171,7 +171,7 @@ namespace ScpControl
 
     public class Profile 
     {
-        protected String       m_Name, m_Type, m_Pad = String.Empty, m_Mac = String.Empty;
+        protected String       m_Name = String.Empty, m_Type = String.Empty, m_Pad = String.Empty, m_Mac = String.Empty;
         protected DsMatch      m_Match   = DsMatch.Global;
         protected Boolean      m_Default = false;
 
@@ -378,8 +378,10 @@ namespace ScpControl
 
         #region IEquatable<BthHandle> Members
 
-        public virtual bool Equals(BthHandle other) 
+        public virtual bool Equals(BthHandle? other) 
         {
+            if (other is null) return false;
+
             return m_Value == other.m_Value;
         }
 
@@ -397,8 +399,10 @@ namespace ScpControl
 
         #region IComparable<BthHandle> Members
 
-        public virtual int CompareTo(BthHandle other) 
+        public virtual int CompareTo(BthHandle? other) 
         {
+            if (other is null) return 1;
+
             return m_Value.CompareTo(other.m_Value);
         }
 
@@ -483,7 +487,7 @@ namespace ScpControl
 
     public class ArrivalEventArgs : EventArgs 
     {
-        protected IDsDevice m_Device = null;
+        protected IDsDevice? m_Device = null;
         protected Boolean m_Handled = false;
 
         public ArrivalEventArgs(IDsDevice Device) 
@@ -491,7 +495,7 @@ namespace ScpControl
             m_Device = Device;
         }
 
-        public IDsDevice Device 
+        public IDsDevice? Device 
         {
             get { return m_Device; }
             set { m_Device = value; }
@@ -852,7 +856,7 @@ namespace ScpControl
 
     public class BackingStore 
     {
-        protected String      m_File = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "\\" + Assembly.GetExecutingAssembly().GetName().Name + ".xml";
+        protected String      m_File = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? AppContext.BaseDirectory, (Assembly.GetExecutingAssembly().GetName().Name ?? "ScpControl") + ".xml");
         protected XmlDocument m_Doc  = new XmlDocument();
 
         protected virtual void CreateTextNode(XmlNode Node, String Name, String Text) 
@@ -879,55 +883,25 @@ namespace ScpControl
 
                 try
                 {
-                    XmlNode Node = m_Doc.SelectSingleNode("/ScpControl");
+                    XmlNode? Node = m_Doc.SelectSingleNode("/ScpControl");
+                    String Value(String name) => Node?.SelectSingleNode(name)?.FirstChild?.Value ?? String.Empty;
 
-                    try { XmlNode Item = Node.SelectSingleNode("Idle"); Int32.TryParse(Item.FirstChild.Value, out m_Idle); }
-                    catch { }
-
-                    try { XmlNode Item = Node.SelectSingleNode("LX"); Boolean.TryParse(Item.FirstChild.Value, out m_LX); }
-                    catch { }
-
-                    try { XmlNode Item = Node.SelectSingleNode("LY"); Boolean.TryParse(Item.FirstChild.Value, out m_LY); }
-                    catch { }
-
-                    try { XmlNode Item = Node.SelectSingleNode("RX"); Boolean.TryParse(Item.FirstChild.Value, out m_RX); }
-                    catch { }
-
-                    try { XmlNode Item = Node.SelectSingleNode("RY"); Boolean.TryParse(Item.FirstChild.Value, out m_RY); }
-                    catch { }
-
-                    try { XmlNode Item = Node.SelectSingleNode("LED"); Boolean.TryParse(Item.FirstChild.Value, out m_LED); }
-                    catch { }
-
-                    try { XmlNode Item = Node.SelectSingleNode("Rumble"); Boolean.TryParse(Item.FirstChild.Value, out m_Rumble); }
-                    catch { }
-
-                    try { XmlNode Item = Node.SelectSingleNode("Triggers"); Boolean.TryParse(Item.FirstChild.Value, out m_Triggers); }
-                    catch { }
-
-                    try { XmlNode Item = Node.SelectSingleNode("Latency"); Int32.TryParse(Item.FirstChild.Value, out m_Latency); }
-                    catch { }
-
-                    try { XmlNode Item = Node.SelectSingleNode("DeadL"); Byte.TryParse(Item.FirstChild.Value, out m_DeadL); }
-                    catch { }
-
-                    try { XmlNode Item = Node.SelectSingleNode("DeadR"); Byte.TryParse(Item.FirstChild.Value, out m_DeadR); }
-                    catch { }
-
-                    try { XmlNode Item = Node.SelectSingleNode("Native"); Boolean.TryParse(Item.FirstChild.Value, out m_Native); }
-                    catch { }
-
-                    try { XmlNode Item = Node.SelectSingleNode("SSP"); Boolean.TryParse(Item.FirstChild.Value, out m_SSP); }
-                    catch { }
-
-                    try { XmlNode Item = Node.SelectSingleNode("Brightness"); Byte.TryParse(Item.FirstChild.Value, out m_Brightness); }
-                    catch { }
-
-                    try { XmlNode Item = Node.SelectSingleNode("Bus"); Int32.TryParse(Item.FirstChild.Value, out m_Bus); }
-                    catch { }
-
-                    try { XmlNode Item = Node.SelectSingleNode("Force"); Boolean.TryParse(Item.FirstChild.Value, out m_Repair); }
-                    catch { }
+                    Int32.TryParse(Value("Idle"), out m_Idle);
+                    Boolean.TryParse(Value("LX"), out m_LX);
+                    Boolean.TryParse(Value("LY"), out m_LY);
+                    Boolean.TryParse(Value("RX"), out m_RX);
+                    Boolean.TryParse(Value("RY"), out m_RY);
+                    Boolean.TryParse(Value("LED"), out m_LED);
+                    Boolean.TryParse(Value("Rumble"), out m_Rumble);
+                    Boolean.TryParse(Value("Triggers"), out m_Triggers);
+                    Int32.TryParse(Value("Latency"), out m_Latency);
+                    Byte.TryParse(Value("DeadL"), out m_DeadL);
+                    Byte.TryParse(Value("DeadR"), out m_DeadR);
+                    Boolean.TryParse(Value("Native"), out m_Native);
+                    Boolean.TryParse(Value("SSP"), out m_SSP);
+                    Byte.TryParse(Value("Brightness"), out m_Brightness);
+                    Int32.TryParse(Value("Bus"), out m_Bus);
+                    Boolean.TryParse(Value("Force"), out m_Repair);
                 }
                 catch { }
             }
@@ -1104,7 +1078,7 @@ namespace ScpControl
     public class ThemeUtil 
     {
         [DllImport("UxTheme", CharSet = CharSet.Auto)]
-        private static extern Int32 SetWindowTheme(IntPtr hWnd, String appName, String partList);
+        private static extern Int32 SetWindowTheme(IntPtr hWnd, String appName, String? partList);
 
         [DllImport("User32", CharSet = CharSet.Auto)]
         private static extern IntPtr SendMessage(IntPtr hWnd, Int32 Msg, Int32 wParam, Int32 lParam);
@@ -1194,7 +1168,7 @@ namespace ScpControl
 
         public override string ApplicationName
         {
-            get { return Application.ProductName; }
+            get { return Application.ProductName ?? String.Empty; }
             set { }
         }
 
@@ -1240,7 +1214,7 @@ namespace ScpControl
                 RegistryKey = Registry.LocalMachine;
             }
 
-            RegistryKey = RegistryKey.CreateSubKey(GetSubKeyPath());
+            RegistryKey = RegistryKey.CreateSubKey(GetSubKeyPath()) ?? RegistryKey;
 
             return RegistryKey;
         }
@@ -1249,7 +1223,10 @@ namespace ScpControl
         {
             foreach (DictionaryEntry Entry in Property.Attributes)
             {
-                Attribute Attribute = (Attribute)Entry.Value;
+                if (Entry.Value is not Attribute Attribute)
+                {
+                    continue;
+                }
 
                 if (Attribute.GetType() == typeof(UserScopedSettingAttribute))
                 {

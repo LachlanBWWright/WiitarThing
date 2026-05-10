@@ -4,7 +4,7 @@ namespace WiinUSoft.Windows
 {
     public partial class RemoveAllWiimotesWindow : Window
     {
-        private System.Threading.Thread _workThread;
+        private System.Threading.Thread? _workThread;
 
         public RemoveAllWiimotesWindow()
         {

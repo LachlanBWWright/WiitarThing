@@ -32,15 +32,15 @@ namespace WiinUSoft
             return activeProcId == procId;
         }
 
-        public static MainWindow Instance { get; private set; }
+        public static MainWindow? Instance { get; private set; }
 
-        private TrayIconService _trayService;
-        private List<DeviceInfo> hidList;
-        private List<DeviceControl> deviceList;
-        private List<DeviceControl> _availableDevices;
-        private List<DeviceControl> _connectedDevices;
-        private Task _refreshTask;
-        private CancellationTokenSource _refreshToken;
+        private TrayIconService _trayService = null!;
+        private List<DeviceInfo> hidList = null!;
+        private List<DeviceControl> deviceList = null!;
+        private List<DeviceControl> _availableDevices = null!;
+        private List<DeviceControl> _connectedDevices = null!;
+        private Task? _refreshTask;
+        private CancellationTokenSource? _refreshToken;
         private bool _refreshing;
         private bool _loadedFired;
         private bool _syncDialogOpen;
@@ -57,8 +57,10 @@ namespace WiinUSoft
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(AppTitleBar);
 
-            Version version = System.Reflection.Assembly.GetEntryAssembly().GetName().Version;
-            string displayTitle = "WiitarThing " + string.Format("V{0}.{1}.{2}", version.Major, version.Minor, version.Revision);
+            Version? version = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version;
+            string displayTitle = "WiitarThing " + (version != null
+                ? string.Format("V{0}.{1}.{2}", version.Major, version.Minor, version.Revision)
+                : "");
             Title = displayTitle;
 #if DEBUG
             Title += " Debug Build";
@@ -121,7 +123,7 @@ namespace WiinUSoft
 
         public void TriggerRefresh() => Refresh();
 
-        public void ShowBalloon(string title, string message, int icon = 0, SystemSound sound = null)
+        public void ShowBalloon(string title, string message, int icon = 0, SystemSound? sound = null)
         {
             _trayService?.ShowBalloon(title, message, icon);
             sound?.Play();
@@ -136,7 +138,7 @@ namespace WiinUSoft
 
             foreach (var hid in hidList)
             {
-                DeviceControl existingDevice = null;
+                DeviceControl? existingDevice = null;
                 foreach (DeviceControl d in deviceList)
                 {
                     if (d.DevicePath == hid.DevicePath) { existingDevice = d; break; }
@@ -186,7 +188,7 @@ namespace WiinUSoft
                 {
                     if (Holders.XInputHolder.availabe[target] && target < 4)
                     {
-                        if (thingy.Value.Device.Connected || (thingy.Value.Device.DataStream as WinBtStream).OpenConnection())
+                        if (thingy.Value.Device.Connected || (thingy.Value.Device.DataStream as WinBtStream)?.OpenConnection() == true)
                         {
                             thingy.Value.targetXDevice = target + 1;
                             thingy.Value.ConnectionState = DeviceState.Connected_XInput;
@@ -212,7 +214,7 @@ namespace WiinUSoft
             {
                 if (Holders.XInputHolder.availabe[target] && target < 4)
                 {
-                    if (d.Value.Device.Connected || (d.Value.Device.DataStream as WinBtStream).OpenConnection())
+                    if (d.Value.Device.Connected || (d.Value.Device.DataStream as WinBtStream)?.OpenConnection() == true)
                     {
                         d.Value.targetXDevice = target + 1;
                         d.Value.ConnectionState = DeviceState.Connected_XInput;
@@ -245,13 +247,13 @@ namespace WiinUSoft
             }
             else if (!set && _refreshing)
             {
-                _refreshToken.Cancel();
+                _refreshToken?.Cancel();
             }
         }
 
         // ── Event handlers ──────────────────────────────────────────────────
 
-        private void Window_Loaded(object sender, object e)
+        private void Window_Loaded(object? sender, object e)
         {
             if (_loadedFired) return;
             _loadedFired = true;
@@ -259,8 +261,9 @@ namespace WiinUSoft
 
             try
             {
-                var v = System.Reflection.Assembly.GetEntryAssembly().GetName().Version;
-                menu_version.Text = string.Format("Version {0}.{1}.{2}", v.Major, v.Minor, v.Revision);
+                var v = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version;
+                if (v != null)
+                    menu_version.Text = string.Format("Version {0}.{1}.{2}", v.Major, v.Minor, v.Revision);
             }
             catch { }
 
@@ -340,7 +343,7 @@ namespace WiinUSoft
             }
         }
 
-        private void Sync_NewDeviceFound(object sender, EventArgs e)
+        private void Sync_NewDeviceFound(object? sender, EventArgs e)
         {
             DispatcherQueue.TryEnqueue(Refresh);
         }
@@ -463,7 +466,7 @@ namespace WiinUSoft
 
         static Task Delay(int ms)
         {
-            var tcs = new TaskCompletionSource<object>();
+            var tcs = new TaskCompletionSource<object?>();
             new System.Threading.Timer(_ => tcs.SetResult(null)).Change(ms, -1);
             return tcs.Task;
         }

@@ -193,7 +193,7 @@ namespace NintrollerLib
             return (uint)Marshal.ReadInt32(pBuffer);
         }
 
-        public static string ParseString(IntPtr pBuffer, uint bufferLength)
+        public static string? ParseString(IntPtr pBuffer, uint bufferLength)
         {
             return Marshal.PtrToStringAuto(pBuffer);
         }
@@ -202,14 +202,14 @@ namespace NintrollerLib
         {
             int stringLength = ((int)propertyBufferSize) / Marshal.SizeOf(typeof(short));
 
-            string s = Marshal.PtrToStringAuto(pBuffer, stringLength);
+            string s = Marshal.PtrToStringAuto(pBuffer, stringLength) ?? String.Empty;
 
             return s.Split(new char[] { '\0' }, StringSplitOptions.RemoveEmptyEntries).ToList().AsReadOnly();
         }
 
         public static Guid ParseGuid(IntPtr pBuffer, uint bufferLength)
         {
-            return (Guid)Marshal.PtrToStructure(pBuffer, typeof(Guid));
+            return Marshal.PtrToStructure<Guid>(pBuffer);
         }
 
         internal static bool ParseBoolean(IntPtr p, uint bufferLength)

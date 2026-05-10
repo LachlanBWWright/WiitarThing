@@ -5,7 +5,7 @@ namespace ScpControl
 {
     public partial class BthHub : ScpHub 
     {
-        protected BthDongle Device;
+        protected BthDongle Device = new BthDongle();
 
         public String  Dongle   
         {

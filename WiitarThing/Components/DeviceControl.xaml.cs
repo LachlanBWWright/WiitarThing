@@ -19,8 +19,8 @@ namespace WiinUSoft
     public partial class DeviceControl : UserControl
     {
         #region Members
-        private string devicePath;
-        private Nintroller device;
+        private string devicePath = string.Empty;
+        private Nintroller device = null!;
         private DeviceState state;
         private IR previousIR;
         private bool snapIRpointer;
@@ -29,18 +29,18 @@ namespace WiinUSoft
         private int rumbleStepPeriod = 10;
         private float rumbleSlowMult = 0.5f;
 
-        internal Holders.Holder holder;
-        internal Property properties;
+        internal Holders.Holder? holder;
+        internal Property properties = null!;
         internal int targetXDevice;
         internal bool lowBatteryFired;
         internal bool identifying;
         internal string dName = "";
-        internal System.Threading.Timer updateTimer;
+        internal System.Threading.Timer? updateTimer;
 
         internal const int UPDATE_SPEED = 25;
 
-        public event ConnectStateChange OnConnectStateChange;
-        public event ConnectionLost OnConnectionLost;
+        public event ConnectStateChange? OnConnectStateChange;
+        public event ConnectionLost? OnConnectionLost;
         #endregion
 
         #region Properties
@@ -100,10 +100,10 @@ namespace WiinUSoft
         }
 
 #if DEBUG
-        private Windows.DebugDataWindow DebugDataWindowInstance;
+        private Windows.DebugDataWindow? DebugDataWindowInstance;
         private bool _debugWindowVisible;
 
-        private void Debug_Device_StateUpdate(object sender, NintrollerStateEventArgs e)
+        private void Debug_Device_StateUpdate(object? sender, NintrollerStateEventArgs e)
         {
             if (e.state.DebugViewActive)
             {
@@ -132,9 +132,10 @@ namespace WiinUSoft
         public void RefreshState()
         {
             if (state != DeviceState.Connected_XInput) ConnectionState = DeviceState.Discovered;
-            properties = UserPrefs.Instance.GetDevicePref(devicePath);
-            if (properties != null)
+            Property? savedProperties = UserPrefs.Instance.GetDevicePref(devicePath);
+            if (savedProperties != null)
             {
+                properties = savedProperties;
                 SetName(string.IsNullOrWhiteSpace(properties.name) ? device.Type.ToString() : properties.name);
                 ApplyCalibration(properties.calPref, properties.calString ?? "");
                 snapIRpointer = properties.pointerMode != Property.PointerOffScreenMode.Center;
@@ -208,7 +209,7 @@ namespace WiinUSoft
             }
         }
 
-        void device_ExtensionChange(object sender, NintrollerExtensionEventArgs e)
+        void device_ExtensionChange(object? sender, NintrollerExtensionEventArgs e)
         {
             DeviceType = e.controllerType;
             if (holder != null) holder.AddMapping(DeviceType);
@@ -222,12 +223,12 @@ namespace WiinUSoft
             });
         }
 
-        void device_LowBattery(object sender, LowBatteryEventArgs e)
+        void device_LowBattery(object? sender, LowBatteryEventArgs e)
         {
             SetBatteryStatus(e.batteryLevel == BatteryStatus.Low || e.batteryLevel == BatteryStatus.VeryLow);
         }
 
-        void device_StateChange(object sender, NintrollerStateEventArgs e)
+        void device_StateChange(object? sender, NintrollerStateEventArgs e)
         {
             if (updateTimer != null) updateTimer.Change(1000, UPDATE_SPEED);
             if (holder == null) return;
@@ -353,19 +354,21 @@ namespace WiinUSoft
             if (updateTimer != null) updateTimer.Change(100, UPDATE_SPEED);
         }
 
-        private void device_Disconnected(object sender, DisconnectedEventArgs e)
+        private void device_Disconnected(object? sender, DisconnectedEventArgs e)
         {
             DispatcherQueue.TryEnqueue(() =>
             {
                 Detatch();
                 OnConnectionLost?.Invoke(this);
-                MainWindow.Instance.ShowBalloon("Connection Lost",
+                MainWindow.Instance?.ShowBalloon("Connection Lost",
                     "Failed to communicate with controller. It may no longer be connected.", 2);
             });
         }
 
         private void SetWiimoteInputs(Wiimote wm)
         {
+            if (holder == null) return;
+
             wm.irSensor.Normalize();
             holder.SetValue(Inputs.Wiimote.A, wm.buttons.A); holder.SetValue(Inputs.Wiimote.B, wm.buttons.B);
             holder.SetValue(Inputs.Wiimote.ONE, wm.buttons.One); holder.SetValue(Inputs.Wiimote.TWO, wm.buttons.Two);
@@ -396,7 +399,7 @@ namespace WiinUSoft
             previousIR = wm.irSensor;
         }
 
-        private void HolderUpdate(object holderState)
+        private void HolderUpdate(object? holderState)
         {
             if (holder == null) return;
             holder.Update();
@@ -406,6 +409,8 @@ namespace WiinUSoft
 
         void RumbleStep()
         {
+            if (holder == null) return;
+
             if (identifying) return;
             bool cur = device.RumbleEnabled;
             if (!properties.useRumble) { if (cur) device.RumbleEnabled = false; return; }
@@ -430,7 +435,7 @@ namespace WiinUSoft
                     if (_trayService_IsVisible())
                     {
                         lowBatteryFired = true;
-                        MainWindow.Instance.ShowBalloon(
+                        MainWindow.Instance?.ShowBalloon(
                             "Battery Low",
                             dName + (!dName.Equals(device.Type.ToString()) ? " (" + device.Type.ToString() + ") " : " ")
                                   + "is running low on battery life.",
@@ -454,7 +459,7 @@ namespace WiinUSoft
 
         private void LoadProfile(string profilePath, Holders.Holder h)
         {
-            Profile loadedProfile = null;
+            Profile? loadedProfile = null;
             if (!string.IsNullOrWhiteSpace(profilePath) && File.Exists(profilePath))
             {
                 try
@@ -560,7 +565,7 @@ namespace WiinUSoft
                 };
                 if (await dlg.ShowAsync() != ContentDialogResult.Primary) return;
             }
-            if ((device.DataStream as WinBtStream).OpenConnection() && device.DataStream.CanRead)
+            if ((device.DataStream as WinBtStream)?.OpenConnection() == true && device.DataStream.CanRead)
             {
                 if (int.TryParse(item.Name.Replace("XOption", ""), out int tmp))
                     AssignToXinputPlayer(tmp);
@@ -589,6 +594,8 @@ namespace WiinUSoft
 
         private async void btnConfig_Click(object sender, RoutedEventArgs e)
         {
+            if (holder == null) return;
+
             var config = new ControllerMappingWindow(holder.Mappings, device.Type);
             await config.ShowAsDialogAsync();
             if (config.result)
@@ -678,7 +685,7 @@ namespace WiinUSoft
 
         static System.Threading.Tasks.Task Delay(int ms)
         {
-            var tcs = new System.Threading.Tasks.TaskCompletionSource<object>();
+            var tcs = new System.Threading.Tasks.TaskCompletionSource<object?>();
             new System.Threading.Timer(_ => tcs.SetResult(null)).Change(ms, -1);
             return tcs.Task;
         }

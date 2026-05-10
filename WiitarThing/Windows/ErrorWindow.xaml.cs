@@ -17,7 +17,7 @@ namespace WiinUSoft
                 try
                 {
                     var nVersion = System.Reflection.Assembly.LoadFrom("Nintroller.dll").GetName().Version;
-                    if (nVersion < new Version(2, 5))
+                    if (nVersion != null && nVersion < new Version(2, 5))
                     {
                         _errorMessage.Text = "The Nintroller library is out of date.";
                         _errorStack.Text   = "Please try the following:" + Environment.NewLine +
