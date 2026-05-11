@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI;
 using NintrollerLib;
 using Shared;
 using Shared.Windows;
@@ -40,6 +41,15 @@ namespace WiinUSoft
         internal System.Threading.Timer? updateTimer;
 
         internal const int UPDATE_SPEED = 25;
+        private static readonly SolidColorBrush PreviewInactiveBrush = new(Colors.Transparent);
+        private static readonly SolidColorBrush PreviewTextInactiveBrush = new(Colors.Gray);
+        private static readonly SolidColorBrush PreviewTextActiveBrush = new(Colors.White);
+        private static readonly SolidColorBrush PreviewActiveBrush = new(Colors.White);
+        private static readonly SolidColorBrush FretGBrush = new(global::Windows.UI.Color.FromArgb(255, 45, 164, 78));
+        private static readonly SolidColorBrush FretRBrush = new(global::Windows.UI.Color.FromArgb(255, 209, 52, 56));
+        private static readonly SolidColorBrush FretYBrush = new(global::Windows.UI.Color.FromArgb(255, 255, 200, 61));
+        private static readonly SolidColorBrush FretBBrush = new(global::Windows.UI.Color.FromArgb(255, 0, 120, 212));
+        private static readonly SolidColorBrush FretOBrush = new(global::Windows.UI.Color.FromArgb(255, 255, 140, 0));
 
         public event ConnectStateChange? OnConnectStateChange;
         public event ConnectionLost? OnConnectionLost;
@@ -204,6 +214,7 @@ namespace WiinUSoft
                     btnDetatch.IsEnabled = false;
                     btnDetatch.Visibility = Visibility.Collapsed;
                     btnDebugView.Visibility = Visibility.Collapsed;
+                    guitarPreview.Visibility = Visibility.Collapsed;
                     break;
 
                 case DeviceState.Discovered:
@@ -214,6 +225,7 @@ namespace WiinUSoft
                     btnDetatch.IsEnabled = false;
                     btnDetatch.Visibility = Visibility.Collapsed;
                     btnDebugView.Visibility = Visibility.Collapsed;
+                    guitarPreview.Visibility = Visibility.Collapsed;
                     break;
 
                 case DeviceState.Connected_XInput:
@@ -228,6 +240,7 @@ namespace WiinUSoft
 #else
                     btnDebugView.Visibility = Visibility.Collapsed;
 #endif
+                    guitarPreview.Visibility = device.Type == ControllerType.Guitar ? Visibility.Visible : Visibility.Collapsed;
                     var xHolder = new Holders.XInputHolder(device.Type);
                     LoadProfile(properties.profile, xHolder);
                     xHolder.ConnectXInput(targetXDevice);
@@ -365,6 +378,7 @@ namespace WiinUSoft
                     holder.SetValue(Inputs.WiiGuitar.WHAMMYHIGH, wgt.WhammyHigh); holder.SetValue(Inputs.WiiGuitar.WHAMMYLOW, wgt.WhammyLow);
                     holder.SetValue(Inputs.WiiGuitar.TILTHIGH, wgt.TiltHigh); holder.SetValue(Inputs.WiiGuitar.TILTLOW, wgt.TiltLow);
                     holder.SetValue(Inputs.WiiGuitar.START, wgt.Start); holder.SetValue(Inputs.WiiGuitar.SELECT, wgt.Select);
+                    DispatcherQueue.TryEnqueue(() => UpdateGuitarPreview(wgt));
                     #endregion
                     break;
                 case ControllerType.Drums:
@@ -426,6 +440,50 @@ namespace WiinUSoft
             holder.SetValue(Inputs.Wiimote.IR_UP, wm.irSensor.Y > 0 ? wm.irSensor.Y : 0);
             holder.SetValue(Inputs.Wiimote.IR_DOWN, wm.irSensor.Y < 0 ? wm.irSensor.Y : 0);
             previousIR = wm.irSensor;
+        }
+
+        private void UpdateGuitarPreview(WiiGuitar guitar)
+        {
+            guitarPreview.Visibility = Visibility.Visible;
+            SetFretPreview(fretG, guitar.G, FretGBrush);
+            SetFretPreview(fretR, guitar.R, FretRBrush);
+            SetFretPreview(fretY, guitar.Y, FretYBrush);
+            SetFretPreview(fretB, guitar.B, FretBBrush);
+            SetFretPreview(fretO, guitar.O, FretOBrush);
+            strumIndicator.Text = GetStrumPreview(guitar);
+
+            SetTextPreview(previewWH, guitar.WhammyHigh > 0.05f);
+            SetTextPreview(previewWL, guitar.WhammyLow < -0.05f);
+            SetTextPreview(previewTH, guitar.TiltHigh > 0.05f);
+            SetTextPreview(previewTL, guitar.TiltLow < -0.05f);
+            SetTextPreview(previewStart, guitar.Start);
+            SetTextPreview(previewSelect, guitar.Select);
+        }
+
+        private static void SetFretPreview(Microsoft.UI.Xaml.Controls.Border fret, bool pressed, SolidColorBrush activeBrush)
+        {
+            fret.Background = pressed ? activeBrush : PreviewInactiveBrush;
+        }
+
+        private static void SetTextPreview(TextBlock textBlock, bool active)
+        {
+            textBlock.Foreground = active ? PreviewTextActiveBrush : PreviewTextInactiveBrush;
+            textBlock.FontWeight = active
+                ? Microsoft.UI.Text.FontWeights.SemiBold
+                : Microsoft.UI.Text.FontWeights.Normal;
+        }
+
+        private static string GetStrumPreview(WiiGuitar guitar)
+        {
+            if (guitar.Up && guitar.Right) return "↗";
+            if (guitar.Up && guitar.Left) return "↖";
+            if (guitar.Down && guitar.Right) return "↘";
+            if (guitar.Down && guitar.Left) return "↙";
+            if (guitar.Up) return "↑";
+            if (guitar.Down) return "↓";
+            if (guitar.Left) return "←";
+            if (guitar.Right) return "→";
+            return "•";
         }
 
         private void HolderUpdate(object? holderState)

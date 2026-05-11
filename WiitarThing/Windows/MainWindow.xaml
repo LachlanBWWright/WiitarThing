@@ -47,16 +47,8 @@
                          Padding="8,4"
                          >
             <MenuBarItem Title="Device">
-                                <MenuFlyoutItem x:Name="menuSync"
-                                                Text="Sync New Controller"
-                                                Click="btnSync_Click"/>
-                                <MenuFlyoutItem Text="Refresh"
-                                                Click="btnRefresh_Click"/>
-                                <MenuFlyoutSeparator/>
                                 <MenuFlyoutItem Text="Remove All Wiimotes"
                                                 Click="btnRemoveAllWiimotes_Click"/>
-                                <MenuFlyoutItem Text="Disconnect All Controllers"
-                                                Click="btnDetatchAllXInput_Click"/>
                         </MenuBarItem>
                         <MenuBarItem Title="Tools">
                                 <MenuFlyoutItem Text="Test Controllers"
@@ -104,10 +96,28 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0"
-                                           Text="Detected Devices"
-                                           Style="{ThemeResource SubheaderTextBlockStyle}"
-                                           Margin="0,0,0,6"/>
+                                <Grid Grid.Row="0"
+                                      Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Detected Devices"
+                                                   Style="{ThemeResource SubheaderTextBlockStyle}"
+                                                   VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="1"
+                                                    Orientation="Horizontal"
+                                                    Spacing="6"
+                                                    Margin="12,0,0,0">
+                                                <Button x:Name="menuSync"
+                                                        Height="32"
+                                                        ToolTipService.ToolTip="Sync a new controller"
+                                                        Click="btnSync_Click">Sync New</Button>
+                                                <Button Height="32"
+                                                        ToolTipService.ToolTip="Refresh detected devices"
+                                                        Click="btnRefresh_Click">Refresh</Button>
+                                        </StackPanel>
+                                </Grid>
                                 <TextBlock Grid.Row="1"
                                            Text="Press SYNC on your Wiimote or use the Refresh button to find new devices."
                                            Style="{ThemeResource CaptionTextBlockStyle}"

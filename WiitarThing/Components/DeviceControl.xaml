@@ -109,6 +109,118 @@
                         VerticalAlignment="Center"
                         Spacing="4">
 
+                <!-- Guitar input preview (active guitar controllers only) -->
+                <StackPanel x:Name="guitarPreview"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Spacing="4"
+                            Visibility="Collapsed"
+                            Margin="0,0,4,0">
+                    <StackPanel Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                Spacing="2">
+                        <Border x:Name="fretG"
+                                Width="7"
+                                Height="24"
+                                CornerRadius="2"
+                                BorderThickness="1"
+                                BorderBrush="#FF2DA44E"/>
+                        <Border x:Name="fretR"
+                                Width="7"
+                                Height="24"
+                                CornerRadius="2"
+                                BorderThickness="1"
+                                BorderBrush="#FFD13438"/>
+                        <Border x:Name="fretY"
+                                Width="7"
+                                Height="24"
+                                CornerRadius="2"
+                                BorderThickness="1"
+                                BorderBrush="#FFFFC83D"/>
+                        <Border x:Name="fretB"
+                                Width="7"
+                                Height="24"
+                                CornerRadius="2"
+                                BorderThickness="1"
+                                BorderBrush="#FF0078D4"/>
+                        <Border x:Name="fretO"
+                                Width="7"
+                                Height="24"
+                                CornerRadius="2"
+                                BorderThickness="1"
+                                BorderBrush="#FFFF8C00"/>
+                    </StackPanel>
+
+                    <Border Width="24"
+                            Height="24"
+                            BorderThickness="1"
+                            CornerRadius="12"
+                            BorderBrush="{ThemeResource TextFillColorSecondaryBrush}">
+                        <TextBlock x:Name="strumIndicator"
+                                   Text="."
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Margin="0,-3,0,0"/>
+                    </Border>
+
+                    <Grid Width="58"
+                          Height="30">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="previewWH"
+                                   Grid.Row="0"
+                                   Grid.Column="0"
+                                   Text="WH"
+                                   FontSize="9"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock x:Name="previewWL"
+                                   Grid.Row="1"
+                                   Grid.Column="0"
+                                   Text="WL"
+                                   FontSize="9"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock x:Name="previewTH"
+                                   Grid.Row="0"
+                                   Grid.Column="1"
+                                   Text="TH"
+                                   FontSize="9"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock x:Name="previewTL"
+                                   Grid.Row="1"
+                                   Grid.Column="1"
+                                   Text="TL"
+                                   FontSize="9"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock x:Name="previewStart"
+                                   Grid.Row="0"
+                                   Grid.Column="2"
+                                   Text="St"
+                                   FontSize="9"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock x:Name="previewSelect"
+                                   Grid.Row="1"
+                                   Grid.Column="2"
+                                   Text="Sl"
+                                   FontSize="9"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+
                 <!-- Debug view (debug builds only) -->
                 <Button x:Name="btnDebugView"
                         Width="34"

@@ -16,10 +16,10 @@ namespace Shared
         public bool IsError => !IsOk;
         public T Value => IsOk
             ? _value
-            : default!;
+            : throw new InvalidOperationException("Cannot access Value on an error result.");
         public TError Error => IsError
             ? _error
-            : default!;
+            : throw new InvalidOperationException("Cannot access Error on an ok result.");
 
         private Result(T value)
         {
