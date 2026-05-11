@@ -353,6 +353,7 @@ namespace WiinUSoft
             }
 
             Refresh();
+            _ = VirtualControllerDriverPrompt.CheckAtStartupAsync();
             AutoRefresh(menu_AutoRefresh.IsChecked && ApplicationIsActivated());
         }
 

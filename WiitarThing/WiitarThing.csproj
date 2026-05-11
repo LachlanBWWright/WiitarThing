@@ -54,8 +54,13 @@
   <ItemGroup>
     <!-- Images are content (copied to output dir) so WinUI 3 can load them by path -->
     <None Remove="Images\**\*" />
+    <None Remove="..\Installers\Drivers\SCP_Driver\**\*" />
     <None Remove="GHWT_Wii_Guitar.ico" />
     <Content Include="Images\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Installers\Drivers\SCP_Driver\**\*">
+      <Link>Drivers\SCP_Driver\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="GHWT_Wii_Guitar.ico">
@@ -76,7 +81,6 @@
   <Import Project="..\Shared\Shared.projitems" Label="Shared" />
 
 </Project>
-
 
 
 

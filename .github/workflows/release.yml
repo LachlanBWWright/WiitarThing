@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: Release tag to publish, for example v1.0.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build release package
+    runs-on: windows-latest
+
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: true
+      PROJECT_PATH: WiitarThing/WiitarThing.csproj
+      RUNTIME_IDENTIFIER: win-x64
+      RELEASE_DIR: artifacts/release/WiitarThing-win-x64
+      RELEASE_ZIP: artifacts/release/WiitarThing-win-x64.zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: release_tag
+        shell: pwsh
+        run: |
+          $tagName = "${{ github.event.inputs.tag_name }}"
+          if ([string]::IsNullOrWhiteSpace($tagName)) {
+            $tagName = "${{ github.ref_name }}"
+          }
+          "tag_name=$tagName" >> $env:GITHUB_OUTPUT
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore WiitarThing.sln -v:n
+
+      - name: Test
+        run: dotnet test Shared.Tests/Shared.Tests.csproj -c Release --no-restore -v:m
+
+      - name: Publish self-contained app
+        run: dotnet publish $env:PROJECT_PATH -c Release -r $env:RUNTIME_IDENTIFIER --self-contained true -o $env:RELEASE_DIR -v:m
+
+      - name: Package release asset
+        shell: pwsh
+        run: |
+          if (Test-Path $env:RELEASE_ZIP) {
+            Remove-Item $env:RELEASE_ZIP -Force
+          }
+          Compress-Archive -Path "$env:RELEASE_DIR/*" -DestinationPath $env:RELEASE_ZIP -CompressionLevel Optimal
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_tag.outputs.tag_name }}
+          name: WiitarThing ${{ steps.release_tag.outputs.tag_name }}
+          files: ${{ env.RELEASE_ZIP }}
+          generate_release_notes: true

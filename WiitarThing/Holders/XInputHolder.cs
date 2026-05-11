@@ -520,19 +520,31 @@ namespace WiinUSoft.Holders
 
         public Result<Unit, VirtualControllerError> TryConnectXInput(int id)
         {
-            if (id > 0 && id < 5)
-            {
-                availabe[id - 1] = false;
-            }
-            else
+            if (id <= 0 || id >= 5)
             {
                 return Result<Unit, VirtualControllerError>.Err(
                     VirtualControllerError.SlotUnavailable(id));
             }
 
             bus = XBus.Default;
+            if (bus.State != DsState.Connected)
+            {
+                return Result<Unit, VirtualControllerError>.Err(
+                    VirtualControllerError.DriverNotReady(
+                        "The SCP virtual bus driver is not available. Install or repair the WiitarThing SCP driver, then restart WiitarThing as administrator.",
+                        id));
+            }
+
             bus.Unplug(id);
-            bus.Plugin(id);
+            if (!bus.Plugin(id))
+            {
+                return Result<Unit, VirtualControllerError>.Err(
+                    VirtualControllerError.ConnectionFailed(
+                        $"Failed to create virtual Xbox 360 controller in player slot {id}.",
+                        id));
+            }
+
+            availabe[id - 1] = false;
             ID = id;
             connected = true;
             return Result<Unit, VirtualControllerError>.Ok(Unit.Value);
@@ -599,9 +611,13 @@ namespace WiinUSoft.Holders
                 if (defaultInstance == null)
                 {
                     defaultInstance = new XBus();
-                    defaultInstance.Open();
-                    defaultInstance.Start();
                 }
+
+                if (defaultInstance.State == DsState.Disconnected)
+                    defaultInstance.Open();
+
+                if (defaultInstance.State == DsState.Reserved)
+                    defaultInstance.Start();
 
                 return defaultInstance;
             }

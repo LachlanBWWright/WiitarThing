@@ -243,7 +243,19 @@ namespace WiinUSoft
                     guitarPreview.Visibility = device.Type == ControllerType.Guitar ? Visibility.Visible : Visibility.Collapsed;
                     var xHolder = new Holders.XInputHolder(device.Type);
                     LoadProfile(properties.profile, xHolder);
-                    xHolder.ConnectXInput(targetXDevice);
+                    var connectResult = xHolder.TryConnectXInput(targetXDevice);
+                    if (connectResult.IsError)
+                    {
+                        holder = null;
+                        DispatcherQueue.TryEnqueue(async () =>
+                        {
+                            Detatch();
+                            await ShowVirtualControllerErrorAsync(connectResult.Error);
+                            if (connectResult.Error.Kind == VirtualControllerErrorKind.DriverNotReady)
+                                await VirtualControllerDriverPrompt.PromptInstallAsync(this.XamlRoot);
+                        });
+                        break;
+                    }
                     holder = xHolder;
                     device.SetPlayerLED(targetXDevice);
                     updateTimer = new System.Threading.Timer(HolderUpdate, device, 1000, UPDATE_SPEED);
@@ -484,6 +496,22 @@ namespace WiinUSoft
             if (guitar.Left) return "←";
             if (guitar.Right) return "→";
             return "•";
+        }
+
+        private async System.Threading.Tasks.Task ShowVirtualControllerErrorAsync(VirtualControllerError error)
+        {
+            if (error.Kind == VirtualControllerErrorKind.DriverNotReady)
+                return;
+
+            var dlg = new ContentDialog
+            {
+                Title = "Virtual Xbox Controller Failed",
+                Content = error.ToDisplayString(),
+                PrimaryButtonText = "OK",
+                XamlRoot = this.XamlRoot
+            };
+
+            await dlg.ShowAsync();
         }
 
         private void HolderUpdate(object? holderState)
