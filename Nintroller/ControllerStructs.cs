@@ -55,7 +55,7 @@ namespace NintrollerLib
 
         public float GetValue(string input)
         {
-            throw new NotImplementedException();
+            return 0f;
         }
 
         public void SetCalibration(Calibrations.CalibrationPreset preset)
@@ -405,7 +405,7 @@ namespace NintrollerLib
 
         public float GetValue(string input)
         {
-            throw new NotImplementedException();
+            return 0f;
         }
 
         public void SetCalibration(Calibrations.CalibrationPreset preset)
@@ -727,7 +727,7 @@ namespace NintrollerLib
 
         public float GetValue(string input)
         {
-            throw new NotImplementedException();
+            return 0f;
         }
 
         public void SetCalibration(Calibrations.CalibrationPreset preset)
@@ -1091,7 +1091,7 @@ namespace NintrollerLib
 
         public float GetValue(string input)
         {
-            throw new NotImplementedException();
+            return 0f;
         }
 
         public void SetCalibration(Calibrations.CalibrationPreset preset)
@@ -1409,7 +1409,7 @@ namespace NintrollerLib
 
         public float GetValue(string input)
         {
-            throw new NotImplementedException();
+            return 0f;
         }
 
         public void SetCalibration(Calibrations.CalibrationPreset preset)
@@ -1626,12 +1626,12 @@ namespace NintrollerLib
 
         public void Update(byte[] data)
         {
-            throw new NotImplementedException();
+            return;
         }
 
         public float GetValue(string input)
         {
-            throw new NotImplementedException();
+            return 0f;
         }
 
         // TODO: Calibration - Balance Board Calibration
@@ -1713,12 +1713,12 @@ namespace NintrollerLib
 
         public void Update(byte[] data)
         {
-            throw new NotImplementedException();
+            wiimote.Update(data);
         }
 
         public float GetValue(string input)
         {
-            throw new NotImplementedException();
+            return wiimote.GetValue(input);
         }
 
         // TODO: Calibration - Balance Board Calibration

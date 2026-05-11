@@ -13,6 +13,8 @@ Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "InputManager", "InputManage
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Shared", "Shared\Shared.shproj", "{123CEBE5-8D00-4CCB-906E-AC69E0A57219}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shared.Tests", "Shared.Tests\Shared.Tests.csproj", "{7EADF61A-86A8-4D67-8354-A85D04B5D5EA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -53,6 +55,14 @@ Global
 		{E522A5A7-BFB0-43D7-9898-ECEF05A48C8B}.Release|Any CPU.Build.0 = Release|Any CPU
 		{E522A5A7-BFB0-43D7-9898-ECEF05A48C8B}.ReleaseLB|Any CPU.ActiveCfg = ReleaseLB|Any CPU
 		{E522A5A7-BFB0-43D7-9898-ECEF05A48C8B}.ReleaseLB|Any CPU.Build.0 = ReleaseLB|Any CPU
+		{7EADF61A-86A8-4D67-8354-A85D04B5D5EA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7EADF61A-86A8-4D67-8354-A85D04B5D5EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7EADF61A-86A8-4D67-8354-A85D04B5D5EA}.DebugLB|Any CPU.ActiveCfg = Debug|Any CPU
+		{7EADF61A-86A8-4D67-8354-A85D04B5D5EA}.DebugLB|Any CPU.Build.0 = Debug|Any CPU
+		{7EADF61A-86A8-4D67-8354-A85D04B5D5EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7EADF61A-86A8-4D67-8354-A85D04B5D5EA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7EADF61A-86A8-4D67-8354-A85D04B5D5EA}.ReleaseLB|Any CPU.ActiveCfg = Release|Any CPU
+		{7EADF61A-86A8-4D67-8354-A85D04B5D5EA}.ReleaseLB|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

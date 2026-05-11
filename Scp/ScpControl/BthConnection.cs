@@ -135,7 +135,7 @@ namespace ScpControl
                     return m_L2CAP_Svc_Handle[1].Bytes;
             }
 
-            throw new Exception("Invalid L2CAP Connection Type");
+            return Array.Empty<Byte>();
         }
 
         public virtual Byte[] Set(L2CAP.PSM ConnectionType, Byte[] Handle) 
@@ -161,7 +161,7 @@ namespace ScpControl
                 return m_L2CAP_Svc_Handle[1].Bytes;
             }
 
-            throw new Exception("L2CAP DCID Not Found");
+            return Array.Empty<Byte>();
         }
 
         public virtual Byte[] Get_DCID(L2CAP.PSM ConnectionType) 
@@ -181,7 +181,7 @@ namespace ScpControl
                     return m_L2CAP_Svc_Handle[1].Bytes;
             }
 
-            throw new Exception("Invalid L2CAP Connection Type");
+            return Array.Empty<Byte>();
         }
 
 
@@ -214,7 +214,7 @@ namespace ScpControl
             }
             catch { }
 
-            throw new Exception("L2CAP SCID Not Found");
+            return Array.Empty<Byte>();
         }
 
         public virtual Byte[] Get_SCID(L2CAP.PSM ConnectionType) 
@@ -234,7 +234,7 @@ namespace ScpControl
                     return m_L2CAP_Svc_Handle[0].Bytes;
             }
 
-            throw new Exception("Invalid L2CAP Connection Type");
+            return Array.Empty<Byte>();
         }
 
 

@@ -6,7 +6,7 @@ using NintrollerLib;
 
 namespace WiinUSoft
 {
-    public partial class ControllerMappingWindow : Window
+    public partial class ControllerMappingWindow : ContentDialog
     {
         public bool result = false;
         public Dictionary<string, string> map;
@@ -20,7 +20,7 @@ namespace WiinUSoft
             InitializeComponent();
             _deviceType = ControllerType.Wiimote;
             map = new Dictionary<string, string>();
-            Activated += OnActivated;
+            Loaded += OnLoaded;
         }
 
         public ControllerMappingWindow(Dictionary<string, string> mappings, ControllerType type)
@@ -28,10 +28,10 @@ namespace WiinUSoft
             InitializeComponent();
             _deviceType = type;
             map = mappings.ToDictionary(entry => entry.Key, entry => entry.Value);
-            Activated += OnActivated;
+            Loaded += OnLoaded;
         }
 
-        private void OnActivated(object sender, WindowActivatedEventArgs args)
+        private void OnLoaded(object sender, RoutedEventArgs args)
         {
             if (_loaded)
                 return;
@@ -101,13 +101,13 @@ namespace WiinUSoft
         {
             CollectMappings();
             result = true;
-            Close();
+            Hide();
         }
 
         private void btnCancel_Click(object sender, RoutedEventArgs e)
         {
             result = false;
-            Close();
+            Hide();
         }
     }
 }

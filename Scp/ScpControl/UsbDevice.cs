@@ -205,7 +205,7 @@ namespace ScpControl
                         );
             }
 
-            throw new Exception();
+            return String.Format("Pad {0} : Unknown", m_ControllerId + 1);
         }
 
 

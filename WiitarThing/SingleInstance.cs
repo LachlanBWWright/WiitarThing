@@ -18,7 +18,6 @@ namespace Microsoft.Shell
     using System.Threading;
     using System.Security;
     using System.Runtime.InteropServices;
-    using System.ComponentModel;
     using Shared;
 
     internal enum WM
@@ -160,7 +159,7 @@ namespace Microsoft.Shell
             if (parseResult.IsOk)
                 return parseResult.Value;
 
-            throw new Win32Exception(parseResult.Error);
+            return Array.Empty<string>();
         }
 
         public static Result<string[], int> TryCommandLineToArgvW(string cmdLine)

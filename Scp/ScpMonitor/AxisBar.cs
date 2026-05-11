@@ -45,7 +45,7 @@ namespace ScpMonitor
             {
                 if (value < 0 || value > m_Maximum)
                 {
-                    throw new ArgumentOutOfRangeException("Minimum");
+                    return;
                 }
 
                 if (m_Value < value)
@@ -68,7 +68,7 @@ namespace ScpMonitor
             {
                 if (value < 0 || value < m_Minimum)
                 {
-                    throw new ArgumentOutOfRangeException("Maximum");
+                    return;
                 }
 
                 if (m_Value > value)
@@ -91,7 +91,7 @@ namespace ScpMonitor
             {
                 if (value < m_Minimum || value > m_Maximum)
                 {
-                    throw new ArgumentOutOfRangeException("Maximum");
+                    return;
                 }
 
                 if (m_Value != value)

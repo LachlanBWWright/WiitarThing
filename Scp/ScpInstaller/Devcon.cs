@@ -55,7 +55,7 @@ namespace ScpDriver
             catch (Exception ex)
             {
                 Console.WriteLine("{0} {1}", ex.HelpLink, ex.Message);
-                throw;
+                return false;
             }
             finally
             {
@@ -142,7 +142,7 @@ namespace ScpDriver
             catch (Exception ex)
             {
                 Console.WriteLine("{0} {1}", ex.HelpLink, ex.Message);
-                throw;
+                return false;
             }
             finally
             {

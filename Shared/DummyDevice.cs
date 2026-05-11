@@ -235,12 +235,12 @@ namespace Shared
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            throw new NotImplementedException();
+            return 0;
         }
 
         public override void SetLength(long value)
         {
-            throw new NotImplementedException();
+            return;
         }
 
         public override void Write(byte[] buffer, int offset, int count)

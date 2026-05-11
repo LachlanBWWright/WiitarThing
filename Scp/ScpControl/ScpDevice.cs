@@ -375,7 +375,7 @@ namespace ScpControl
             catch (Exception ex)
             {
                 Console.WriteLine("{0} {1}", ex.HelpLink, ex.Message);
-                throw;
+                return false;
             }
             finally
             {
@@ -395,7 +395,7 @@ namespace ScpControl
             catch (Exception ex)
             {
                 Console.WriteLine("{0} {1}", ex.HelpLink, ex.Message);
-                throw;
+                return false;
             }
         }
         #endregion
@@ -441,7 +441,7 @@ namespace ScpControl
             catch (Exception ex)
             {
                 Console.WriteLine("{0} {1}", ex.HelpLink, ex.Message);
-                throw;
+                return false;
             }
             finally
             {
@@ -504,7 +504,7 @@ namespace ScpControl
             catch (Exception ex)
             {
                 Console.WriteLine("{0} {1}", ex.HelpLink, ex.Message);
-                throw;
+                return false;
             }
             finally
             {
@@ -585,7 +585,7 @@ namespace ScpControl
             catch (Exception ex)
             {
                 Console.WriteLine("{0} {1}", ex.HelpLink, ex.Message);
-                throw;
+                return false;
             }
         }
 
@@ -621,7 +621,7 @@ namespace ScpControl
             catch (Exception ex)
             {
                 Console.WriteLine("{0} {1}", ex.HelpLink, ex.Message);
-                throw;
+                return false;
             }
             finally
             {

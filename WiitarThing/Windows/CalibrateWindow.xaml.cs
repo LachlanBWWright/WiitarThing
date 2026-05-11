@@ -1,11 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using NintrollerLib;
 
 namespace WiinUSoft
 {
-    public partial class CalibrateWindow : Window
+    public partial class CalibrateWindow : ContentDialog
     {
         enum CalibrationStep
         {
@@ -32,7 +33,11 @@ namespace WiinUSoft
         private CalibrationStep _step = CalibrationStep.ChangeController;
         private CalibrationStorage _calibrations = new CalibrationStorage();
 
-        private CalibrateWindow() { InitializeComponent(); AppWindow.Closing += AppWindow_Closing; }
+        private CalibrateWindow()
+        {
+            InitializeComponent();
+            Closed += Dialog_Closed;
+        }
 
         public CalibrateWindow(Nintroller device) : this()
         {
@@ -43,7 +48,7 @@ namespace WiinUSoft
             _device.ExtensionChange += _device_ExtensionChange;
         }
 
-        private void AppWindow_Closing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
+        private void Dialog_Closed(ContentDialog sender, ContentDialogClosedEventArgs args)
         {
             _device.StateUpdate -= _device_StateUpdate;
             _device.ExtensionChange -= _device_ExtensionChange;
@@ -83,100 +88,145 @@ namespace WiinUSoft
             if (_changingType) return;
             DispatcherQueue.TryEnqueue(() =>
             {
-                try
+                if (!CanHandleStateForStep(_step, e.state))
                 {
-                    switch (_step)
-                    {
-                        #region Wiimote
-                        case CalibrationStep.Wiimote_acc_x_center: group1_center.Value = ((Wiimote)e.state).accelerometer.rawX; break;
-                        case CalibrationStep.Wiimote_acc_x_range:
-                            if (group1_max.Value == 0) { group1_min.Value = group1_max.Value = ((Wiimote)e.state).accelerometer.rawX; }
-                            else { if (group1_min.Value > ((Wiimote)e.state).accelerometer.rawX) group1_min.Value = ((Wiimote)e.state).accelerometer.rawX; if (group1_max.Value < ((Wiimote)e.state).accelerometer.rawX) group1_max.Value = ((Wiimote)e.state).accelerometer.rawX; }
-                            break;
-                        case CalibrationStep.Wiimote_acc_y_center: group2_center.Value = ((Wiimote)e.state).accelerometer.rawY; break;
-                        case CalibrationStep.Wiimote_acc_y_range:
-                            if (group2_max.Value == 0) { group2_min.Value = group2_max.Value = ((Wiimote)e.state).accelerometer.rawY; }
-                            else { if (group2_min.Value > ((Wiimote)e.state).accelerometer.rawY) group2_min.Value = ((Wiimote)e.state).accelerometer.rawY; if (group2_max.Value < ((Wiimote)e.state).accelerometer.rawY) group2_max.Value = ((Wiimote)e.state).accelerometer.rawY; }
-                            break;
-                        case CalibrationStep.Wiimote_acc_z_center: group3_center.Value = ((Wiimote)e.state).accelerometer.rawZ; break;
-                        case CalibrationStep.Wiimote_acc_z_range:
-                            if (group3_max.Value == 0) { group3_min.Value = group3_max.Value = ((Wiimote)e.state).accelerometer.rawZ; }
-                            else { if (group3_min.Value > ((Wiimote)e.state).accelerometer.rawZ) group3_min.Value = ((Wiimote)e.state).accelerometer.rawZ; if (group3_max.Value < ((Wiimote)e.state).accelerometer.rawZ) group3_max.Value = ((Wiimote)e.state).accelerometer.rawZ; }
-                            break;
-                        #endregion
-                        #region Nunchuk
-                        case CalibrationStep.Nunchuk_acc_x_center: group1_center.Value = ((Nunchuk)e.state).accelerometer.rawX; break;
-                        case CalibrationStep.Nunchuk_acc_x_range:
-                            if (group1_max.Value == 0) { group1_min.Value = group1_max.Value = ((Nunchuk)e.state).accelerometer.rawX; }
-                            else { if (group1_min.Value > ((Nunchuk)e.state).accelerometer.rawX) group1_min.Value = ((Nunchuk)e.state).accelerometer.rawX; if (group1_max.Value < ((Nunchuk)e.state).accelerometer.rawX) group1_max.Value = ((Nunchuk)e.state).accelerometer.rawX; }
-                            break;
-                        case CalibrationStep.Nunchuk_acc_y_center: group2_center.Value = ((Nunchuk)e.state).accelerometer.rawY; break;
-                        case CalibrationStep.Nunchuk_acc_y_range:
-                            if (group2_max.Value == 0) { group2_min.Value = group2_max.Value = ((Nunchuk)e.state).accelerometer.rawY; }
-                            else { if (group2_min.Value > ((Nunchuk)e.state).accelerometer.rawY) group2_min.Value = ((Nunchuk)e.state).accelerometer.rawY; if (group2_max.Value < ((Nunchuk)e.state).accelerometer.rawY) group2_max.Value = ((Nunchuk)e.state).accelerometer.rawY; }
-                            break;
-                        case CalibrationStep.Nunchuk_acc_z_center: group3_center.Value = ((Nunchuk)e.state).accelerometer.rawZ; break;
-                        case CalibrationStep.Nunchuk_acc_z_range:
-                            if (group3_max.Value == 0) { group3_min.Value = group3_max.Value = ((Nunchuk)e.state).accelerometer.rawZ; }
-                            else { if (group3_min.Value > ((Nunchuk)e.state).accelerometer.rawZ) group3_min.Value = ((Nunchuk)e.state).accelerometer.rawZ; if (group3_max.Value < ((Nunchuk)e.state).accelerometer.rawZ) group3_max.Value = ((Nunchuk)e.state).accelerometer.rawZ; }
-                            break;
-                        case CalibrationStep.Nunchuk_acc_done: break;
-                        case CalibrationStep.Nunchuk_joy_center:
-                            group1_center.Value = ((Nunchuk)e.state).joystick.rawX;
-                            group2_center.Value = ((Nunchuk)e.state).joystick.rawY;
-                            break;
-                        case CalibrationStep.Nunchuk_joy_range:
-                            if (group1_min.Value == 0) { group1_min.Value = ((Nunchuk)e.state).joystick.rawX; group1_max.Value = ((Nunchuk)e.state).joystick.rawX; group2_min.Value = ((Nunchuk)e.state).joystick.rawY; group2_max.Value = ((Nunchuk)e.state).joystick.rawY; }
-                            else { if (group1_min.Value - 2 > ((Nunchuk)e.state).joystick.rawX) group1_min.Value = ((Nunchuk)e.state).joystick.rawX; if (group1_max.Value + 2 < ((Nunchuk)e.state).joystick.rawX) group1_max.Value = ((Nunchuk)e.state).joystick.rawX; if (group2_min.Value - 2 > ((Nunchuk)e.state).joystick.rawY) group2_min.Value = ((Nunchuk)e.state).joystick.rawY; if (group2_max.Value + 2 < ((Nunchuk)e.state).joystick.rawY) group2_max.Value = ((Nunchuk)e.state).joystick.rawY; }
-                            break;
-                        case CalibrationStep.Nunchuk_joy_deadzone:
-                            { int nx = Math.Abs(((Nunchuk)e.state).joystick.rawX - group1_center.Value); int ny = Math.Abs(((Nunchuk)e.state).joystick.rawY - group2_center.Value); if (nx > group1_dead.Value) group1_dead.Value = nx; if (ny > group2_dead.Value) group2_dead.Value = ny; }
-                            break;
-                        #endregion
-                        #region Classic Controller
-                        case CalibrationStep.Classic_joy_center:
-                            group1_center.Value = ((ClassicController)e.state).LJoy.rawX; group2_center.Value = ((ClassicController)e.state).LJoy.rawY;
-                            group3_center.Value = ((ClassicController)e.state).RJoy.rawX; group4_center.Value = ((ClassicController)e.state).RJoy.rawY;
-                            groupL_min.Value = ((ClassicController)e.state).L.rawValue; groupR_min.Value = ((ClassicController)e.state).R.rawValue;
-                            break;
-                        case CalibrationStep.Classic_joy_range:
-                            if (group1_max.Value == 0) { group1_min.Value = ((ClassicController)e.state).LJoy.rawX; group1_max.Value = ((ClassicController)e.state).LJoy.rawX; group2_min.Value = ((ClassicController)e.state).LJoy.rawY; group2_max.Value = ((ClassicController)e.state).LJoy.rawY; group3_min.Value = ((ClassicController)e.state).RJoy.rawX; group3_max.Value = ((ClassicController)e.state).RJoy.rawX; group4_min.Value = ((ClassicController)e.state).RJoy.rawY; group4_max.Value = ((ClassicController)e.state).RJoy.rawY; groupL_max.Value = ((ClassicController)e.state).L.rawValue; groupR_max.Value = ((ClassicController)e.state).R.rawValue; }
-                            else { if (group1_min.Value - 2 > ((ClassicController)e.state).LJoy.rawX) group1_min.Value = ((ClassicController)e.state).LJoy.rawX; if (group1_max.Value + 2 < ((ClassicController)e.state).LJoy.rawX) group1_max.Value = ((ClassicController)e.state).LJoy.rawX; if (group2_min.Value - 2 > ((ClassicController)e.state).LJoy.rawY) group2_min.Value = ((ClassicController)e.state).LJoy.rawY; if (group2_max.Value + 2 < ((ClassicController)e.state).LJoy.rawY) group2_max.Value = ((ClassicController)e.state).LJoy.rawY; if (group3_min.Value - 1 > ((ClassicController)e.state).RJoy.rawX) group3_min.Value = ((ClassicController)e.state).RJoy.rawX; if (group3_max.Value + 1 < ((ClassicController)e.state).RJoy.rawX) group3_max.Value = ((ClassicController)e.state).RJoy.rawX; if (group4_min.Value - 1 > ((ClassicController)e.state).RJoy.rawY) group4_min.Value = ((ClassicController)e.state).RJoy.rawY; if (group4_max.Value + 1 < ((ClassicController)e.state).RJoy.rawY) group4_max.Value = ((ClassicController)e.state).RJoy.rawY; if (groupL_max.Value + 1 < ((ClassicController)e.state).L.rawValue) groupL_max.Value = ((ClassicController)e.state).L.rawValue; if (groupR_max.Value - 1 < ((ClassicController)e.state).R.rawValue) groupR_max.Value = ((ClassicController)e.state).R.rawValue; }
-                            break;
-                        case CalibrationStep.Classic_joy_deadzone:
-                            { int lx = Math.Abs(((ClassicController)e.state).LJoy.rawX - group1_center.Value); int ly = Math.Abs(((ClassicController)e.state).LJoy.rawY - group2_center.Value); int rx = Math.Abs(((ClassicController)e.state).RJoy.rawX - group3_center.Value); int ry = Math.Abs(((ClassicController)e.state).RJoy.rawY - group4_center.Value); if (lx > group1_dead.Value) group1_dead.Value = lx; if (ly > group2_dead.Value) group2_dead.Value = ly; if (rx > group3_dead.Value) group3_dead.Value = rx; if (ry > group4_dead.Value) group4_dead.Value = ry; }
-                            break;
-                        #endregion
-                        #region CCPro
-                        case CalibrationStep.ClassicPro_joy_center:
-                            group1_center.Value = ((ClassicControllerPro)e.state).LJoy.rawX; group2_center.Value = ((ClassicControllerPro)e.state).LJoy.rawY;
-                            group3_center.Value = ((ClassicControllerPro)e.state).RJoy.rawX; group4_center.Value = ((ClassicControllerPro)e.state).RJoy.rawY;
-                            break;
-                        case CalibrationStep.ClassicPro_joy_range:
-                            if (group1_max.Value == 0) { group1_min.Value = ((ClassicControllerPro)e.state).LJoy.rawX; group1_max.Value = ((ClassicControllerPro)e.state).LJoy.rawX; group2_min.Value = ((ClassicControllerPro)e.state).LJoy.rawY; group2_max.Value = ((ClassicControllerPro)e.state).LJoy.rawY; group3_min.Value = ((ClassicControllerPro)e.state).RJoy.rawX; group3_max.Value = ((ClassicControllerPro)e.state).RJoy.rawX; group4_min.Value = ((ClassicControllerPro)e.state).RJoy.rawY; group4_max.Value = ((ClassicControllerPro)e.state).RJoy.rawY; }
-                            else { if (group1_min.Value - 2 > ((ClassicControllerPro)e.state).LJoy.rawX) group1_min.Value = ((ClassicControllerPro)e.state).LJoy.rawX; if (group1_max.Value + 2 < ((ClassicControllerPro)e.state).LJoy.rawX) group1_max.Value = ((ClassicControllerPro)e.state).LJoy.rawX; if (group2_min.Value - 2 > ((ClassicControllerPro)e.state).LJoy.rawY) group2_min.Value = ((ClassicControllerPro)e.state).LJoy.rawY; if (group2_max.Value + 2 < ((ClassicControllerPro)e.state).LJoy.rawY) group2_max.Value = ((ClassicControllerPro)e.state).LJoy.rawY; if (group3_min.Value - 1 > ((ClassicControllerPro)e.state).RJoy.rawX) group3_min.Value = ((ClassicControllerPro)e.state).RJoy.rawX; if (group3_max.Value + 1 < ((ClassicControllerPro)e.state).RJoy.rawX) group3_max.Value = ((ClassicControllerPro)e.state).RJoy.rawX; if (group4_min.Value - 1 > ((ClassicControllerPro)e.state).RJoy.rawY) group4_min.Value = ((ClassicControllerPro)e.state).RJoy.rawY; if (group4_max.Value + 1 < ((ClassicControllerPro)e.state).RJoy.rawY) group4_max.Value = ((ClassicControllerPro)e.state).RJoy.rawY; }
-                            break;
-                        case CalibrationStep.ClassicPro_joy_deadzone:
-                            { int lx = Math.Abs(((ClassicControllerPro)e.state).LJoy.rawX - group1_center.Value); int ly = Math.Abs(((ClassicControllerPro)e.state).LJoy.rawY - group2_center.Value); int rx = Math.Abs(((ClassicControllerPro)e.state).RJoy.rawX - group3_center.Value); int ry = Math.Abs(((ClassicControllerPro)e.state).RJoy.rawY - group4_center.Value); if (lx > group1_dead.Value) group1_dead.Value = lx; if (ly > group2_dead.Value) group2_dead.Value = ly; if (rx > group3_dead.Value) group3_dead.Value = rx; if (ry > group4_dead.Value) group4_dead.Value = ry; }
-                            break;
-                        #endregion
-                        #region Pro Controller
-                        case CalibrationStep.Pro_joy_center:
-                            group1_center.Value = ((ProController)e.state).LJoy.rawX; group2_center.Value = ((ProController)e.state).LJoy.rawY;
-                            group3_center.Value = ((ProController)e.state).RJoy.rawX; group4_center.Value = ((ProController)e.state).RJoy.rawY;
-                            break;
-                        case CalibrationStep.Pro_joy_range:
-                            if (group1_min.Value == 0) { group1_min.Value = ((ProController)e.state).LJoy.rawX; group1_max.Value = ((ProController)e.state).LJoy.rawX; group2_min.Value = ((ProController)e.state).LJoy.rawY; group2_max.Value = ((ProController)e.state).LJoy.rawY; group3_min.Value = ((ProController)e.state).RJoy.rawX; group3_max.Value = ((ProController)e.state).RJoy.rawX; group4_min.Value = ((ProController)e.state).RJoy.rawY; group4_max.Value = ((ProController)e.state).RJoy.rawY; }
-                            else { if (group1_min.Value - 32 > ((ProController)e.state).LJoy.rawX) group1_min.Value = ((ProController)e.state).LJoy.rawX; if (group1_max.Value + 32 < ((ProController)e.state).LJoy.rawX) group1_max.Value = ((ProController)e.state).LJoy.rawX; if (group2_min.Value - 32 > ((ProController)e.state).LJoy.rawY) group2_min.Value = ((ProController)e.state).LJoy.rawY; if (group2_max.Value + 32 < ((ProController)e.state).LJoy.rawY) group2_max.Value = ((ProController)e.state).LJoy.rawY; if (group3_min.Value - 32 > ((ProController)e.state).RJoy.rawX) group3_min.Value = ((ProController)e.state).RJoy.rawX; if (group3_max.Value + 32 < ((ProController)e.state).RJoy.rawX) group3_max.Value = ((ProController)e.state).RJoy.rawX; if (group4_min.Value - 32 > ((ProController)e.state).RJoy.rawY) group4_min.Value = ((ProController)e.state).RJoy.rawY; if (group4_max.Value + 32 < ((ProController)e.state).RJoy.rawY) group4_max.Value = ((ProController)e.state).RJoy.rawY; }
-                            break;
-                        case CalibrationStep.Pro_joy_deadzone:
-                            { int lx = Math.Abs(((ProController)e.state).LJoy.rawX - group1_center.Value); int ly = Math.Abs(((ProController)e.state).LJoy.rawY - group2_center.Value); int rx = Math.Abs(((ProController)e.state).RJoy.rawX - group3_center.Value); int ry = Math.Abs(((ProController)e.state).RJoy.rawY - group4_center.Value); if (lx > group1_dead.Value) group1_dead.Value = lx; if (ly > group2_dead.Value) group2_dead.Value = ly; if (rx > group3_dead.Value) group3_dead.Value = rx; if (ry > group4_dead.Value) group4_dead.Value = ry; }
-                            break;
-                        #endregion
-                    }
+                    System.Diagnostics.Debug.WriteLine($"Calibration sample ignored due to state type mismatch for step {_step}: {e.state.GetType().Name}");
+                    return;
                 }
-                catch (InvalidCastException) { }
+
+                switch (_step)
+                {
+                    #region Wiimote
+                    case CalibrationStep.Wiimote_acc_x_center: group1_center.Value = ((Wiimote)e.state).accelerometer.rawX; break;
+                    case CalibrationStep.Wiimote_acc_x_range:
+                        if (group1_max.Value == 0) { group1_min.Value = group1_max.Value = ((Wiimote)e.state).accelerometer.rawX; }
+                        else { if (group1_min.Value > ((Wiimote)e.state).accelerometer.rawX) group1_min.Value = ((Wiimote)e.state).accelerometer.rawX; if (group1_max.Value < ((Wiimote)e.state).accelerometer.rawX) group1_max.Value = ((Wiimote)e.state).accelerometer.rawX; }
+                        break;
+                    case CalibrationStep.Wiimote_acc_y_center: group2_center.Value = ((Wiimote)e.state).accelerometer.rawY; break;
+                    case CalibrationStep.Wiimote_acc_y_range:
+                        if (group2_max.Value == 0) { group2_min.Value = group2_max.Value = ((Wiimote)e.state).accelerometer.rawY; }
+                        else { if (group2_min.Value > ((Wiimote)e.state).accelerometer.rawY) group2_min.Value = ((Wiimote)e.state).accelerometer.rawY; if (group2_max.Value < ((Wiimote)e.state).accelerometer.rawY) group2_max.Value = ((Wiimote)e.state).accelerometer.rawY; }
+                        break;
+                    case CalibrationStep.Wiimote_acc_z_center: group3_center.Value = ((Wiimote)e.state).accelerometer.rawZ; break;
+                    case CalibrationStep.Wiimote_acc_z_range:
+                        if (group3_max.Value == 0) { group3_min.Value = group3_max.Value = ((Wiimote)e.state).accelerometer.rawZ; }
+                        else { if (group3_min.Value > ((Wiimote)e.state).accelerometer.rawZ) group3_min.Value = ((Wiimote)e.state).accelerometer.rawZ; if (group3_max.Value < ((Wiimote)e.state).accelerometer.rawZ) group3_max.Value = ((Wiimote)e.state).accelerometer.rawZ; }
+                        break;
+                    #endregion
+                    #region Nunchuk
+                    case CalibrationStep.Nunchuk_acc_x_center: group1_center.Value = ((Nunchuk)e.state).accelerometer.rawX; break;
+                    case CalibrationStep.Nunchuk_acc_x_range:
+                        if (group1_max.Value == 0) { group1_min.Value = group1_max.Value = ((Nunchuk)e.state).accelerometer.rawX; }
+                        else { if (group1_min.Value > ((Nunchuk)e.state).accelerometer.rawX) group1_min.Value = ((Nunchuk)e.state).accelerometer.rawX; if (group1_max.Value < ((Nunchuk)e.state).accelerometer.rawX) group1_max.Value = ((Nunchuk)e.state).accelerometer.rawX; }
+                        break;
+                    case CalibrationStep.Nunchuk_acc_y_center: group2_center.Value = ((Nunchuk)e.state).accelerometer.rawY; break;
+                    case CalibrationStep.Nunchuk_acc_y_range:
+                        if (group2_max.Value == 0) { group2_min.Value = group2_max.Value = ((Nunchuk)e.state).accelerometer.rawY; }
+                        else { if (group2_min.Value > ((Nunchuk)e.state).accelerometer.rawY) group2_min.Value = ((Nunchuk)e.state).accelerometer.rawY; if (group2_max.Value < ((Nunchuk)e.state).accelerometer.rawY) group2_max.Value = ((Nunchuk)e.state).accelerometer.rawY; }
+                        break;
+                    case CalibrationStep.Nunchuk_acc_z_center: group3_center.Value = ((Nunchuk)e.state).accelerometer.rawZ; break;
+                    case CalibrationStep.Nunchuk_acc_z_range:
+                        if (group3_max.Value == 0) { group3_min.Value = group3_max.Value = ((Nunchuk)e.state).accelerometer.rawZ; }
+                        else { if (group3_min.Value > ((Nunchuk)e.state).accelerometer.rawZ) group3_min.Value = ((Nunchuk)e.state).accelerometer.rawZ; if (group3_max.Value < ((Nunchuk)e.state).accelerometer.rawZ) group3_max.Value = ((Nunchuk)e.state).accelerometer.rawZ; }
+                        break;
+                    case CalibrationStep.Nunchuk_acc_done: break;
+                    case CalibrationStep.Nunchuk_joy_center:
+                        group1_center.Value = ((Nunchuk)e.state).joystick.rawX;
+                        group2_center.Value = ((Nunchuk)e.state).joystick.rawY;
+                        break;
+                    case CalibrationStep.Nunchuk_joy_range:
+                        if (group1_min.Value == 0) { group1_min.Value = ((Nunchuk)e.state).joystick.rawX; group1_max.Value = ((Nunchuk)e.state).joystick.rawX; group2_min.Value = ((Nunchuk)e.state).joystick.rawY; group2_max.Value = ((Nunchuk)e.state).joystick.rawY; }
+                        else { if (group1_min.Value - 2 > ((Nunchuk)e.state).joystick.rawX) group1_min.Value = ((Nunchuk)e.state).joystick.rawX; if (group1_max.Value + 2 < ((Nunchuk)e.state).joystick.rawX) group1_max.Value = ((Nunchuk)e.state).joystick.rawX; if (group2_min.Value - 2 > ((Nunchuk)e.state).joystick.rawY) group2_min.Value = ((Nunchuk)e.state).joystick.rawY; if (group2_max.Value + 2 < ((Nunchuk)e.state).joystick.rawY) group2_max.Value = ((Nunchuk)e.state).joystick.rawY; }
+                        break;
+                    case CalibrationStep.Nunchuk_joy_deadzone:
+                        { int nx = Math.Abs(((Nunchuk)e.state).joystick.rawX - group1_center.Value); int ny = Math.Abs(((Nunchuk)e.state).joystick.rawY - group2_center.Value); if (nx > group1_dead.Value) group1_dead.Value = nx; if (ny > group2_dead.Value) group2_dead.Value = ny; }
+                        break;
+                    #endregion
+                    #region Classic Controller
+                    case CalibrationStep.Classic_joy_center:
+                        group1_center.Value = ((ClassicController)e.state).LJoy.rawX; group2_center.Value = ((ClassicController)e.state).LJoy.rawY;
+                        group3_center.Value = ((ClassicController)e.state).RJoy.rawX; group4_center.Value = ((ClassicController)e.state).RJoy.rawY;
+                        groupL_min.Value = ((ClassicController)e.state).L.rawValue; groupR_min.Value = ((ClassicController)e.state).R.rawValue;
+                        break;
+                    case CalibrationStep.Classic_joy_range:
+                        if (group1_max.Value == 0) { group1_min.Value = ((ClassicController)e.state).LJoy.rawX; group1_max.Value = ((ClassicController)e.state).LJoy.rawX; group2_min.Value = ((ClassicController)e.state).LJoy.rawY; group2_max.Value = ((ClassicController)e.state).LJoy.rawY; group3_min.Value = ((ClassicController)e.state).RJoy.rawX; group3_max.Value = ((ClassicController)e.state).RJoy.rawX; group4_min.Value = ((ClassicController)e.state).RJoy.rawY; group4_max.Value = ((ClassicController)e.state).RJoy.rawY; groupL_max.Value = ((ClassicController)e.state).L.rawValue; groupR_max.Value = ((ClassicController)e.state).R.rawValue; }
+                        else { if (group1_min.Value - 2 > ((ClassicController)e.state).LJoy.rawX) group1_min.Value = ((ClassicController)e.state).LJoy.rawX; if (group1_max.Value + 2 < ((ClassicController)e.state).LJoy.rawX) group1_max.Value = ((ClassicController)e.state).LJoy.rawX; if (group2_min.Value - 2 > ((ClassicController)e.state).LJoy.rawY) group2_min.Value = ((ClassicController)e.state).LJoy.rawY; if (group2_max.Value + 2 < ((ClassicController)e.state).LJoy.rawY) group2_max.Value = ((ClassicController)e.state).LJoy.rawY; if (group3_min.Value - 1 > ((ClassicController)e.state).RJoy.rawX) group3_min.Value = ((ClassicController)e.state).RJoy.rawX; if (group3_max.Value + 1 < ((ClassicController)e.state).RJoy.rawX) group3_max.Value = ((ClassicController)e.state).RJoy.rawX; if (group4_min.Value - 1 > ((ClassicController)e.state).RJoy.rawY) group4_min.Value = ((ClassicController)e.state).RJoy.rawY; if (group4_max.Value + 1 < ((ClassicController)e.state).RJoy.rawY) group4_max.Value = ((ClassicController)e.state).RJoy.rawY; if (groupL_max.Value + 1 < ((ClassicController)e.state).L.rawValue) groupL_max.Value = ((ClassicController)e.state).L.rawValue; if (groupR_max.Value - 1 < ((ClassicController)e.state).R.rawValue) groupR_max.Value = ((ClassicController)e.state).R.rawValue; }
+                        break;
+                    case CalibrationStep.Classic_joy_deadzone:
+                        { int lx = Math.Abs(((ClassicController)e.state).LJoy.rawX - group1_center.Value); int ly = Math.Abs(((ClassicController)e.state).LJoy.rawY - group2_center.Value); int rx = Math.Abs(((ClassicController)e.state).RJoy.rawX - group3_center.Value); int ry = Math.Abs(((ClassicController)e.state).RJoy.rawY - group4_center.Value); if (lx > group1_dead.Value) group1_dead.Value = lx; if (ly > group2_dead.Value) group2_dead.Value = ly; if (rx > group3_dead.Value) group3_dead.Value = rx; if (ry > group4_dead.Value) group4_dead.Value = ry; }
+                        break;
+                    #endregion
+                    #region CCPro
+                    case CalibrationStep.ClassicPro_joy_center:
+                        group1_center.Value = ((ClassicControllerPro)e.state).LJoy.rawX; group2_center.Value = ((ClassicControllerPro)e.state).LJoy.rawY;
+                        group3_center.Value = ((ClassicControllerPro)e.state).RJoy.rawX; group4_center.Value = ((ClassicControllerPro)e.state).RJoy.rawY;
+                        break;
+                    case CalibrationStep.ClassicPro_joy_range:
+                        if (group1_max.Value == 0) { group1_min.Value = ((ClassicControllerPro)e.state).LJoy.rawX; group1_max.Value = ((ClassicControllerPro)e.state).LJoy.rawX; group2_min.Value = ((ClassicControllerPro)e.state).LJoy.rawY; group2_max.Value = ((ClassicControllerPro)e.state).LJoy.rawY; group3_min.Value = ((ClassicControllerPro)e.state).RJoy.rawX; group3_max.Value = ((ClassicControllerPro)e.state).RJoy.rawX; group4_min.Value = ((ClassicControllerPro)e.state).RJoy.rawY; group4_max.Value = ((ClassicControllerPro)e.state).RJoy.rawY; }
+                        else { if (group1_min.Value - 2 > ((ClassicControllerPro)e.state).LJoy.rawX) group1_min.Value = ((ClassicControllerPro)e.state).LJoy.rawX; if (group1_max.Value + 2 < ((ClassicControllerPro)e.state).LJoy.rawX) group1_max.Value = ((ClassicControllerPro)e.state).LJoy.rawX; if (group2_min.Value - 2 > ((ClassicControllerPro)e.state).LJoy.rawY) group2_min.Value = ((ClassicControllerPro)e.state).LJoy.rawY; if (group2_max.Value + 2 < ((ClassicControllerPro)e.state).LJoy.rawY) group2_max.Value = ((ClassicControllerPro)e.state).LJoy.rawY; if (group3_min.Value - 1 > ((ClassicControllerPro)e.state).RJoy.rawX) group3_min.Value = ((ClassicControllerPro)e.state).RJoy.rawX; if (group3_max.Value + 1 < ((ClassicControllerPro)e.state).RJoy.rawX) group3_max.Value = ((ClassicControllerPro)e.state).RJoy.rawX; if (group4_min.Value - 1 > ((ClassicControllerPro)e.state).RJoy.rawY) group4_min.Value = ((ClassicControllerPro)e.state).RJoy.rawY; if (group4_max.Value + 1 < ((ClassicControllerPro)e.state).RJoy.rawY) group4_max.Value = ((ClassicControllerPro)e.state).RJoy.rawY; }
+                        break;
+                    case CalibrationStep.ClassicPro_joy_deadzone:
+                        { int lx = Math.Abs(((ClassicControllerPro)e.state).LJoy.rawX - group1_center.Value); int ly = Math.Abs(((ClassicControllerPro)e.state).LJoy.rawY - group2_center.Value); int rx = Math.Abs(((ClassicControllerPro)e.state).RJoy.rawX - group3_center.Value); int ry = Math.Abs(((ClassicControllerPro)e.state).RJoy.rawY - group4_center.Value); if (lx > group1_dead.Value) group1_dead.Value = lx; if (ly > group2_dead.Value) group2_dead.Value = ly; if (rx > group3_dead.Value) group3_dead.Value = rx; if (ry > group4_dead.Value) group4_dead.Value = ry; }
+                        break;
+                    #endregion
+                    #region Pro Controller
+                    case CalibrationStep.Pro_joy_center:
+                        group1_center.Value = ((ProController)e.state).LJoy.rawX; group2_center.Value = ((ProController)e.state).LJoy.rawY;
+                        group3_center.Value = ((ProController)e.state).RJoy.rawX; group4_center.Value = ((ProController)e.state).RJoy.rawY;
+                        break;
+                    case CalibrationStep.Pro_joy_range:
+                        if (group1_min.Value == 0) { group1_min.Value = ((ProController)e.state).LJoy.rawX; group1_max.Value = ((ProController)e.state).LJoy.rawX; group2_min.Value = ((ProController)e.state).LJoy.rawY; group2_max.Value = ((ProController)e.state).LJoy.rawY; group3_min.Value = ((ProController)e.state).RJoy.rawX; group3_max.Value = ((ProController)e.state).RJoy.rawX; group4_min.Value = ((ProController)e.state).RJoy.rawY; group4_max.Value = ((ProController)e.state).RJoy.rawY; }
+                        else { if (group1_min.Value - 32 > ((ProController)e.state).LJoy.rawX) group1_min.Value = ((ProController)e.state).LJoy.rawX; if (group1_max.Value + 32 < ((ProController)e.state).LJoy.rawX) group1_max.Value = ((ProController)e.state).LJoy.rawX; if (group2_min.Value - 32 > ((ProController)e.state).LJoy.rawY) group2_min.Value = ((ProController)e.state).LJoy.rawY; if (group2_max.Value + 32 < ((ProController)e.state).LJoy.rawY) group2_max.Value = ((ProController)e.state).LJoy.rawY; if (group3_min.Value - 32 > ((ProController)e.state).RJoy.rawX) group3_min.Value = ((ProController)e.state).RJoy.rawX; if (group3_max.Value + 32 < ((ProController)e.state).RJoy.rawX) group3_max.Value = ((ProController)e.state).RJoy.rawX; if (group4_min.Value - 32 > ((ProController)e.state).RJoy.rawY) group4_min.Value = ((ProController)e.state).RJoy.rawY; if (group4_max.Value + 32 < ((ProController)e.state).RJoy.rawY) group4_max.Value = ((ProController)e.state).RJoy.rawY; }
+                        break;
+                    case CalibrationStep.Pro_joy_deadzone:
+                        { int lx = Math.Abs(((ProController)e.state).LJoy.rawX - group1_center.Value); int ly = Math.Abs(((ProController)e.state).LJoy.rawY - group2_center.Value); int rx = Math.Abs(((ProController)e.state).RJoy.rawX - group3_center.Value); int ry = Math.Abs(((ProController)e.state).RJoy.rawY - group4_center.Value); if (lx > group1_dead.Value) group1_dead.Value = lx; if (ly > group2_dead.Value) group2_dead.Value = ly; if (rx > group3_dead.Value) group3_dead.Value = rx; if (ry > group4_dead.Value) group4_dead.Value = ry; }
+                        break;
+                    #endregion
+                }
             });
+        }
+
+        private static bool CanHandleStateForStep(CalibrationStep step, INintrollerState state)
+        {
+            return step switch
+            {
+                CalibrationStep.Wiimote_acc_x_center
+                or CalibrationStep.Wiimote_acc_x_range
+                or CalibrationStep.Wiimote_acc_y_center
+                or CalibrationStep.Wiimote_acc_y_range
+                or CalibrationStep.Wiimote_acc_z_center
+                or CalibrationStep.Wiimote_acc_z_range
+                    => state is Wiimote,
+
+                CalibrationStep.Nunchuk_acc_x_center
+                or CalibrationStep.Nunchuk_acc_x_range
+                or CalibrationStep.Nunchuk_acc_y_center
+                or CalibrationStep.Nunchuk_acc_y_range
+                or CalibrationStep.Nunchuk_acc_z_center
+                or CalibrationStep.Nunchuk_acc_z_range
+                or CalibrationStep.Nunchuk_acc_done
+                or CalibrationStep.Nunchuk_joy_center
+                or CalibrationStep.Nunchuk_joy_range
+                or CalibrationStep.Nunchuk_joy_deadzone
+                    => state is Nunchuk,
+
+                CalibrationStep.Classic_joy_center
+                or CalibrationStep.Classic_joy_range
+                or CalibrationStep.Classic_joy_deadzone
+                    => state is ClassicController,
+
+                CalibrationStep.ClassicPro_joy_center
+                or CalibrationStep.ClassicPro_joy_range
+                or CalibrationStep.ClassicPro_joy_deadzone
+                    => state is ClassicControllerPro,
+
+                CalibrationStep.Pro_joy_center
+                or CalibrationStep.Pro_joy_range
+                or CalibrationStep.Pro_joy_deadzone
+                    => state is ProController,
+
+                _ => true
+            };
         }
 
         private void UpdateUI()
@@ -320,7 +370,7 @@ namespace WiinUSoft
         private void nextBtn_Click(object sender, RoutedEventArgs e)
         {
             if (_step == CalibrationStep.Done || _step == CalibrationStep.ChangeController)
-            { StoreCalibration(_calibrationToSave); doSave = true; Close(); }
+            { StoreCalibration(_calibrationToSave); doSave = true; Hide(); }
             else
             {
                 switch (_step)
@@ -355,7 +405,7 @@ namespace WiinUSoft
             UpdateUI();
         }
 
-        private void cancelBtn_Click(object sender, RoutedEventArgs e) => Close();
+        private void cancelBtn_Click(object sender, RoutedEventArgs e) => Hide();
 
         private void skipBtn_Click(object sender, RoutedEventArgs e)
         {

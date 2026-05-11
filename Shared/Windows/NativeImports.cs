@@ -207,11 +207,11 @@ namespace Shared.Windows
 
         [DllImport("irprops.cpl", SetLastError = true)]
         public static extern bool BluetoothFindNextRadio(
-            ref BLUETOOTH_FIND_RADIO_PARAMS hFind, 
+            IntPtr hFind, 
             out IntPtr phRadio);
 
         [DllImport("irprops.cpl", SetLastError = true)]
-        public static extern bool BluetoothFindRadioClose(ref IntPtr hFind);
+        public static extern bool BluetoothFindRadioClose(IntPtr hFind);
 
         [DllImport("irprops.cpl", SetLastError = true)]
         public static extern IntPtr BluetoothFindFirstDevice(
@@ -222,6 +222,10 @@ namespace Shared.Windows
         public static extern bool BluetoothFindNextDevice(
             IntPtr hFind, 
             ref BLUETOOTH_DEVICE_INFO pbtdi);
+
+        [DllImport("irprops.cpl", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool BluetoothFindDeviceClose(IntPtr hFind);
 
         [DllImport("irprops.cpl", SetLastError = true)]
         public static extern uint BluetoothRemoveDevice(ref ulong pAddress);
@@ -259,6 +263,12 @@ namespace Shared.Windows
         [DllImport("irprops.cpl", EntryPoint = "BluetoothEnableDiscovery", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool BluetoothEnableDiscovery(
+            IntPtr hRadio,
+            [MarshalAs(UnmanagedType.Bool)] bool fEnabled);
+
+        [DllImport("irprops.cpl", EntryPoint = "BluetoothEnableIncomingConnections", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool BluetoothEnableIncomingConnections(
             IntPtr hRadio,
             [MarshalAs(UnmanagedType.Bool)] bool fEnabled);
 

@@ -167,14 +167,13 @@ namespace NintrollerLib
         object Value { get; }
     }
 
-    public class DeviceProperty : IDeviceProperty
+    public sealed class DeviceProperty : IDeviceProperty
     {
         readonly object _value;
 
         public DeviceProperty(DevicePropertyKey key, object value)
         {
-            if (key == null)
-                throw new ArgumentNullException("key");
+            ArgumentNullException.ThrowIfNull(key);
 
             this.Key = key;
             this._value = value;
@@ -182,7 +181,7 @@ namespace NintrollerLib
 
         public DevicePropertyKey Key { get; private set; }
 
-        public virtual object Value { get { return this._value; } }
+        public object Value { get { return this._value; } }
     }
 
     internal static class DevicePropertyHandlers

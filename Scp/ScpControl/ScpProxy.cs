@@ -396,14 +396,14 @@ namespace ScpControl
 
         public Boolean Button(Ds3Button Flag) 
         {
-            if (m_Detail.Model != DsModel.DS3) throw new InvalidEnumArgumentException();
+            if (m_Detail.Model != DsModel.DS3) return false;
 
             return m_Ds3Button.HasFlag(Flag);
         }
 
         public Boolean Button(Ds4Button Flag) 
         {
-            if (m_Detail.Model != DsModel.DS4) throw new InvalidEnumArgumentException();
+            if (m_Detail.Model != DsModel.DS4) return false;
 
             return m_Ds4Button.HasFlag(Flag);
         }
@@ -411,14 +411,14 @@ namespace ScpControl
 
         public Byte Axis(Ds3Axis Offset) 
         {
-            if (m_Detail.Model != DsModel.DS3) throw new InvalidEnumArgumentException();
+            if (m_Detail.Model != DsModel.DS3) return 0;
 
             return Native[(Int32) Offset];
         }
 
         public Byte Axis(Ds4Axis Offset) 
         {
-            if (m_Detail.Model != DsModel.DS4) throw new InvalidEnumArgumentException();
+            if (m_Detail.Model != DsModel.DS4) return 0;
 
             return Native[(Int32) Offset];
         }

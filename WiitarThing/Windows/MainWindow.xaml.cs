@@ -8,6 +8,7 @@ using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Shared;
@@ -51,6 +52,27 @@ namespace WiinUSoft
                 Debug.WriteLine(result.Error.ToDisplayString());
         }
 
+        private static void LogDiscoveryResult(Result<List<DeviceInfo>, DeviceDiscoveryError> result)
+        {
+            if (result.IsError)
+                Debug.WriteLine(result.Error.ToDisplayString());
+        }
+
+        private static bool TryEnsureStreamOpen(Nintroller device)
+        {
+            if (device.DataStream is not WinBtStream stream)
+                return false;
+
+            var openResult = stream.TryOpenConnection();
+            if (openResult.IsError)
+            {
+                Debug.WriteLine(openResult.Error.ToDisplayString());
+                return false;
+            }
+
+            return stream.CanRead;
+        }
+
         public MainWindow()
         {
             hidList = new List<DeviceInfo>();
@@ -62,6 +84,7 @@ namespace WiinUSoft
             Instance = this;
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(AppTitleBar);
+            AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
 
             Version? version = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version;
             string displayTitle = "WiitarThing " + (version != null
@@ -139,7 +162,10 @@ namespace WiinUSoft
 
         private void Refresh()
         {
-            hidList = WinBtStream.GetPaths();
+            var pathResult = WinBtStream.TryGetPaths();
+            LogDiscoveryResult(pathResult);
+            hidList = pathResult.ValueOr(_ => new List<DeviceInfo>());
+            RemoveStaleDiscoveredDevices();
             var connectSeq = new List<KeyValuePair<int, DeviceControl>>();
 
             foreach (var hid in hidList)
@@ -167,7 +193,14 @@ namespace WiinUSoft
                         UserPrefs.Instance.greedyMode ? FileShare.None : FileShare.ReadWrite);
                     var n = new Nintroller(stream, hid.Type);
 
-                    if (stream.OpenConnection() && stream.CanRead)
+                    var openResult = stream.TryOpenConnection();
+                    if (openResult.IsError)
+                    {
+                        Debug.WriteLine(openResult.Error.ToDisplayString());
+                        continue;
+                    }
+
+                    if (stream.CanRead)
                     {
                         var dc = new DeviceControl(n, hid.DevicePath);
                         deviceList.Add(dc);
@@ -194,7 +227,7 @@ namespace WiinUSoft
                 {
                     if (Holders.XInputHolder.availabe[target] && target < 4)
                     {
-                        if (thingy.Value.Device.Connected || (thingy.Value.Device.DataStream as WinBtStream)?.OpenConnection() == true)
+                        if (thingy.Value.Device.Connected || TryEnsureStreamOpen(thingy.Value.Device))
                         {
                             thingy.Value.targetXDevice = target + 1;
                             thingy.Value.ConnectionState = DeviceState.Connected_XInput;
@@ -220,7 +253,7 @@ namespace WiinUSoft
             {
                 if (Holders.XInputHolder.availabe[target] && target < 4)
                 {
-                    if (d.Value.Device.Connected || (d.Value.Device.DataStream as WinBtStream)?.OpenConnection() == true)
+                    if (d.Value.Device.Connected || TryEnsureStreamOpen(d.Value.Device))
                     {
                         d.Value.targetXDevice = target + 1;
                         d.Value.ConnectionState = DeviceState.Connected_XInput;
@@ -231,6 +264,38 @@ namespace WiinUSoft
                     }
                 }
             }
+        }
+
+        private void RemoveStaleDiscoveredDevices()
+        {
+            var presentPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var hid in hidList)
+            {
+                if (!string.IsNullOrWhiteSpace(hid.DevicePath))
+                    presentPaths.Add(hid.DevicePath);
+            }
+
+            var staleDevices = new List<DeviceControl>();
+            foreach (var deviceControl in deviceList)
+            {
+                if (!deviceControl.Connected && !presentPaths.Contains(deviceControl.DevicePath))
+                    staleDevices.Add(deviceControl);
+            }
+
+            foreach (var staleDevice in staleDevices)
+                RemoveDeviceControl(staleDevice);
+        }
+
+        private void RemoveDeviceControl(DeviceControl deviceControl)
+        {
+            deviceControl.OnConnectStateChange -= DeviceControl_OnConnectStateChange;
+            deviceControl.OnConnectionLost -= DeviceControl_OnConnectionLost;
+            groupAvailable.Children.Remove(deviceControl);
+            groupXinput.Children.Remove(deviceControl);
+            _availableDevices.Remove(deviceControl);
+            _connectedDevices.Remove(deviceControl);
+            deviceList.Remove(deviceControl);
+            deviceControl.DisposeControl();
         }
 
         private void AutoRefresh(bool set)
@@ -265,16 +330,9 @@ namespace WiinUSoft
             _loadedFired = true;
             this.Activated -= Window_Loaded;
 
-            try
-            {
-                var v = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version;
-                if (v != null)
-                    menu_version.Text = string.Format("Version {0}.{1}.{2}", v.Major, v.Minor, v.Revision);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to read assembly version: {ex.Message}");
-            }
+            var v = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version;
+            if (v != null)
+                menu_version.Text = string.Format("Version {0}.{1}.{2}", v.Major, v.Minor, v.Revision);
 
             if (UserPrefs.Instance.startMinimized)
             {
@@ -316,11 +374,7 @@ namespace WiinUSoft
 
         private void DeviceControl_OnConnectionLost(DeviceControl sender)
         {
-            groupAvailable.Children.Remove(sender);
-            groupXinput.Children.Remove(sender);
-            _availableDevices.Remove(sender);
-            _connectedDevices.Remove(sender);
-            deviceList.Remove(sender);
+            RemoveDeviceControl(sender);
             AutoRefresh(menu_AutoRefresh.IsChecked);
         }
 
@@ -352,9 +406,13 @@ namespace WiinUSoft
             }
         }
 
-        private void Sync_NewDeviceFound(object? sender, EventArgs e)
+        private async void Sync_NewDeviceFound(object? sender, EventArgs e)
         {
-            DispatcherQueue.TryEnqueue(Refresh);
+            for (int i = 0; i < 30; i++)
+            {
+                DispatcherQueue.TryEnqueue(Refresh);
+                await Task.Delay(1000);
+            }
         }
 
         private void btnSettings_Click(object sender, RoutedEventArgs e) { /* Flyout opens automatically */ }
@@ -412,7 +470,8 @@ namespace WiinUSoft
             if (await confirmDlg.ShowAsync() != ContentDialogResult.Primary) return;
 
             var dlg = new Windows.RemoveAllWiimotesWindow();
-            await dlg.ShowAsDialogAsync();
+            dlg.XamlRoot = this.Content.XamlRoot;
+            await dlg.ShowAsync();
 
             var restartDlg = new ContentDialog
             {

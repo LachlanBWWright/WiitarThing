@@ -300,84 +300,111 @@ namespace Shared.Windows
 
         public static List<DeviceInfo> GetPaths()
         {
+            var pathResult = TryGetPaths();
+            return pathResult.IsOk
+                ? pathResult.Value
+                : new List<DeviceInfo>();
+        }
+
+        public static Result<List<DeviceInfo>, DeviceDiscoveryError> TryGetPaths()
+        {
             var result = new List<DeviceInfo>();
-            Guid guid;
-            int index = 0;
-            SafeFileHandle handle;
-
-            // Get GUID of the HID class
-            HidD_GetHidGuid(out guid);
-
-            // handle for HID devices
-            IntPtr hDevInfo = SetupDiGetClassDevs(ref guid, null, IntPtr.Zero, (uint)(DIGCF.DeviceInterface | DIGCF.Present));
-
-            SP_DEVICE_INTERFACE_DATA diData = new SP_DEVICE_INTERFACE_DATA();
-            diData.cbSize = Marshal.SizeOf(diData);
-
-            // Step through all devices
-            while (SetupDiEnumDeviceInterfaces(hDevInfo, IntPtr.Zero, ref guid, index, ref diData))
+            IntPtr hDevInfo = IntPtr.Zero;
+            try
             {
-                uint size;
+                Guid guid;
+                int index = 0;
+                SafeFileHandle handle;
 
-                // Get Device Buffer Size
-                SetupDiGetDeviceInterfaceDetail(hDevInfo, ref diData, IntPtr.Zero, 0, out size, IntPtr.Zero);
+                // Get GUID of the HID class
+                HidD_GetHidGuid(out guid);
 
-                // Create Detail Struct
-                SP_DEVICE_INTERFACE_DETAIL_DATA diDetail = new SP_DEVICE_INTERFACE_DETAIL_DATA();
-                diDetail.size = (uint)(IntPtr.Size == 8 ? 8 : 5);// 4 + Marshal.SystemDefaultCharSize);
-
-                SP_DEVINFO_DATA deviceInfoData = new SP_DEVINFO_DATA();
-                deviceInfoData.cbSize = (uint)Marshal.SizeOf(typeof(SP_DEVINFO_DATA));
-
-                // Populate Detail Struct
-                if (SetupDiGetDeviceInterfaceDetail(hDevInfo, ref diData, ref diDetail, size, out size, ref deviceInfoData))
+                // handle for HID devices
+                hDevInfo = SetupDiGetClassDevs(ref guid, null, IntPtr.Zero, (uint)(DIGCF.DeviceInterface | DIGCF.Present));
+                if (hDevInfo == IntPtr.Zero || hDevInfo.ToInt64() == -1)
                 {
-                    // Open read/write handle
-                    handle = CreateFile(diDetail.devicePath, FileAccess.ReadWrite, FileShare.ReadWrite, IntPtr.Zero, FileMode.Open, EFileAttributes.Overlapped, IntPtr.Zero);
+                    return Result<List<DeviceInfo>, DeviceDiscoveryError>.Err(
+                        DeviceDiscoveryError.DriverNotReady("Failed to enumerate HID devices."));
+                }
 
-                    // Create Attributes Structure
-                    HIDD_ATTRIBUTES attrib = new HIDD_ATTRIBUTES();
-                    attrib.Size = Marshal.SizeOf(attrib);
+                SP_DEVICE_INTERFACE_DATA diData = new SP_DEVICE_INTERFACE_DATA();
+                diData.cbSize = Marshal.SizeOf(diData);
 
-                    // Populate Attributes
-                    if (HidD_GetAttributes(handle.DangerousGetHandle(), ref attrib))
+                // Step through all devices
+                while (SetupDiEnumDeviceInterfaces(hDevInfo, IntPtr.Zero, ref guid, index, ref diData))
+                {
+                    uint size;
+
+                    // Get Device Buffer Size
+                    SetupDiGetDeviceInterfaceDetail(hDevInfo, ref diData, IntPtr.Zero, 0, out size, IntPtr.Zero);
+
+                    // Create Detail Struct
+                    SP_DEVICE_INTERFACE_DETAIL_DATA diDetail = new SP_DEVICE_INTERFACE_DETAIL_DATA();
+                    diDetail.size = (uint)(IntPtr.Size == 8 ? 8 : 5);// 4 + Marshal.SystemDefaultCharSize);
+
+                    SP_DEVINFO_DATA deviceInfoData = new SP_DEVINFO_DATA();
+                    deviceInfoData.cbSize = (uint)Marshal.SizeOf(typeof(SP_DEVINFO_DATA));
+
+                    // Populate Detail Struct
+                    if (SetupDiGetDeviceInterfaceDetail(hDevInfo, ref diData, ref diDetail, size, out size, ref deviceInfoData))
                     {
-                        // Check if this is a compatable device
-                        if (attrib.VendorID == 0x057e && (attrib.ProductID == 0x0306 || attrib.ProductID == 0x0330))
+                        // Open read/write handle
+                        handle = CreateFile(diDetail.devicePath, FileAccess.ReadWrite, FileShare.ReadWrite, IntPtr.Zero, FileMode.Open, EFileAttributes.Overlapped, IntPtr.Zero);
+
+                        // Create Attributes Structure
+                        HIDD_ATTRIBUTES attrib = new HIDD_ATTRIBUTES();
+                        attrib.Size = Marshal.SizeOf(attrib);
+
+                        // Populate Attributes
+                        if (HidD_GetAttributes(handle.DangerousGetHandle(), ref attrib))
                         {
-                            // TODO: Debug
-                            //var associatedStack = CheckBtStack(deviceInfoData);
-                            //var associatedStack = BtStack.Microsoft;
-
-                            //var associatedStack = BluetoothEnableDiscovery(IntPtr.Zero, true) ? BtStack.Microsoft : BtStack.Toshiba;
-                            //
-                            //if (!AssociatedStack.ContainsKey(diDetail.devicePath))
-                            //{
-                            //    AssociatedStack.Add(diDetail.devicePath, associatedStack);
-                            //}
-
-                            result.Add(new DeviceInfo
+                            // Check if this is a compatable device
+                            if (attrib.VendorID == 0x057e && (attrib.ProductID == 0x0306 || attrib.ProductID == 0x0330))
                             {
-                                DevicePath = diDetail.devicePath,
-                                Type = attrib.ProductID == 0x0330 ? ControllerType.ProController : ControllerType.Wiimote
-                            });
+                                // TODO: Debug
+                                //var associatedStack = CheckBtStack(deviceInfoData);
+                                //var associatedStack = BtStack.Microsoft;
+
+                                //var associatedStack = BluetoothEnableDiscovery(IntPtr.Zero, true) ? BtStack.Microsoft : BtStack.Toshiba;
+                                //
+                                //if (!AssociatedStack.ContainsKey(diDetail.devicePath))
+                                //{
+                                //    AssociatedStack.Add(diDetail.devicePath, associatedStack);
+                                //}
+
+                                result.Add(new DeviceInfo
+                                {
+                                    DevicePath = diDetail.devicePath,
+                                    Type = attrib.ProductID == 0x0330 ? ControllerType.ProController : ControllerType.Wiimote
+                                });
+                            }
                         }
+
+                        handle.Close();
                     }
 
-                    handle.Close();
-                }
-                else
-                {
-                    // Failed
+                    index += 1;
                 }
 
-                index += 1;
+                return Result<List<DeviceInfo>, DeviceDiscoveryError>.Ok(result);
             }
-
-            // Clean Up
-            SetupDiDestroyDeviceInfoList(hDevInfo);
-
-            return result;
+            catch (UnauthorizedAccessException ex)
+            {
+                return Result<List<DeviceInfo>, DeviceDiscoveryError>.Err(
+                    DeviceDiscoveryError.AccessDenied("Access denied while enumerating HID devices.", ex));
+            }
+            catch (Exception ex)
+            {
+                return Result<List<DeviceInfo>, DeviceDiscoveryError>.Err(
+                    DeviceDiscoveryError.Unknown("Unexpected error while enumerating HID devices.", ex));
+            }
+            finally
+            {
+                if (hDevInfo != IntPtr.Zero && hDevInfo.ToInt64() != -1)
+                {
+                    SetupDiDestroyDeviceInfoList(hDevInfo);
+                }
+            }
         }
         
 
@@ -415,7 +442,7 @@ namespace Shared.Windows
         public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback? callback, object? state)
         {
             if (_fileStream == null)
-                throw new ObjectDisposedException(nameof(WinBtStream));
+                return System.Threading.Tasks.Task.FromResult(0);
             return _fileStream.BeginRead(buffer, 0, count, callback, state);
         }
 
@@ -440,20 +467,20 @@ namespace Shared.Windows
             {
                 var writeResult = TryWrite(buffer, 0, buffer.Length);
                 if (writeResult.IsError)
-                    throw new IOException(writeResult.Error.Message, writeResult.Error.Exception);
+                    System.Diagnostics.Debug.WriteLine(writeResult.Error.ToDisplayString());
             }
         }
 
         public override void WriteByte(byte value)
         {
             System.Diagnostics.Debug.WriteLine("Writing single byte");
-            throw new NotSupportedException();
+            return;
         }
 
         public override void Flush()
         {
             if (_fileStream == null)
-                throw new ObjectDisposedException(nameof(WinBtStream));
+                return;
 
             _fileStream.Flush();
         }
@@ -461,7 +488,7 @@ namespace Shared.Windows
         public override long Seek(long offset, SeekOrigin origin)
         {
             if (_fileStream == null)
-                throw new ObjectDisposedException(nameof(WinBtStream));
+                return 0;
 
             return _fileStream.Seek(offset, origin);
         }
@@ -469,7 +496,7 @@ namespace Shared.Windows
         public override void SetLength(long value)
         {
             if (_fileStream == null)
-                throw new ObjectDisposedException(nameof(WinBtStream));
+                return;
 
             _fileStream.SetLength(value);
         }
@@ -480,7 +507,8 @@ namespace Shared.Windows
             if (readResult.IsOk)
                 return readResult.Value;
 
-            throw new IOException(readResult.Error.Message, readResult.Error.Exception);
+            System.Diagnostics.Debug.WriteLine(readResult.Error.ToDisplayString());
+            return 0;
         }
         #endregion
     }

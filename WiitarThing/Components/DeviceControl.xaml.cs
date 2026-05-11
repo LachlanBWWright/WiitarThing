@@ -10,6 +10,7 @@ using Microsoft.UI.Xaml.Input;
 using NintrollerLib;
 using Shared;
 using Shared.Windows;
+using Windows.System;
 
 namespace WiinUSoft
 {
@@ -100,6 +101,18 @@ namespace WiinUSoft
             Device.Disconnected += device_Disconnected;
         }
 
+        internal void DisposeControl()
+        {
+            updateTimer?.Dispose();
+            updateTimer = null;
+
+            if (device != null)
+            {
+                device.Disconnected -= device_Disconnected;
+                device.Dispose();
+            }
+        }
+
 #if DEBUG
         private Windows.DebugDataWindow? DebugDataWindowInstance;
         private bool _debugWindowVisible;
@@ -123,8 +136,9 @@ namespace WiinUSoft
                     DebugDataWindowInstance.nintroller = Device;
                     DebugDataWindowInstance.RegisterNintrollerUpdate();
                     DebugDataWindowInstance.Closed += (s, e2) => _debugWindowVisible = false;
+                    DebugDataWindowInstance.XamlRoot = this.XamlRoot;
                     _debugWindowVisible = true;
-                    DebugDataWindowInstance.Activate();
+                    _ = DebugDataWindowInstance.ShowAsync();
                 });
             }
         }
@@ -149,9 +163,20 @@ namespace WiinUSoft
                 UpdateIcon(device.Type);
                 SetName(device.Type.ToString());
             }
+
+            autoConnectNumber.SelectionChanged -= AutoConnect_SelectionChanged;
+            autoConnectNumber.SelectedIndex = properties.autoConnect
+                ? Math.Clamp(properties.autoNum, 1, autoConnectNumber.Items.Count - 1)
+                : 0;
+            autoConnectNumber.SelectionChanged += AutoConnect_SelectionChanged;
         }
 
-        public void SetName(string newName) { dName = newName; labelName.Text = newName; }
+        public void SetName(string newName)
+        {
+            dName = newName;
+            labelName.Text = newName;
+            nameInput.Text = newName;
+        }
 
         public void Detatch()
         {
@@ -173,7 +198,8 @@ namespace WiinUSoft
             {
                 case DeviceState.None:
                     btnIdentify.IsEnabled = false;
-                    btnProperties.IsEnabled = false;
+                    btnEditName.IsEnabled = false;
+                    autoConnectNumber.IsEnabled = false;
                     btnXinput.IsEnabled = false;
                     btnDetatch.IsEnabled = false;
                     btnDetatch.Visibility = Visibility.Collapsed;
@@ -182,7 +208,8 @@ namespace WiinUSoft
 
                 case DeviceState.Discovered:
                     btnIdentify.IsEnabled = true;
-                    btnProperties.IsEnabled = true;
+                    btnEditName.IsEnabled = true;
+                    autoConnectNumber.IsEnabled = true;
                     btnXinput.IsEnabled = true;
                     btnDetatch.IsEnabled = false;
                     btnDetatch.Visibility = Visibility.Collapsed;
@@ -191,7 +218,8 @@ namespace WiinUSoft
 
                 case DeviceState.Connected_XInput:
                     btnIdentify.IsEnabled = true;
-                    btnProperties.IsEnabled = true;
+                    btnEditName.IsEnabled = true;
+                    autoConnectNumber.IsEnabled = true;
                     btnXinput.IsEnabled = false;
                     btnDetatch.IsEnabled = true;
                     btnDetatch.Visibility = Visibility.Visible;
@@ -461,20 +489,16 @@ namespace WiinUSoft
         private void LoadProfile(string profilePath, Holders.Holder h)
         {
             Profile? loadedProfile = null;
-            if (!string.IsNullOrWhiteSpace(profilePath) && File.Exists(profilePath))
+            var profileResult = TryLoadProfile(profilePath);
+            if (profileResult.IsOk)
             {
-                try
-                {
-                    var serializer = new XmlSerializer(typeof(Profile));
-                    using var stream = File.OpenRead(profilePath);
-                    using var reader = new System.IO.StreamReader(stream);
-                    loadedProfile = serializer.Deserialize(reader) as Profile;
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Failed to load profile '{profilePath}': {ex.Message}");
-                }
+                loadedProfile = profileResult.Value;
             }
+            else if (!string.IsNullOrWhiteSpace(profilePath))
+            {
+                System.Diagnostics.Debug.WriteLine(profileResult.Error.ToDisplayString());
+            }
+
             if (loadedProfile == null) loadedProfile = UserPrefs.Instance.defaultProfile;
             if (loadedProfile != null)
             {
@@ -483,6 +507,56 @@ namespace WiinUSoft
                     h.SetMapping(loadedProfile.controllerMapKeys[i], loadedProfile.controllerMapValues[i]);
                     CheckIR(loadedProfile.controllerMapKeys[i]);
                 }
+            }
+        }
+
+        private static Result<Profile, PreferencesError> TryLoadProfile(string profilePath)
+        {
+            if (string.IsNullOrWhiteSpace(profilePath))
+                return Result<Profile, PreferencesError>.Err(
+                    PreferencesError.ValidationFailed("Profile path is empty."));
+
+            if (!File.Exists(profilePath))
+                return Result<Profile, PreferencesError>.Err(
+                    PreferencesError.FileNotFound(profilePath));
+
+            var serializer = new XmlSerializer(typeof(Profile));
+            try
+            {
+                using var stream = File.OpenRead(profilePath);
+                using var reader = new StreamReader(stream);
+                var profile = serializer.Deserialize(reader) as Profile;
+                if (profile == null)
+                {
+                    return Result<Profile, PreferencesError>.Err(
+                        PreferencesError.InvalidXml(profilePath, new InvalidOperationException("Profile XML did not deserialize to a valid profile.")));
+                }
+
+                return Result<Profile, PreferencesError>.Ok(profile);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Result<Profile, PreferencesError>.Err(PreferencesError.AccessDenied(profilePath, ex));
+            }
+            catch (System.Xml.XmlException ex)
+            {
+                return Result<Profile, PreferencesError>.Err(PreferencesError.InvalidXml(profilePath, ex));
+            }
+            catch (InvalidOperationException ex) when (ex.InnerException is System.Xml.XmlException)
+            {
+                return Result<Profile, PreferencesError>.Err(PreferencesError.InvalidXml(profilePath, ex));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Result<Profile, PreferencesError>.Err(PreferencesError.Unknown(profilePath, ex));
+            }
+            catch (System.Security.SecurityException ex)
+            {
+                return Result<Profile, PreferencesError>.Err(PreferencesError.AccessDenied(profilePath, ex));
+            }
+            catch (IOException ex)
+            {
+                return Result<Profile, PreferencesError>.Err(PreferencesError.Unknown(profilePath, ex));
             }
         }
 
@@ -569,7 +643,7 @@ namespace WiinUSoft
                 };
                 if (await dlg.ShowAsync() != ContentDialogResult.Primary) return;
             }
-            if ((device.DataStream as WinBtStream)?.OpenConnection() == true && device.DataStream.CanRead)
+            if (TryOpenDeviceStream())
             {
                 if (int.TryParse(item.Name.Replace("XOption", ""), out int tmp))
                     AssignToXinputPlayer(tmp);
@@ -601,7 +675,8 @@ namespace WiinUSoft
             if (holder == null) return;
 
             var config = new ControllerMappingWindow(holder.Mappings, device.Type);
-            await config.ShowAsDialogAsync();
+            config.XamlRoot = this.XamlRoot;
+            await config.ShowAsync();
             if (config.result)
             {
                 foreach (var pair in config.map)
@@ -617,16 +692,7 @@ namespace WiinUSoft
             Console.WriteLine("Start of btnIdentify_click");
             bool wasConnected = Connected;
 
-            WinBtStream? localDatastream = device.DataStream as WinBtStream;
-
-            if(localDatastream == null)
-            {
-                // console log
-                Console.WriteLine("Device.datastream is null!");
-                return;
-            }
-
-            if (wasConnected || (localDatastream.OpenConnection() && device.DataStream.CanRead))
+            if (wasConnected || TryOpenDeviceStream())
             {
                 if (!wasConnected) device.BeginReading();
                 identifying = true;
@@ -646,24 +712,106 @@ namespace WiinUSoft
             Console.WriteLine("end of btnIdentify_Click");
         }
 
+        private bool TryOpenDeviceStream()
+        {
+            if (device.DataStream is not WinBtStream stream)
+                return false;
+
+            var openResult = stream.TryOpenConnection();
+            if (openResult.IsError)
+            {
+                System.Diagnostics.Debug.WriteLine(openResult.Error.ToDisplayString());
+                return false;
+            }
+
+            return device.DataStream.CanRead;
+        }
+
         private void btnXinput_IsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
             btnXinput.Visibility = (bool)e.NewValue ? Visibility.Visible : Visibility.Collapsed;
         }
 
+        private void btnEditName_Click(object sender, RoutedEventArgs e)
+        {
+            nameInput.Text = dName;
+            labelName.Visibility = Visibility.Collapsed;
+            nameInput.Visibility = Visibility.Visible;
+            nameInput.Focus(FocusState.Programmatic);
+            nameInput.SelectAll();
+        }
+
+        private void nameInput_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (properties != null)
+                properties.name = nameInput.Text;
+        }
+
+        private void nameInput_KeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            if (e.Key == VirtualKey.Enter)
+            {
+                CommitNameEdit();
+                e.Handled = true;
+            }
+            else if (e.Key == VirtualKey.Escape)
+            {
+                nameInput.Text = dName;
+                EndNameEdit();
+                e.Handled = true;
+            }
+        }
+
+        private void nameInput_LostFocus(object sender, RoutedEventArgs e) => CommitNameEdit();
+
+        private void CommitNameEdit()
+        {
+            string name = string.IsNullOrWhiteSpace(nameInput.Text) ? device.Type.ToString() : nameInput.Text.Trim();
+            properties.name = name;
+            SetName(name);
+            SaveDeviceProperties();
+            EndNameEdit();
+        }
+
+        private void EndNameEdit()
+        {
+            nameInput.Visibility = Visibility.Collapsed;
+            labelName.Visibility = Visibility.Visible;
+        }
+
+        private void AutoConnect_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (properties == null) return;
+
+            properties.autoConnect = autoConnectNumber.SelectedIndex > 0;
+            properties.autoNum = autoConnectNumber.SelectedIndex;
+            SaveDeviceProperties();
+        }
+
+        private void SaveDeviceProperties()
+        {
+            UserPrefs.Instance.AddDevicePref(properties);
+            var saveResult = UserPrefs.SavePrefs();
+            if (saveResult.IsError)
+                System.Diagnostics.Debug.WriteLine(saveResult.Error.ToDisplayString());
+        }
+
         private async void btnProperties_Click(object sender, RoutedEventArgs e)
         {
             var win = new PropWindow(properties, device.Type.ToString());
-            await win.ShowAsDialogAsync();
+            win.XamlRoot = this.XamlRoot;
+            await win.ShowAsync();
 
             if (win.customCalibrate)
             {
                 var cb = new CalibrateWindow(device);
-                await cb.ShowAsDialogAsync();
+                cb.XamlRoot = this.XamlRoot;
+                await cb.ShowAsync();
                 if (cb.doSave)
                 {
                     win.props.calString = cb.Calibration.ToString();
-                    await win.ShowAsDialogAsync();
+                    win.XamlRoot = this.XamlRoot;
+                    await win.ShowAsync();
                 }
             }
 

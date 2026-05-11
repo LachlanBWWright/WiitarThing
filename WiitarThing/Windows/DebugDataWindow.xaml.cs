@@ -1,11 +1,12 @@
-﻿using System;
+using System;
 using System.Text;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using NintrollerLib;
 
 namespace WiinUSoft.Windows
 {
-    public partial class DebugDataWindow : Window
+    public partial class DebugDataWindow : ContentDialog
     {
         public bool Cancelled { get; protected set; }
         public Nintroller? nintroller;
@@ -13,7 +14,7 @@ namespace WiinUSoft.Windows
         public DebugDataWindow()
         {
             InitializeComponent();
-            AppWindow.Closing += AppWindow_Closing;
+            Closed += DebugDataWindow_Closed;
         }
 
         public void RegisterNintrollerUpdate()
@@ -50,17 +51,12 @@ namespace WiinUSoft.Windows
         {
             Prompt("Stopping...");
             Cancelled = true;
+            Hide();
         }
 
-        private void AppWindow_Closing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
+        private void DebugDataWindow_Closed(ContentDialog sender, ContentDialogClosedEventArgs args)
         {
-            if (!Cancelled)
-            {
-                Cancelled = true;
-                Prompt("Stopping...");
-                args.Cancel = true;
-                return;
-            }
+            if (!Cancelled) Cancelled = true;
             if (nintroller != null)
                 nintroller.StateUpdate -= Nintroller_StateUpdate;
         }

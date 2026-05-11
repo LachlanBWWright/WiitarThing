@@ -19,7 +19,7 @@ namespace ScpControl
 
         protected IBthDevice AttachedDevice
         {
-            get { return m_Device ?? throw new InvalidOperationException("Bluetooth device is not attached."); }
+            get { return m_Device!; }
         }
 
         protected Byte[] m_Master = new Byte[6];
@@ -193,7 +193,7 @@ namespace ScpControl
                         );
             }
 
-            throw new Exception();
+            return String.Format("Pad {0} : Unknown", m_ControllerId + 1);
         }
 
 

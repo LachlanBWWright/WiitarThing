@@ -9,23 +9,30 @@ namespace Shared
     /// </summary>
     public readonly struct Result<T, TError>
     {
+        private readonly T _value;
+        private readonly TError _error;
+
         public bool IsOk { get; }
         public bool IsError => !IsOk;
-        public T Value { get; }
-        public TError Error { get; }
+        public T Value => IsOk
+            ? _value
+            : default!;
+        public TError Error => IsError
+            ? _error
+            : default!;
 
         private Result(T value)
         {
             IsOk = true;
-            Value = value;
-            Error = default!;
+            _value = value;
+            _error = default!;
         }
 
         private Result(TError error)
         {
             IsOk = false;
-            Value = default!;
-            Error = error;
+            _value = default!;
+            _error = error;
         }
 
         public static Result<T, TError> Ok(T value) => new Result<T, TError>(value);
@@ -33,47 +40,48 @@ namespace Shared
 
         public TResult Match<TResult>(Func<T, TResult> ok, Func<TError, TResult> err)
         {
-            if (ok == null) throw new ArgumentNullException(nameof(ok));
-            if (err == null) throw new ArgumentNullException(nameof(err));
+            if (ok == null || err == null)
+                return default!;
 
-            return IsOk ? ok(Value) : err(Error);
+            return IsOk ? ok(_value) : err(_error);
         }
 
         public Result<TOut, TError> Map<TOut>(Func<T, TOut> map)
         {
-            if (map == null) throw new ArgumentNullException(nameof(map));
+            if (map == null)
+                return Result<TOut, TError>.Err(_error);
             return IsOk
-                ? Result<TOut, TError>.Ok(map(Value))
-                : Result<TOut, TError>.Err(Error);
+                ? Result<TOut, TError>.Ok(map(_value))
+                : Result<TOut, TError>.Err(_error);
         }
 
         public Result<T, TOutError> MapError<TOutError>(Func<TError, TOutError> map)
         {
-            if (map == null) throw new ArgumentNullException(nameof(map));
+            if (map == null)
+                return IsOk ? Result<T, TOutError>.Ok(_value) : Result<T, TOutError>.Err(default!);
             return IsOk
-                ? Result<T, TOutError>.Ok(Value)
-                : Result<T, TOutError>.Err(map(Error));
+                ? Result<T, TOutError>.Ok(_value)
+                : Result<T, TOutError>.Err(map(_error));
         }
 
         public Result<TOut, TError> Bind<TOut>(Func<T, Result<TOut, TError>> bind)
         {
-            if (bind == null) throw new ArgumentNullException(nameof(bind));
-            return IsOk ? bind(Value) : Result<TOut, TError>.Err(Error);
+            if (bind == null)
+                return Result<TOut, TError>.Err(_error);
+            return IsOk ? bind(_value) : Result<TOut, TError>.Err(_error);
         }
 
         public Result<T, TError> Tap(Action<T> tap)
         {
-            if (tap == null) throw new ArgumentNullException(nameof(tap));
-            if (IsOk)
-                tap(Value);
+            if (IsOk && tap != null)
+                tap(_value);
             return this;
         }
 
         public Result<T, TError> TapError(Action<TError> tap)
         {
-            if (tap == null) throw new ArgumentNullException(nameof(tap));
-            if (IsError)
-                tap(Error);
+            if (IsError && tap != null)
+                tap(_error);
             return this;
         }
 
@@ -81,33 +89,34 @@ namespace Shared
         {
             if (IsOk)
             {
-                value = Value;
+                value = _value;
                 error = default!;
                 return true;
             }
 
             value = default!;
-            error = Error;
+            error = _error;
             return false;
         }
 
-        public T ValueOr(T fallback) => IsOk ? Value : fallback;
+        public T ValueOr(T fallback) => IsOk ? _value : fallback;
 
         public T ValueOr(Func<TError, T> fallback)
         {
-            if (fallback == null) throw new ArgumentNullException(nameof(fallback));
-            return IsOk ? Value : fallback(Error);
+            if (fallback == null)
+                return default!;
+            return IsOk ? _value : fallback(_error);
         }
 
         public Result<T, TError> Ensure(Func<T, bool> predicate, Func<TError> errorFactory)
         {
-            if (predicate == null) throw new ArgumentNullException(nameof(predicate));
-            if (errorFactory == null) throw new ArgumentNullException(nameof(errorFactory));
+            if (predicate == null || errorFactory == null)
+                return this;
 
             if (IsError)
                 return this;
 
-            return predicate(Value) ? this : Err(errorFactory());
+            return predicate(_value) ? this : Err(errorFactory());
         }
 
         public override string ToString() =>

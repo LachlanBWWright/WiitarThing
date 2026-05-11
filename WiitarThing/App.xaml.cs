@@ -60,6 +60,8 @@ namespace WiinUSoft
                 _mainWindow.DispatcherQueue.TryEnqueue(async () =>
                 {
                     var box = new ErrorWindow(e);
+                    if (_mainWindow?.Content?.XamlRoot != null)
+                        box.XamlRoot = _mainWindow.Content.XamlRoot;
                     await box.ShowDialogAsync();
                     SingleInstance<App>.Cleanup();
                     Application.Current.Exit();

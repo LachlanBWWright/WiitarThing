@@ -334,7 +334,7 @@ namespace NintrollerLib
 
         public float GetValue(string input)
         {
-            throw new NotImplementedException();
+            return 0f;
         }
 
         public void SetCalibration(Calibrations.CalibrationPreset preset)

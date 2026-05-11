@@ -4,7 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace WiinUSoft
 {
-    public partial class PropWindow : Window
+    public partial class PropWindow : ContentDialog
     {
         public bool doSave        = false;
         public bool customCalibrate = false;
@@ -34,8 +34,8 @@ namespace WiinUSoft
             pointerSelection.SelectedIndex = (int)org.pointerMode;
         }
 
-        private void cancelBtn_Click(object sender, RoutedEventArgs e) { customCalibrate = false; Close(); }
-        private void saveBtn_Click(object sender, RoutedEventArgs e)   { customCalibrate = false; doSave = true; Close(); }
+        private void cancelBtn_Click(object sender, RoutedEventArgs e) { customCalibrate = false; Hide(); }
+        private void saveBtn_Click(object sender, RoutedEventArgs e)   { customCalibrate = false; doSave = true; Hide(); }
 
         private void autoCheckbox_Click(object sender, RoutedEventArgs e)
             => props.autoConnect = autoCheckbox.IsChecked == true;
@@ -96,7 +96,7 @@ namespace WiinUSoft
             {
                 props.calPref   = Property.CalibrationPreference.Custom;
                 customCalibrate = true;
-                Close();  // caller (DeviceControl) will show CalibrateWindow then re-open us
+                Hide();  // caller (DeviceControl) will show CalibrateWindow then re-open us
             }
         }
 

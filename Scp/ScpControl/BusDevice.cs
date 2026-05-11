@@ -382,10 +382,8 @@ namespace ScpControl
 
         public virtual Boolean Report(Byte[] Input, Byte[] Output) 
         {
-            if (Input == null) throw new ArgumentNullException("Input");
-            if (Output == null) throw new ArgumentNullException("Output");
-            if (Input.Length < ReportSize) throw new ArgumentException("Input buffer is smaller than the bus report size.", "Input");
-            if (Output.Length < RumbleSize) throw new ArgumentException("Output buffer is smaller than the bus rumble size.", "Output");
+            if (Input == null || Output == null) return false;
+            if (Input.Length < ReportSize || Output.Length < RumbleSize) return false;
 
             if (State == DsState.Connected)
             {

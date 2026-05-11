@@ -1,7 +1,8 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security;
 using System.Xml.Serialization;
 using Shared;
 
@@ -109,7 +110,17 @@ namespace WiinUSoft
                 return Result<Unit, PreferencesError>.Err(
                     PreferencesError.AccessDenied("registry://HKCU/Software/Microsoft/Windows/CurrentVersion/Run", ex));
             }
-            catch (Exception ex)
+            catch (SecurityException ex)
+            {
+                return Result<Unit, PreferencesError>.Err(
+                    PreferencesError.AccessDenied("registry://HKCU/Software/Microsoft/Windows/CurrentVersion/Run", ex));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Result<Unit, PreferencesError>.Err(
+                    PreferencesError.Unknown("registry://HKCU/Software/Microsoft/Windows/CurrentVersion/Run", ex));
+            }
+            catch (IOException ex)
             {
                 return Result<Unit, PreferencesError>.Err(
                     PreferencesError.Unknown("registry://HKCU/Software/Microsoft/Windows/CurrentVersion/Run", ex));
@@ -126,7 +137,20 @@ namespace WiinUSoft
                 if (value)
                 {
                     if (!File.Exists(shortcutPath))
-                        MainWindow.Instance?.CreateShortcut(dir);
+                    {
+                        if (MainWindow.Instance == null)
+                        {
+                            return Result<Unit, PreferencesError>.Err(
+                                PreferencesError.ValidationFailed("Main window is unavailable to create startup shortcut.", shortcutPath));
+                        }
+
+                        MainWindow.Instance.CreateShortcut(dir);
+                        if (!File.Exists(shortcutPath))
+                        {
+                            return Result<Unit, PreferencesError>.Err(
+                                PreferencesError.Unknown(shortcutPath, new IOException("Startup shortcut was not created.")));
+                        }
+                    }
 
                     return Result<Unit, PreferencesError>.Ok(Unit.Value);
                 }
@@ -140,7 +164,11 @@ namespace WiinUSoft
             {
                 return Result<Unit, PreferencesError>.Err(PreferencesError.AccessDenied(shortcutPath, ex));
             }
-            catch (Exception ex)
+            catch (SecurityException ex)
+            {
+                return Result<Unit, PreferencesError>.Err(PreferencesError.AccessDenied(shortcutPath, ex));
+            }
+            catch (IOException ex)
             {
                 return Result<Unit, PreferencesError>.Err(PreferencesError.Unknown(shortcutPath, ex));
             }
@@ -212,7 +240,17 @@ namespace WiinUSoft
                 return Result<UserPrefs, PreferencesError>.Err(
                     PreferencesError.InvalidXml(DataPath, ex));
             }
-            catch (Exception ex)
+            catch (SecurityException ex)
+            {
+                return Result<UserPrefs, PreferencesError>.Err(
+                    PreferencesError.AccessDenied(DataPath, ex));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Result<UserPrefs, PreferencesError>.Err(
+                    PreferencesError.Unknown(DataPath, ex));
+            }
+            catch (IOException ex)
             {
                 return Result<UserPrefs, PreferencesError>.Err(
                     PreferencesError.Unknown(DataPath, ex));
@@ -229,6 +267,10 @@ namespace WiinUSoft
             if (string.IsNullOrEmpty(DataPath))
                 return Result<Unit, PreferencesError>.Err(
                     PreferencesError.MissingPath());
+
+            if (_instance == null)
+                return Result<Unit, PreferencesError>.Err(
+                    PreferencesError.ValidationFailed("Cannot save preferences before an active instance is initialized.", DataPath));
 
             var serializer = new XmlSerializer(typeof(UserPrefs));
             try
@@ -247,7 +289,17 @@ namespace WiinUSoft
                 return Result<Unit, PreferencesError>.Err(
                     PreferencesError.AccessDenied(DataPath, ex));
             }
-            catch (Exception ex)
+            catch (SecurityException ex)
+            {
+                return Result<Unit, PreferencesError>.Err(
+                    PreferencesError.AccessDenied(DataPath, ex));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Result<Unit, PreferencesError>.Err(
+                    PreferencesError.SerializationFailed(DataPath, ex));
+            }
+            catch (IOException ex)
             {
                 return Result<Unit, PreferencesError>.Err(
                     PreferencesError.SerializationFailed(DataPath, ex));

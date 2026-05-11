@@ -139,7 +139,7 @@ namespace WiinUSoft
 
         private global::Windows.Foundation.Rect CalculateDragElementRect(double newH, double newV)
         {
-            if (ElementBeingDragged == null) throw new InvalidOperationException("ElementBeingDragged is null.");
+            if (ElementBeingDragged == null) return new global::Windows.Foundation.Rect(0, 0, 0, 0);
             double w = ElementBeingDragged.ActualSize.X;
             double h = ElementBeingDragged.ActualSize.Y;
             double x = modifyLeftOffset ? newH : ActualWidth - newH - w;
@@ -161,8 +161,7 @@ namespace WiinUSoft
 
         private void UpdateZOrder(UIElement element, bool bringToFront)
         {
-            if (element == null) throw new ArgumentNullException("element");
-            if (!base.Children.Contains(element)) throw new ArgumentException("Must be a child element of the Canvas.", "element");
+            if (element == null || !base.Children.Contains(element)) return;
 
             int elementNewZIndex = -1;
             if (bringToFront)

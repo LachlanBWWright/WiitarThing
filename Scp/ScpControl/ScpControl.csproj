@@ -11,12 +11,6 @@
     <NoWarn>$(NoWarn);WFO1000;CS1591</NoWarn>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Update="*.Designer.cs">
-      <Nullable>disable</Nullable>
-    </Compile>
-  </ItemGroup>
-
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>

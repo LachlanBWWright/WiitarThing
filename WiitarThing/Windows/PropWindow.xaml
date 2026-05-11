@@ -1,8 +1,8 @@
-﻿<Window x:Class="WiinUSoft.PropWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Device Properties">
-    <Grid Margin="20">
+<ContentDialog x:Class="WiinUSoft.PropWindow"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               Title="Device Properties">
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -11,8 +11,8 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0"
-                   Style="{ThemeResource TitleTextBlockStyle}"
                    Text="Device Properties"
+                   FontSize="20"
                    Margin="0,0,0,20"/>
 
         <!-- Settings Panel -->
@@ -27,7 +27,6 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0"
                            VerticalAlignment="Center"
-                           Style="{ThemeResource BodyTextBlockStyle}"
                            Text="Device Name"/>
                 <TextBox x:Name="nameInput"
                          Grid.Column="1"
@@ -45,7 +44,6 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0"
                            VerticalAlignment="Center"
-                           Style="{ThemeResource BodyTextBlockStyle}"
                            Text="Auto Connect"/>
                 <ComboBox x:Name="autoConnectNumber"
                           Grid.Column="1"
@@ -110,4 +108,4 @@
                     Click="saveBtn_Click"/>
         </StackPanel>
     </Grid>
-</Window>
+</ContentDialog>

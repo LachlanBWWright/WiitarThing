@@ -19,10 +19,8 @@
         <StackPanel Grid.Row="1"
                     Spacing="6"
                     Margin="0,0,0,12">
-            <TextBlock Style="{ThemeResource BodyTextBlockStyle}"
-                       Text="Press the red SYNC button on your controller to pair."/>
-            <TextBlock Style="{ThemeResource CaptionTextBlockStyle}"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            <TextBlock Text="Press the red SYNC button on your controller to pair."/>
+            <TextBlock
                        TextWrapping="Wrap">
                 <Run FontWeight="SemiBold"
                      Text="Close this dialog before playing"/>

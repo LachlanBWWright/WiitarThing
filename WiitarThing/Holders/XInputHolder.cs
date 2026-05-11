@@ -4,6 +4,7 @@ using System.Linq;
 
 using NintrollerLib;
 using ScpControl;
+using Shared;
 
 namespace WiinUSoft.Holders
 {
@@ -463,7 +464,12 @@ namespace WiinUSoft.Holders
             report[27] = GetRawTrigger(RT);
             #endregion
 
-            bus.Parse(report, parsed);
+            var parseResult = bus.TryParse(report, parsed);
+            if (parseResult.IsError)
+            {
+                System.Diagnostics.Debug.WriteLine(parseResult.Error.ToDisplayString());
+                return;
+            }
 
             if (bus.Report(parsed, rumble))
             {
@@ -509,13 +515,19 @@ namespace WiinUSoft.Holders
 
         public bool ConnectXInput(int id)
         {
+            return TryConnectXInput(id).IsOk;
+        }
+
+        public Result<Unit, VirtualControllerError> TryConnectXInput(int id)
+        {
             if (id > 0 && id < 5)
             {
                 availabe[id - 1] = false;
             }
             else
             {
-                return false;
+                return Result<Unit, VirtualControllerError>.Err(
+                    VirtualControllerError.SlotUnavailable(id));
             }
 
             bus = XBus.Default;
@@ -523,7 +535,7 @@ namespace WiinUSoft.Holders
             bus.Plugin(id);
             ID = id;
             connected = true;
-            return true;
+            return Result<Unit, VirtualControllerError>.Ok(Unit.Value);
         }
 
         public bool RemoveXInput(int id)
@@ -609,13 +621,35 @@ namespace WiinUSoft.Holders
             }
         }
 
+        public Result<int, VirtualControllerError> TryParse(byte[] Input, byte[] Output, DsModel Type = DsModel.DS3)
+        {
+            if (Input == null)
+                return Result<int, VirtualControllerError>.Err(
+                    VirtualControllerError.InvalidMapping("Input buffer cannot be null."));
+            if (Output == null)
+                return Result<int, VirtualControllerError>.Err(
+                    VirtualControllerError.InvalidMapping("Output buffer cannot be null."));
+            if (Input.Length < ReportSize)
+                return Result<int, VirtualControllerError>.Err(
+                    VirtualControllerError.InvalidMapping("Input buffer is smaller than the bus report size."));
+            if (Output.Length < ReportSize)
+                return Result<int, VirtualControllerError>.Err(
+                    VirtualControllerError.InvalidMapping("Output buffer is smaller than the bus report size."));
+
+            return Result<int, VirtualControllerError>.Ok(ParseCore(Input, Output, Type));
+        }
+
         public override int Parse(byte[] Input, byte[] Output, DsModel Type = DsModel.DS3)
         {
-            if (Input == null) throw new ArgumentNullException("Input");
-            if (Output == null) throw new ArgumentNullException("Output");
-            if (Input.Length < ReportSize) throw new ArgumentException("Input buffer is smaller than the bus report size.", "Input");
-            if (Output.Length < ReportSize) throw new ArgumentException("Output buffer is smaller than the bus report size.", "Output");
+            var parseResult = TryParse(Input, Output, Type);
+            if (parseResult.IsOk)
+                return parseResult.Value;
 
+            return -1;
+        }
+
+        private int ParseCore(byte[] Input, byte[] Output, DsModel Type = DsModel.DS3)
+        {
             for (int index = 0; index < ReportSize; index++)
             {
                 Output[index] = 0x00;

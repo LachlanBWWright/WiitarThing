@@ -8,8 +8,7 @@
              d:DesignWidth="300">
 
     <!-- Device row for WinUI-style list surfaces -->
-    <Border CornerRadius="8"
-            BorderThickness="0"
+    <Border BorderThickness="0"
             Padding="10"
             Background="Transparent"
             x:Name="statusGradient">
@@ -61,14 +60,44 @@
             <StackPanel Grid.Column="1"
                     VerticalAlignment="Center"
                     Margin="8,0,0,0">
-                <TextBlock x:Name="labelName"
-                           Style="{ThemeResource BodyTextBlockStyle}"
-                           FontWeight="SemiBold"
-                           Text="Unknown Device"
-                           TextTrimming="CharacterEllipsis"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="labelName"
+                               Grid.Column="0"
+                               FontWeight="SemiBold"
+                               Text="Unknown Device"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"/>
+                    <TextBox x:Name="nameInput"
+                             Grid.Column="0"
+                             Height="32"
+                             Visibility="Collapsed"
+                             TextChanged="nameInput_TextChanged"
+                             KeyDown="nameInput_KeyDown"
+                             LostFocus="nameInput_LostFocus"
+                             VerticalContentAlignment="Center"/>
+                    <Button x:Name="btnEditName"
+                            Grid.Column="1"
+                            Width="38"
+                            Height="34"
+                            MinWidth="0"
+                            MinHeight="0"
+                            Margin="8,0,4,0"
+                            Padding="8,0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            ToolTipService.ToolTip="Edit name"
+                            Click="btnEditName_Click"
+                            AutomationProperties.Name="Edit name">
+                        <FontIcon FontFamily="Segoe MDL2 Assets"
+                                  Glyph="&#xE70F;"
+                                  FontSize="13"/>
+                    </Button>
+                </Grid>
                 <TextBlock x:Name="labelUnavailable"
-                           Style="{ThemeResource CaptionTextBlockStyle}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            Text="Device Unavailable"
                            Visibility="Collapsed"
                            Margin="0,2,0,0"/>
@@ -82,48 +111,66 @@
 
                 <!-- Debug view (debug builds only) -->
                 <Button x:Name="btnDebugView"
-                        Width="32"
-                        Height="32"
+                        Width="34"
+                        Height="34"
+                        MinWidth="0"
+                        MinHeight="0"
+                        Padding="0"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
                         ToolTipService.ToolTip="Debug View"
                         Click="btnDebugView_Click"
                         AutomationProperties.Name="Debug View">
                     <Image Source="../Images/Properties-icon.png"
                             Width="16"
-                            Height="16"/>
+                            Height="16"
+                            Stretch="Uniform"/>
                 </Button>
 
                 <!-- Identify -->
                 <Button x:Name="btnIdentify"
-                        Width="32"
-                        Height="32"
+                        Width="34"
+                        Height="34"
+                        MinWidth="0"
+                        MinHeight="0"
+                        Padding="0"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
                         ToolTipService.ToolTip="Identify (rumble)"
                         Click="btnIdentify_Click"
                         AutomationProperties.Name="Identify">
                     <Image Source="../Images/IDicon3.png"
                             Width="16"
-                            Height="16"/>
+                            Height="16"
+                            Stretch="Uniform"/>
                 </Button>
 
-                <!-- Properties -->
-                <Button x:Name="btnProperties"
-                        Width="32"
-                        Height="32"
-                        ToolTipService.ToolTip="Properties"
-                        Click="btnProperties_Click"
-                        AutomationProperties.Name="Properties">
-                    <Image Source="../Images/Properties-icon.png"
-                            Width="16"
-                            Height="16"
-                            Opacity="0.7"/>
-                </Button>
+                <!-- Auto-connect target -->
+                <ComboBox x:Name="autoConnectNumber"
+                          Width="148"
+                          Height="34"
+                          SelectedIndex="0"
+                          SelectionChanged="AutoConnect_SelectionChanged"
+                          ToolTipService.ToolTip="Auto-connect target"
+                          AutomationProperties.Name="Auto-connect target">
+                    <ComboBoxItem Content="Auto: Off"/>
+                    <ComboBoxItem Content="Auto: Player 1"/>
+                    <ComboBoxItem Content="Auto: Player 2"/>
+                    <ComboBoxItem Content="Auto: Player 3"/>
+                    <ComboBoxItem Content="Auto: Player 4"/>
+                    <ComboBoxItem Content="Auto: First"/>
+                </ComboBox>
 
                 <!-- Connect (with player-selection flyout) -->
                 <Button x:Name="btnXinput"
-                        Height="36"
+                        Height="34"
+                        MinHeight="0"
+                        Padding="12,0"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
                         Content="CONNECT"
                         ToolTipService.ToolTip="Connect as an Xbox 360 controller"
-                        IsEnabledChanged="btnXinput_IsEnabledChanged"
-                        Margin="4,0,0,0">
+                        IsEnabledChanged="btnXinput_IsEnabledChanged">
                     <Button.Flyout>
                         <MenuFlyout Opening="XInputFlyout_Opening">
                             <MenuFlyoutItem x:Name="XOption1"
@@ -144,12 +191,15 @@
 
                 <!-- Disconnect -->
                 <Button x:Name="btnDetatch"
-                        Height="36"
+                        Height="34"
+                        MinHeight="0"
+                        Padding="12,0"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
                         Content="DISCONNECT"
                         ToolTipService.ToolTip="Disconnect this controller"
                         Click="btnDetatch_Click"
-                        Visibility="Collapsed"
-                        Margin="4,0,0,0"/>
+                        Visibility="Collapsed"/>
             </StackPanel>
         </Grid>
     </Border>

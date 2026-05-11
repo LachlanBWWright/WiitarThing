@@ -1,9 +1,9 @@
-﻿<Window x:Class="WiinUSoft.CalibrateWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:local="using:WiinUSoft"
-        Title="Calibration">
-    <Grid Margin="16">
+<ContentDialog x:Class="WiinUSoft.CalibrateWindow"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:local="using:WiinUSoft"
+               Title="Calibration">
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -15,11 +15,8 @@
                 Spacing="4"
                 Margin="0,0,0,12">
             <TextBlock x:Name="title"
-                    Style="{ThemeResource TitleTextBlockStyle}"
                     Text="Calibrate Wiimote"/>
             <TextBlock x:Name="inst"
-                       Style="{ThemeResource CaptionTextBlockStyle}"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                        TextWrapping="Wrap">
                 Rotate the Wiimote around to the left and right (roll) so the buttons face left and then right. Adjust the minimums and maximums of each axis as desired.
             </TextBlock>
@@ -38,9 +35,6 @@
                             Width="190"
                             Height="190"
                             BorderThickness="1"
-                            CornerRadius="6"
-                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             Padding="10">
                         <Grid>
                             <Grid.RowDefinitions>
@@ -111,9 +105,6 @@
                             Width="190"
                             Height="190"
                             BorderThickness="1"
-                            CornerRadius="6"
-                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             Padding="10">
                         <Grid>
                             <Grid.RowDefinitions>
@@ -184,9 +175,6 @@
                             Width="190"
                             Height="190"
                             BorderThickness="1"
-                            CornerRadius="6"
-                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             Padding="10">
                         <Grid>
                             <Grid.RowDefinitions>
@@ -257,9 +245,6 @@
                             Width="190"
                             Height="190"
                             BorderThickness="1"
-                            CornerRadius="6"
-                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             Padding="10">
                         <Grid>
                             <Grid.RowDefinitions>
@@ -331,9 +316,6 @@
                 <!-- group5: IR bounding box -->
                 <Border x:Name="group5"
                         BorderThickness="1"
-                        CornerRadius="6"
-                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         Padding="10"
                         Margin="0,4,0,0">
                     <Grid>
@@ -405,9 +387,6 @@
                     <Border x:Name="groupL"
                             Visibility="Collapsed"
                             BorderThickness="1"
-                            CornerRadius="6"
-                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             Padding="10"
                             HorizontalAlignment="Left">
                         <Grid MinWidth="280">
@@ -449,9 +428,6 @@
                     <Border x:Name="groupR"
                             Visibility="Collapsed"
                             BorderThickness="1"
-                            CornerRadius="6"
-                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             Padding="10"
                             HorizontalAlignment="Left">
                         <Grid MinWidth="280">
@@ -520,4 +496,4 @@
             </StackPanel>
         </Grid>
     </Grid>
-</Window>
+</ContentDialog>
