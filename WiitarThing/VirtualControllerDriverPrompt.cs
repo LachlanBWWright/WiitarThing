@@ -221,6 +221,7 @@ namespace WiinUSoft
                 await Task.Delay(200);
             }
 
+            Debug.WriteLine("Timed out waiting for a XamlRoot to become available.");
             return null;
         }
 
@@ -230,10 +231,18 @@ namespace WiinUSoft
 
             try
             {
-                return App.MainWindowInstance?.Content?.XamlRoot;
+                var mainWindow = App.MainWindowInstance;
+                if (mainWindow == null || mainWindow.Content == null || mainWindow.Content.XamlRoot == null)
+                {
+                    Debug.WriteLine("No XamlRoot available for the virtual controller prompt.");
+                    return null;
+                }
+
+                return mainWindow.Content.XamlRoot;
             }
             catch (InvalidOperationException)
             {
+                Debug.WriteLine("Failed to resolve a XamlRoot for the virtual controller prompt.");
                 return null;
             }
         }

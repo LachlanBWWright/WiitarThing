@@ -28,30 +28,30 @@
                     Height="40"
                    HorizontalAlignment="Center"
                    VerticalAlignment="Center"
-                   RightTapped="icon_RightTapped">
+                   RightTapped="IconRightTapped">
                 <FlyoutBase.AttachedFlyout>
                     <MenuFlyout>
                         <MenuFlyoutItem x:Name="typeClear"
                                 Text="Reset"
-                                Click="typeOption_Click"/>
+                                Click="TypeOptionClick"/>
                         <MenuFlyoutItem x:Name="typePro"
                                 Text="Pro Controller"
-                                Click="typeOption_Click"/>
+                                Click="TypeOptionClick"/>
                         <MenuFlyoutItem x:Name="typeWiimote"
                                 Text="Wiimote"
-                                Click="typeOption_Click"/>
+                                Click="TypeOptionClick"/>
                         <MenuFlyoutItem x:Name="typeNunchuk"
                                 Text="Nunchuk"
-                                Click="typeOption_Click"/>
+                                Click="TypeOptionClick"/>
                         <MenuFlyoutItem x:Name="typeClassic"
                                 Text="Classic Controller"
-                                Click="typeOption_Click"/>
+                                Click="TypeOptionClick"/>
                         <MenuFlyoutItem x:Name="typeClassicPro"
                                 Text="Classic Controller Pro"
-                                Click="typeOption_Click"/>
+                                Click="TypeOptionClick"/>
                         <MenuFlyoutItem x:Name="typeGuitar"
                                 Text="Wii Guitar"
-                                Click="typeOption_Click"/>
+                                Click="TypeOptionClick"/>
                     </MenuFlyout>
                 </FlyoutBase.AttachedFlyout>
             </Image>
@@ -75,9 +75,9 @@
                              Grid.Column="0"
                              Height="32"
                              Visibility="Collapsed"
-                             TextChanged="nameInput_TextChanged"
-                             KeyDown="nameInput_KeyDown"
-                             LostFocus="nameInput_LostFocus"
+                             TextChanged="NameInputTextChanged"
+                             KeyDown="NameInputKeyDown"
+                             LostFocus="NameInputLostFocus"
                              VerticalContentAlignment="Center"/>
                     <Button x:Name="btnEditName"
                             Grid.Column="1"
@@ -90,7 +90,7 @@
                             HorizontalContentAlignment="Center"
                             VerticalContentAlignment="Center"
                             ToolTipService.ToolTip="Edit name"
-                            Click="btnEditName_Click"
+                            Click="BtnEditNameClick"
                             AutomationProperties.Name="Edit name">
                         <FontIcon FontFamily="Segoe MDL2 Assets"
                                   Glyph="&#xE70F;"
@@ -230,7 +230,7 @@
                     <ComboBox x:Name="outputModeSelector"
                               Width="230"
                               Height="30"
-                              SelectionChanged="outputModeSelector_SelectionChanged"
+                              SelectionChanged="OutputModeSelectorSelectionChanged"
                               ToolTipService.ToolTip="Select virtual output backend">
                         <ComboBoxItem Content="Xbox 360 Gamepad (SCP)"/>
                         <ComboBoxItem Content="Virtual Guitar (HIDMaestro, experimental)"/>
@@ -239,7 +239,7 @@
                     <ComboBox x:Name="previewModeSelector"
                               Width="230"
                               Height="30"
-                              SelectionChanged="previewModeSelector_SelectionChanged"
+                              SelectionChanged="PreviewModeSelectorSelectionChanged"
                               ToolTipService.ToolTip="Select guitar preview source">
                         <ComboBoxItem Content="Wii Controller"/>
                         <ComboBoxItem Content="Virtual Output"/>
@@ -280,7 +280,7 @@
                         HorizontalContentAlignment="Center"
                         VerticalContentAlignment="Center"
                         ToolTipService.ToolTip="Debug View"
-                        Click="btnDebugView_Click"
+                        Click="BtnDebugViewClick"
                         AutomationProperties.Name="Debug View">
                     <Image Source="../Images/Properties-icon.png"
                             Width="16"
@@ -298,7 +298,7 @@
                         HorizontalContentAlignment="Center"
                         VerticalContentAlignment="Center"
                         ToolTipService.ToolTip="Identify (rumble)"
-                        Click="btnIdentify_Click"
+                        Click="BtnIdentifyClick"
                         AutomationProperties.Name="Identify">
                     <Image Source="../Images/IDicon3.png"
                             Width="16"
@@ -311,7 +311,7 @@
                           Width="148"
                           Height="34"
                           SelectedIndex="0"
-                          SelectionChanged="AutoConnect_SelectionChanged"
+                          SelectionChanged="AutoConnectSelectionChanged"
                           ToolTipService.ToolTip="Auto-connect target"
                           AutomationProperties.Name="Auto-connect target">
                     <ComboBoxItem Content="Auto: Off"/>
@@ -331,21 +331,21 @@
                         VerticalContentAlignment="Center"
                         Content="CONNECT"
                         ToolTipService.ToolTip="Connect using selected virtual output mode"
-                        IsEnabledChanged="btnXinput_IsEnabledChanged">
+                        IsEnabledChanged="BtnXinputIsEnabledChanged">
                     <Button.Flyout>
                         <MenuFlyout Opening="XInputFlyout_Opening">
                             <MenuFlyoutItem x:Name="XOption1"
                                     Text="Player 1"
-                                    Click="XOption_Click"/>
+                                    Click="XOptionClick"/>
                             <MenuFlyoutItem x:Name="XOption2"
                                     Text="Player 2"
-                                    Click="XOption_Click"/>
+                                    Click="XOptionClick"/>
                             <MenuFlyoutItem x:Name="XOption3"
                                     Text="Player 3"
-                                    Click="XOption_Click"/>
+                                    Click="XOptionClick"/>
                             <MenuFlyoutItem x:Name="XOption4"
                                     Text="Player 4"
-                                    Click="XOption_Click"/>
+                                    Click="XOptionClick"/>
                         </MenuFlyout>
                     </Button.Flyout>
                 </Button>
@@ -359,7 +359,7 @@
                         VerticalContentAlignment="Center"
                         Content="DISCONNECT"
                         ToolTipService.ToolTip="Disconnect this controller"
-                        Click="btnDetatch_Click"
+                        Click="BtnDetatchClick"
                         Visibility="Collapsed"/>
             </StackPanel>
         </Grid>

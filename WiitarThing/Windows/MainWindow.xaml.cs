@@ -65,13 +65,15 @@ namespace WiinUSoft
 
             InitializeComponent();
             Instance = this;
-            DataContext = _viewModel;
+            if (Content is FrameworkElement root)
+                root.DataContext = _viewModel;
 
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(AppTitleBar);
             AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
 
-            Version? version = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version;
+            var entryAssembly = System.Reflection.Assembly.GetEntryAssembly();
+            Version? version = entryAssembly == null ? null : entryAssembly.GetName().Version;
             string displayTitle = "WiitarThing " + (version != null
                 ? string.Format("V{0}.{1}.{2}", version.Major, version.Minor, version.Revision)
                 : string.Empty);
@@ -156,7 +158,8 @@ namespace WiinUSoft
         public void ShowBalloon(string title, string message, int icon = 0, SystemSound? sound = null)
         {
             _trayService.ShowBalloon(title, message, icon);
-            sound?.Play();
+            if (sound != null)
+                sound.Play();
         }
 
         private static void LogDiscoveryResult(Result<List<DeviceInfo>, DeviceDiscoveryError> result)
@@ -298,7 +301,8 @@ namespace WiinUSoft
             }
             else if (!set && _refreshing)
             {
-                _refreshToken?.Cancel();
+                if (_refreshToken != null)
+                    _refreshToken.Cancel();
                 _refreshing = false;
             }
         }

@@ -1,4 +1,5 @@
 using NintrollerLib;
+using Shared.Windows;
 
 namespace WiinUSoft.Services;
 

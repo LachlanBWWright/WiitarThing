@@ -20,7 +20,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly Func<Task> _showDefaultCalibrationAction;
     private readonly Action<bool> _setAutoRefreshAction;
     private bool _suppressPreferenceWrites;
-    private bool _applicationActive;
+    private bool _applicationActive = true;
     private string _appTitleText = "WiitarThing";
     private string _versionText = "Version";
     private Visibility _debugBuildVisibility = Visibility.Collapsed;

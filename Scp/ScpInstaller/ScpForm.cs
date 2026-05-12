@@ -106,68 +106,66 @@ namespace ScpDriver
             {
                 String Architecture = System.Environment.GetEnvironmentVariable("PROCESSOR_ARCHITECTURE").ToUpper().Trim();
 
-                if (Environment.Is64BitOperatingSystem == Environment.Is64BitProcess && (Architecture == "X86" || Architecture == "AMD64"))
+                if (Environment.Is64BitOperatingSystem != Environment.Is64BitProcess || (Architecture != "X86" && Architecture != "AMD64"))
+                    return Valid;
+
+                Valid = OSType.DEFAULT;
+                if (String.IsNullOrEmpty(Info))
+                    return Valid;
+
+                String[] Token = Info.Split(new char[] { ' ' });
+                if (Token[0].ToUpper().Trim() != "MICROSOFT" || Token[1].ToUpper().Trim() != "WINDOWS")
+                    return Valid;
+
+                switch (Token[2].ToUpper().Trim())
                 {
-                    Valid = OSType.DEFAULT;
+                    case "XP":
 
-                    if (!String.IsNullOrEmpty(Info))
-                    {
-                        String[] Token = Info.Split(new char[] { ' ' });
+                        if (!System.Environment.Is64BitOperatingSystem) Valid = OSType.XP;
+                        break;
 
-                        if (Token[0].ToUpper().Trim() == "MICROSOFT" && Token[1].ToUpper().Trim() == "WINDOWS")
+                    case "VISTA":
+
+                        Valid = OSType.VISTA;
+                        break;
+
+                    case "7":
+
+                        Valid = OSType.WIN7;
+                        break;
+
+                    case "8":
+
+                        Valid = OSType.WIN8;
+                        break;
+
+                    case "81":
+
+                        Valid = OSType.WIN81;
+                        break;
+
+                    case "SERVER":
+
+                        switch (Token[3].ToUpper().Trim())
                         {
-                            switch (Token[2].ToUpper().Trim())
-                            {
-                                case "XP":
+                            case "2008":
 
-                                    if (!System.Environment.Is64BitOperatingSystem) Valid = OSType.XP;
-                                    break;
-
-                                case "VISTA":
-
-                                    Valid = OSType.VISTA;
-                                    break;
-
-                                case "7":
-
+                                if (Token[4].ToUpper().Trim() == "R2")
+                                {
                                     Valid = OSType.WIN7;
-                                    break;
+                                }
+                                else
+                                {
+                                    Valid = OSType.VISTA;
+                                }
+                                break;
 
-                                case "8":
+                            case "2012":
 
-                                    Valid = OSType.WIN8;
-                                    break;
-
-                                case "81":
-
-                                    Valid = OSType.WIN81;
-                                    break;
-
-                                case "SERVER":
-
-                                    switch (Token[3].ToUpper().Trim())
-                                    {
-                                        case "2008":
-
-                                            if (Token[4].ToUpper().Trim() == "R2")
-                                            {
-                                                Valid = OSType.WIN7;
-                                            }
-                                            else
-                                            {
-                                                Valid = OSType.VISTA;
-                                            }
-                                            break;
-
-                                        case "2012":
-
-                                            Valid = OSType.WIN8;
-                                            break;
-                                    }
-                                    break;
-                            }
+                                Valid = OSType.WIN8;
+                                break;
                         }
-                    }
+                        break;
                 }
             }
             catch { }

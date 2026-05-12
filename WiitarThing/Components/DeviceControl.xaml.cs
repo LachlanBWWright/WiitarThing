@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Xml.Serialization;
 using Microsoft.UI.Xaml;
@@ -30,8 +31,8 @@ namespace WiinUSoft
         private bool snapIRpointer;
         private float rumbleAmount;
         private int rumbleStepCount;
-        private int rumbleStepPeriod = 10;
-        private float rumbleSlowMult = 0.5f;
+        private const int RumbleStepPeriod = 10;
+        private const float RumbleSlowMult = 0.5f;
 
         internal Holders.Holder? holder;
         internal Property properties = null!;
@@ -68,21 +69,21 @@ namespace WiinUSoft
             get => device;
             set
             {
-                if (device != null)
+                if (device is not null)
                 {
-                    device.ExtensionChange -= device_ExtensionChange;
-                    device.StateUpdate -= device_StateChange;
-                    device.LowBattery -= device_LowBattery;
+                    device.ExtensionChange -= DeviceExtensionChange;
+                    device.StateUpdate -= DeviceStateChange;
+                    device.LowBattery -= DeviceLowBattery;
 #if DEBUG
                     device.StateUpdate -= Debug_Device_StateUpdate;
 #endif
                 }
                 device = value;
-                if (device != null)
+                if (device is not null)
                 {
-                    device.ExtensionChange += device_ExtensionChange;
-                    device.StateUpdate += device_StateChange;
-                    device.LowBattery += device_LowBattery;
+                    device.ExtensionChange += DeviceExtensionChange;
+                    device.StateUpdate += DeviceStateChange;
+                    device.LowBattery += DeviceLowBattery;
 #if DEBUG
                     device.StateUpdate += Debug_Device_StateUpdate;
 #endif
@@ -115,7 +116,7 @@ namespace WiinUSoft
         {
             Device = nintroller;
             devicePath = path;
-            Device.Disconnected += device_Disconnected;
+            Device.Disconnected += DeviceDisconnected;
         }
 
         internal void DisposeControl()
@@ -124,16 +125,16 @@ namespace WiinUSoft
             updateTimer = null;
             DisconnectVirtualBackend();
 
-            if (device != null)
+            if (device is not null)
             {
-                device.Disconnected -= device_Disconnected;
+                device.Disconnected -= DeviceDisconnected;
                 device.Dispose();
             }
         }
 
 #if DEBUG
         private Windows.DebugDataWindow? DebugDataWindowInstance;
-        private bool _debugWindowVisible;
+        private bool debugWindowVisible;
 
         private void Debug_Device_StateUpdate(object? sender, NintrollerStateEventArgs e)
         {
@@ -146,16 +147,18 @@ namespace WiinUSoft
 
         private void DebugViewActivate()
         {
-            if (!_debugWindowVisible)
+            if (!debugWindowVisible)
             {
                 DispatcherQueue.TryEnqueue(() =>
                 {
-                    DebugDataWindowInstance = new Windows.DebugDataWindow();
-                    DebugDataWindowInstance.nintroller = Device;
+                    DebugDataWindowInstance = new Windows.DebugDataWindow
+                    {
+                        nintroller = Device,
+                        XamlRoot = XamlRoot
+                    };
                     DebugDataWindowInstance.RegisterNintrollerUpdate();
-                    DebugDataWindowInstance.Closed += (s, e2) => _debugWindowVisible = false;
-                    DebugDataWindowInstance.XamlRoot = this.XamlRoot;
-                    _debugWindowVisible = true;
+                    DebugDataWindowInstance.Closed += (_, _) => debugWindowVisible = false;
+                    debugWindowVisible = true;
                     _ = DebugDataWindowInstance.ShowAsync();
                 });
             }
@@ -166,7 +169,7 @@ namespace WiinUSoft
         {
             if (state != DeviceState.Connected_XInput) ConnectionState = DeviceState.Discovered;
             Property? savedProperties = UserPrefs.Instance.GetDevicePref(devicePath);
-            if (savedProperties != null)
+            if (savedProperties is not null)
             {
                 properties = savedProperties;
                 SetName(string.IsNullOrWhiteSpace(properties.name) ? device.Type.ToString() : properties.name);
@@ -182,17 +185,17 @@ namespace WiinUSoft
                 SetName(device.Type.ToString());
             }
 
-            autoConnectNumber.SelectionChanged -= AutoConnect_SelectionChanged;
+            autoConnectNumber.SelectionChanged -= AutoConnectSelectionChanged;
             autoConnectNumber.SelectedIndex = properties.autoConnect
                 ? Math.Clamp(properties.autoNum, 1, autoConnectNumber.Items.Count - 1)
                 : 0;
-            autoConnectNumber.SelectionChanged += AutoConnect_SelectionChanged;
-            outputModeSelector.SelectionChanged -= outputModeSelector_SelectionChanged;
+            autoConnectNumber.SelectionChanged += AutoConnectSelectionChanged;
+            outputModeSelector.SelectionChanged -= OutputModeSelectorSelectionChanged;
             outputModeSelector.SelectedIndex = (int)UserPrefs.Instance.virtualOutputMode;
-            outputModeSelector.SelectionChanged += outputModeSelector_SelectionChanged;
-            previewModeSelector.SelectionChanged -= previewModeSelector_SelectionChanged;
+            outputModeSelector.SelectionChanged += OutputModeSelectorSelectionChanged;
+            previewModeSelector.SelectionChanged -= PreviewModeSelectorSelectionChanged;
             previewModeSelector.SelectedIndex = (int)UserPrefs.Instance.guitarPreviewMode;
-            previewModeSelector.SelectionChanged += previewModeSelector_SelectionChanged;
+            previewModeSelector.SelectionChanged += PreviewModeSelectorSelectionChanged;
         }
 
         public void SetName(string newName)
@@ -319,10 +322,10 @@ namespace WiinUSoft
             }
         }
 
-        void device_ExtensionChange(object? sender, NintrollerExtensionEventArgs e)
+        private void DeviceExtensionChange(object? sender, NintrollerExtensionEventArgs e)
         {
             DeviceType = e.controllerType;
-            if (holder != null) holder.AddMapping(DeviceType);
+            if (holder is not null) holder.AddMapping(DeviceType);
             DispatcherQueue.TryEnqueue(() =>
             {
                 UpdateIcon(DeviceType);
@@ -333,197 +336,223 @@ namespace WiinUSoft
             });
         }
 
-        void device_LowBattery(object? sender, LowBatteryEventArgs e)
+        private void DeviceLowBattery(object? sender, LowBatteryEventArgs e)
         {
             SetBatteryStatus(e.batteryLevel == BatteryStatus.Low || e.batteryLevel == BatteryStatus.VeryLow);
         }
 
-        void device_StateChange(object? sender, NintrollerStateEventArgs e)
+        private void DeviceStateChange(object? sender, NintrollerStateEventArgs e)
         {
-            if (updateTimer != null) updateTimer.Change(1000, UPDATE_SPEED);
-            if (holder == null && virtualBackend == null) return;
+            if (updateTimer is not null) updateTimer.Change(1000, UPDATE_SPEED);
+            if (holder is null && virtualBackend is null) return;
             RumbleStep();
-            var inputHolder = holder;
-            inputHolder?.ClearAllValues();
-            switch (e.controllerType)
-            {
-                case ControllerType.ProController:
-                    #region Pro Controller
-                    ProController pro = (ProController)e.state;
-                    inputHolder?.SetValue(Inputs.ProController.A, pro.A); inputHolder?.SetValue(Inputs.ProController.B, pro.B);
-                    inputHolder?.SetValue(Inputs.ProController.X, pro.X); inputHolder?.SetValue(Inputs.ProController.Y, pro.Y);
-                    inputHolder?.SetValue(Inputs.ProController.UP, pro.Up); inputHolder?.SetValue(Inputs.ProController.DOWN, pro.Down);
-                    inputHolder?.SetValue(Inputs.ProController.LEFT, pro.Left); inputHolder?.SetValue(Inputs.ProController.RIGHT, pro.Right);
-                    inputHolder?.SetValue(Inputs.ProController.L, pro.L); inputHolder?.SetValue(Inputs.ProController.R, pro.R);
-                    inputHolder?.SetValue(Inputs.ProController.ZL, pro.ZL); inputHolder?.SetValue(Inputs.ProController.ZR, pro.ZR);
-                    inputHolder?.SetValue(Inputs.ProController.START, pro.Plus); inputHolder?.SetValue(Inputs.ProController.SELECT, pro.Minus);
-                    inputHolder?.SetValue(Inputs.ProController.HOME, pro.Home); inputHolder?.SetValue(Inputs.ProController.LS, pro.LStick);
-                    inputHolder?.SetValue(Inputs.ProController.RS, pro.RStick);
-                    inputHolder?.SetValue(Inputs.ProController.LRIGHT, pro.LJoy.X > 0 ? pro.LJoy.X : 0f);
-                    inputHolder?.SetValue(Inputs.ProController.LLEFT, pro.LJoy.X < 0 ? -pro.LJoy.X : 0f);
-                    inputHolder?.SetValue(Inputs.ProController.LUP, pro.LJoy.Y > 0 ? pro.LJoy.Y : 0f);
-                    inputHolder?.SetValue(Inputs.ProController.LDOWN, pro.LJoy.Y < 0 ? -pro.LJoy.Y : 0f);
-                    inputHolder?.SetValue(Inputs.ProController.RRIGHT, pro.RJoy.X > 0 ? pro.RJoy.X : 0f);
-                    inputHolder?.SetValue(Inputs.ProController.RLEFT, pro.RJoy.X < 0 ? -pro.RJoy.X : 0f);
-                    inputHolder?.SetValue(Inputs.ProController.RUP, pro.RJoy.Y > 0 ? pro.RJoy.Y : 0f);
-                    inputHolder?.SetValue(Inputs.ProController.RDOWN, pro.RJoy.Y < 0 ? -pro.RJoy.Y : 0f);
-                    #endregion
-                    break;
-                case ControllerType.Wiimote: SetWiimoteInputs(((Wiimote)e.state)); break;
-                case ControllerType.Nunchuk:
-                case ControllerType.NunchukB:
-                    #region Nunchuk
-                    Nunchuk nun = (Nunchuk)e.state;
-                    SetWiimoteInputs(nun.wiimote);
-                    inputHolder?.SetValue(Inputs.Nunchuk.C, nun.C); inputHolder?.SetValue(Inputs.Nunchuk.Z, nun.Z);
-                    inputHolder?.SetValue(Inputs.Nunchuk.RIGHT, nun.joystick.X > 0 ? nun.joystick.X : 0f);
-                    inputHolder?.SetValue(Inputs.Nunchuk.LEFT, nun.joystick.X < 0 ? -nun.joystick.X : 0f);
-                    inputHolder?.SetValue(Inputs.Nunchuk.UP, nun.joystick.Y > 0 ? nun.joystick.Y : 0f);
-                    inputHolder?.SetValue(Inputs.Nunchuk.DOWN, nun.joystick.Y < 0 ? -nun.joystick.Y : 0f);
-                    inputHolder?.SetValue(Inputs.Nunchuk.TILT_RIGHT, nun.accelerometer.X > 0 ? nun.accelerometer.X : 0f);
-                    inputHolder?.SetValue(Inputs.Nunchuk.TILT_LEFT, nun.accelerometer.X < 0 ? -nun.accelerometer.X : 0f);
-                    inputHolder?.SetValue(Inputs.Nunchuk.TILT_UP, nun.accelerometer.Y > 0 ? nun.accelerometer.Y : 0f);
-                    inputHolder?.SetValue(Inputs.Nunchuk.TILT_DOWN, nun.accelerometer.Y < 0 ? -nun.accelerometer.Y : 0f);
-                    inputHolder?.SetValue(Inputs.Nunchuk.ACC_SHAKE_X, nun.accelerometer.X > 1.15f);
-                    inputHolder?.SetValue(Inputs.Nunchuk.ACC_SHAKE_Y, nun.accelerometer.Y > 1.15f);
-                    inputHolder?.SetValue(Inputs.Nunchuk.ACC_SHAKE_Z, nun.accelerometer.Z > 1.15f);
-                    #endregion
-                    break;
-                case ControllerType.ClassicController:
-                    #region Classic Controller
-                    ClassicController cc = (ClassicController)e.state;
-                    SetWiimoteInputs(cc.wiimote);
-                    inputHolder?.SetValue(Inputs.ClassicController.A, cc.A); inputHolder?.SetValue(Inputs.ClassicController.B, cc.B);
-                    inputHolder?.SetValue(Inputs.ClassicController.X, cc.X); inputHolder?.SetValue(Inputs.ClassicController.Y, cc.Y);
-                    inputHolder?.SetValue(Inputs.ClassicController.UP, cc.Up); inputHolder?.SetValue(Inputs.ClassicController.DOWN, cc.Down);
-                    inputHolder?.SetValue(Inputs.ClassicController.LEFT, cc.Left); inputHolder?.SetValue(Inputs.ClassicController.RIGHT, cc.Right);
-                    inputHolder?.SetValue(Inputs.ClassicController.L, cc.L.value > 0); inputHolder?.SetValue(Inputs.ClassicController.R, cc.R.value > 0);
-                    inputHolder?.SetValue(Inputs.ClassicController.ZL, cc.ZL); inputHolder?.SetValue(Inputs.ClassicController.ZR, cc.ZR);
-                    inputHolder?.SetValue(Inputs.ClassicController.START, cc.Start); inputHolder?.SetValue(Inputs.ClassicController.SELECT, cc.Select);
-                    inputHolder?.SetValue(Inputs.ClassicController.HOME, cc.Home);
-                    inputHolder?.SetValue(Inputs.ClassicController.LFULL, cc.LFull); inputHolder?.SetValue(Inputs.ClassicController.RFULL, cc.RFull);
-                    inputHolder?.SetValue(Inputs.ClassicController.LT, cc.L.value > 0.1f ? cc.L.value : 0f);
-                    inputHolder?.SetValue(Inputs.ClassicController.RT, cc.R.value > 0.1f ? cc.R.value : 0f);
-                    inputHolder?.SetValue(Inputs.ClassicController.LRIGHT, cc.LJoy.X > 0 ? cc.LJoy.X : 0f);
-                    inputHolder?.SetValue(Inputs.ClassicController.LLEFT, cc.LJoy.X < 0 ? -cc.LJoy.X : 0f);
-                    inputHolder?.SetValue(Inputs.ClassicController.LUP, cc.LJoy.Y > 0 ? cc.LJoy.Y : 0f);
-                    inputHolder?.SetValue(Inputs.ClassicController.LDOWN, cc.LJoy.Y < 0 ? -cc.LJoy.Y : 0f);
-                    inputHolder?.SetValue(Inputs.ClassicController.RRIGHT, cc.RJoy.X > 0 ? cc.RJoy.X : 0f);
-                    inputHolder?.SetValue(Inputs.ClassicController.RLEFT, cc.RJoy.X < 0 ? -cc.RJoy.X : 0f);
-                    inputHolder?.SetValue(Inputs.ClassicController.RUP, cc.RJoy.Y > 0 ? cc.RJoy.Y : 0f);
-                    inputHolder?.SetValue(Inputs.ClassicController.RDOWN, cc.RJoy.Y < 0 ? -cc.RJoy.Y : 0f);
-                    #endregion
-                    break;
-                case ControllerType.ClassicControllerPro:
-                    #region Classic Controller Pro
-                    ClassicControllerPro ccp = (ClassicControllerPro)e.state;
-                    SetWiimoteInputs(ccp.wiimote);
-                    inputHolder?.SetValue(Inputs.ClassicControllerPro.A, ccp.A); inputHolder?.SetValue(Inputs.ClassicControllerPro.B, ccp.B);
-                    inputHolder?.SetValue(Inputs.ClassicControllerPro.X, ccp.X); inputHolder?.SetValue(Inputs.ClassicControllerPro.Y, ccp.Y);
-                    inputHolder?.SetValue(Inputs.ClassicControllerPro.UP, ccp.Up); inputHolder?.SetValue(Inputs.ClassicControllerPro.DOWN, ccp.Down);
-                    inputHolder?.SetValue(Inputs.ClassicControllerPro.LEFT, ccp.Left); inputHolder?.SetValue(Inputs.ClassicControllerPro.RIGHT, ccp.Right);
-                    inputHolder?.SetValue(Inputs.ClassicControllerPro.L, ccp.L); inputHolder?.SetValue(Inputs.ClassicControllerPro.R, ccp.R);
-                    inputHolder?.SetValue(Inputs.ClassicControllerPro.ZL, ccp.ZL); inputHolder?.SetValue(Inputs.ClassicControllerPro.ZR, ccp.ZR);
-                    inputHolder?.SetValue(Inputs.ClassicControllerPro.START, ccp.Start); inputHolder?.SetValue(Inputs.ClassicControllerPro.SELECT, ccp.Select);
-                    inputHolder?.SetValue(Inputs.ClassicControllerPro.HOME, ccp.Home);
-                    inputHolder?.SetValue(Inputs.ClassicControllerPro.LRIGHT, ccp.LJoy.X > 0 ? ccp.LJoy.X : 0f);
-                    inputHolder?.SetValue(Inputs.ClassicControllerPro.LLEFT, ccp.LJoy.X < 0 ? -ccp.LJoy.X : 0f);
-                    inputHolder?.SetValue(Inputs.ClassicControllerPro.LUP, ccp.LJoy.Y > 0 ? ccp.LJoy.Y : 0f);
-                    inputHolder?.SetValue(Inputs.ClassicControllerPro.LDOWN, ccp.LJoy.Y < 0 ? -ccp.LJoy.Y : 0f);
-                    inputHolder?.SetValue(Inputs.ClassicControllerPro.RRIGHT, ccp.RJoy.X > 0 ? ccp.RJoy.X : 0f);
-                    inputHolder?.SetValue(Inputs.ClassicControllerPro.RLEFT, ccp.RJoy.X < 0 ? -ccp.RJoy.X : 0f);
-                    inputHolder?.SetValue(Inputs.ClassicControllerPro.RUP, ccp.RJoy.Y > 0 ? ccp.RJoy.Y : 0f);
-                    inputHolder?.SetValue(Inputs.ClassicControllerPro.RDOWN, ccp.RJoy.Y < 0 ? -ccp.RJoy.Y : 0f);
-                    #endregion
-                    break;
-                case ControllerType.Guitar:
-                    #region Wii Guitar
-                    WiiGuitar wgt = (WiiGuitar)e.state;
-                    inputHolder?.SetValue(Inputs.WiiGuitar.G, wgt.G); inputHolder?.SetValue(Inputs.WiiGuitar.R, wgt.R);
-                    inputHolder?.SetValue(Inputs.WiiGuitar.Y, wgt.Y); inputHolder?.SetValue(Inputs.WiiGuitar.B, wgt.B);
-                    inputHolder?.SetValue(Inputs.WiiGuitar.O, wgt.O);
-                    inputHolder?.SetValue(Inputs.WiiGuitar.UP, wgt.Up); inputHolder?.SetValue(Inputs.WiiGuitar.DOWN, wgt.Down);
-                    inputHolder?.SetValue(Inputs.WiiGuitar.LEFT, wgt.Left); inputHolder?.SetValue(Inputs.WiiGuitar.RIGHT, wgt.Right);
-                    inputHolder?.SetValue(Inputs.WiiGuitar.WHAMMYHIGH, wgt.WhammyHigh); inputHolder?.SetValue(Inputs.WiiGuitar.WHAMMYLOW, wgt.WhammyLow);
-                    inputHolder?.SetValue(Inputs.WiiGuitar.TILTHIGH, wgt.TiltHigh); inputHolder?.SetValue(Inputs.WiiGuitar.TILTLOW, wgt.TiltLow);
-                    inputHolder?.SetValue(Inputs.WiiGuitar.START, wgt.Start); inputHolder?.SetValue(Inputs.WiiGuitar.SELECT, wgt.Select);
 
-                    lastSourceOutput = ControllerOutputState.FromWiiGuitar(wgt);
-                    if (virtualBackend != null)
+            var inputHolder = holder;
+            if (e.controllerType == ControllerType.Guitar)
+            {
+                WiiGuitar wgt = (WiiGuitar)e.state;
+                if (inputHolder is not null)
+                {
+                    inputHolder.SetValue(Inputs.WiiGuitar.G, wgt.G); inputHolder.SetValue(Inputs.WiiGuitar.R, wgt.R);
+                    inputHolder.SetValue(Inputs.WiiGuitar.Y, wgt.Y); inputHolder.SetValue(Inputs.WiiGuitar.B, wgt.B);
+                    inputHolder.SetValue(Inputs.WiiGuitar.O, wgt.O);
+                    inputHolder.SetValue(Inputs.WiiGuitar.UP, wgt.Up); inputHolder.SetValue(Inputs.WiiGuitar.DOWN, wgt.Down);
+                    inputHolder.SetValue(Inputs.WiiGuitar.LEFT, wgt.Left); inputHolder.SetValue(Inputs.WiiGuitar.RIGHT, wgt.Right);
+                    inputHolder.SetValue(Inputs.WiiGuitar.WHAMMYHIGH, wgt.WhammyHigh); inputHolder.SetValue(Inputs.WiiGuitar.WHAMMYLOW, wgt.WhammyLow);
+                    inputHolder.SetValue(Inputs.WiiGuitar.TILTHIGH, wgt.TiltHigh); inputHolder.SetValue(Inputs.WiiGuitar.TILTLOW, wgt.TiltLow);
+                    inputHolder.SetValue(Inputs.WiiGuitar.START, wgt.Start); inputHolder.SetValue(Inputs.WiiGuitar.SELECT, wgt.Select);
+                }
+
+                lastSourceOutput = ControllerOutputState.FromWiiGuitar(wgt);
+                var backend = virtualBackend;
+                if (backend is not null)
+                {
+                    var writeResult = backend.Update(lastSourceOutput);
+                    if (writeResult.IsError)
                     {
-                        var writeResult = virtualBackend.Update(lastSourceOutput);
-                        if (writeResult.IsError)
+                        if (ShouldKeepVirtualOutputErrorInline(writeResult.Error))
                         {
-                            if (ShouldKeepVirtualOutputErrorInline(writeResult.Error))
+                            string backendDisplayName = backend.DisplayName;
+                            string errorMessage = writeResult.Error.Message;
+                            DispatcherQueue.TryEnqueue(() =>
                             {
-                                DispatcherQueue.TryEnqueue(() =>
-                                {
-                                    virtualOutputStatusText.Text = $"Virtual output: {virtualBackend.DisplayName} ({writeResult.Error.Message})";
-                                });
-                            }
-                            else if (!backendWriteFailed)
-                            {
-                                backendWriteFailed = true;
-                                var errorToShow = writeResult.Error;
-                                _ = DispatcherQueue.TryEnqueue(async () => 
-                                {
-                                    await ShowVirtualControllerErrorAsync(errorToShow);
-                                });
-                            }
+                                if (virtualOutputStatusText is not null)
+                                    virtualOutputStatusText.Text = $"Virtual output: {backendDisplayName} ({errorMessage})";
+                            });
                         }
-                        else
+                        else if (!backendWriteFailed)
                         {
-                            backendWriteFailed = false;
+                            backendWriteFailed = true;
+                            var errorToShow = writeResult.Error;
+                            _ = DispatcherQueue.TryEnqueue(async () =>
+                            {
+                                await ShowVirtualControllerErrorAsync(errorToShow);
+                            });
                         }
                     }
-                    DispatcherQueue.TryEnqueue(UpdateGuitarPreviewPanel);
-                    #endregion
-                    break;
-                case ControllerType.Drums:
-                    #region Wii Drums
-                    WiiDrums wdr = (WiiDrums)e.state;
-                    inputHolder?.SetValue(Inputs.WiiDrums.G, wdr.G); inputHolder?.SetValue(Inputs.WiiDrums.R, wdr.R);
-                    inputHolder?.SetValue(Inputs.WiiDrums.Y, wdr.Y); inputHolder?.SetValue(Inputs.WiiDrums.B, wdr.B);
-                    inputHolder?.SetValue(Inputs.WiiDrums.O, wdr.O); inputHolder?.SetValue(Inputs.WiiDrums.BASS, wdr.Bass);
-                    inputHolder?.SetValue(Inputs.WiiDrums.UP, wdr.Up); inputHolder?.SetValue(Inputs.WiiDrums.DOWN, wdr.Down);
-                    inputHolder?.SetValue(Inputs.WiiDrums.LEFT, wdr.Left); inputHolder?.SetValue(Inputs.WiiDrums.RIGHT, wdr.Right);
-                    inputHolder?.SetValue(Inputs.WiiDrums.START, wdr.Start); inputHolder?.SetValue(Inputs.WiiDrums.SELECT, wdr.Select);
-                    #endregion
-                    break;
+                    else
+                    {
+                        backendWriteFailed = false;
+                    }
+                }
+
+                DispatcherQueue.TryEnqueue(UpdateGuitarPreviewPanel);
             }
-            inputHolder?.Update();
-            if (updateTimer != null) updateTimer.Change(100, UPDATE_SPEED);
+            else
+            {
+                if (inputHolder is null)
+                {
+                    Debug.WriteLine($"Skipping controller state update for '{devicePath}' because the XInput holder is unavailable.");
+                    return;
+                }
+
+                inputHolder.ClearAllValues();
+                switch (e.controllerType)
+                {
+                    case ControllerType.ProController:
+                        #region Pro Controller
+                        ProController pro = (ProController)e.state;
+                        inputHolder.SetValue(Inputs.ProController.A, pro.A); inputHolder.SetValue(Inputs.ProController.B, pro.B);
+                        inputHolder.SetValue(Inputs.ProController.X, pro.X); inputHolder.SetValue(Inputs.ProController.Y, pro.Y);
+                        inputHolder.SetValue(Inputs.ProController.UP, pro.Up); inputHolder.SetValue(Inputs.ProController.DOWN, pro.Down);
+                        inputHolder.SetValue(Inputs.ProController.LEFT, pro.Left); inputHolder.SetValue(Inputs.ProController.RIGHT, pro.Right);
+                        inputHolder.SetValue(Inputs.ProController.L, pro.L); inputHolder.SetValue(Inputs.ProController.R, pro.R);
+                        inputHolder.SetValue(Inputs.ProController.ZL, pro.ZL); inputHolder.SetValue(Inputs.ProController.ZR, pro.ZR);
+                        inputHolder.SetValue(Inputs.ProController.START, pro.Plus); inputHolder.SetValue(Inputs.ProController.SELECT, pro.Minus);
+                        inputHolder.SetValue(Inputs.ProController.HOME, pro.Home); inputHolder.SetValue(Inputs.ProController.LS, pro.LStick);
+                        inputHolder.SetValue(Inputs.ProController.RS, pro.RStick);
+                        inputHolder.SetValue(Inputs.ProController.LRIGHT, pro.LJoy.X > 0 ? pro.LJoy.X : 0f);
+                        inputHolder.SetValue(Inputs.ProController.LLEFT, pro.LJoy.X < 0 ? -pro.LJoy.X : 0f);
+                        inputHolder.SetValue(Inputs.ProController.LUP, pro.LJoy.Y > 0 ? pro.LJoy.Y : 0f);
+                        inputHolder.SetValue(Inputs.ProController.LDOWN, pro.LJoy.Y < 0 ? -pro.LJoy.Y : 0f);
+                        inputHolder.SetValue(Inputs.ProController.RRIGHT, pro.RJoy.X > 0 ? pro.RJoy.X : 0f);
+                        inputHolder.SetValue(Inputs.ProController.RLEFT, pro.RJoy.X < 0 ? -pro.RJoy.X : 0f);
+                        inputHolder.SetValue(Inputs.ProController.RUP, pro.RJoy.Y > 0 ? pro.RJoy.Y : 0f);
+                        inputHolder.SetValue(Inputs.ProController.RDOWN, pro.RJoy.Y < 0 ? -pro.RJoy.Y : 0f);
+                        #endregion
+                        break;
+                    case ControllerType.Wiimote:
+                        SetWiimoteInputs(inputHolder, (Wiimote)e.state);
+                        break;
+                    case ControllerType.Nunchuk:
+                    case ControllerType.NunchukB:
+                        #region Nunchuk
+                        Nunchuk nun = (Nunchuk)e.state;
+                        SetWiimoteInputs(inputHolder, nun.wiimote);
+                        inputHolder.SetValue(Inputs.Nunchuk.C, nun.C); inputHolder.SetValue(Inputs.Nunchuk.Z, nun.Z);
+                        inputHolder.SetValue(Inputs.Nunchuk.RIGHT, nun.joystick.X > 0 ? nun.joystick.X : 0f);
+                        inputHolder.SetValue(Inputs.Nunchuk.LEFT, nun.joystick.X < 0 ? -nun.joystick.X : 0f);
+                        inputHolder.SetValue(Inputs.Nunchuk.UP, nun.joystick.Y > 0 ? nun.joystick.Y : 0f);
+                        inputHolder.SetValue(Inputs.Nunchuk.DOWN, nun.joystick.Y < 0 ? -nun.joystick.Y : 0f);
+                        inputHolder.SetValue(Inputs.Nunchuk.TILT_RIGHT, nun.accelerometer.X > 0 ? nun.accelerometer.X : 0f);
+                        inputHolder.SetValue(Inputs.Nunchuk.TILT_LEFT, nun.accelerometer.X < 0 ? -nun.accelerometer.X : 0f);
+                        inputHolder.SetValue(Inputs.Nunchuk.TILT_UP, nun.accelerometer.Y > 0 ? nun.accelerometer.Y : 0f);
+                        inputHolder.SetValue(Inputs.Nunchuk.TILT_DOWN, nun.accelerometer.Y < 0 ? -nun.accelerometer.Y : 0f);
+                        inputHolder.SetValue(Inputs.Nunchuk.ACC_SHAKE_X, nun.accelerometer.X > 1.15f);
+                        inputHolder.SetValue(Inputs.Nunchuk.ACC_SHAKE_Y, nun.accelerometer.Y > 1.15f);
+                        inputHolder.SetValue(Inputs.Nunchuk.ACC_SHAKE_Z, nun.accelerometer.Z > 1.15f);
+                        #endregion
+                        break;
+                    case ControllerType.ClassicController:
+                        #region Classic Controller
+                        ClassicController cc = (ClassicController)e.state;
+                        SetWiimoteInputs(inputHolder, cc.wiimote);
+                        inputHolder.SetValue(Inputs.ClassicController.A, cc.A); inputHolder.SetValue(Inputs.ClassicController.B, cc.B);
+                        inputHolder.SetValue(Inputs.ClassicController.X, cc.X); inputHolder.SetValue(Inputs.ClassicController.Y, cc.Y);
+                        inputHolder.SetValue(Inputs.ClassicController.UP, cc.Up); inputHolder.SetValue(Inputs.ClassicController.DOWN, cc.Down);
+                        inputHolder.SetValue(Inputs.ClassicController.LEFT, cc.Left); inputHolder.SetValue(Inputs.ClassicController.RIGHT, cc.Right);
+                        inputHolder.SetValue(Inputs.ClassicController.L, cc.L.value > 0); inputHolder.SetValue(Inputs.ClassicController.R, cc.R.value > 0);
+                        inputHolder.SetValue(Inputs.ClassicController.ZL, cc.ZL); inputHolder.SetValue(Inputs.ClassicController.ZR, cc.ZR);
+                        inputHolder.SetValue(Inputs.ClassicController.START, cc.Start); inputHolder.SetValue(Inputs.ClassicController.SELECT, cc.Select);
+                        inputHolder.SetValue(Inputs.ClassicController.HOME, cc.Home);
+                        inputHolder.SetValue(Inputs.ClassicController.LFULL, cc.LFull); inputHolder.SetValue(Inputs.ClassicController.RFULL, cc.RFull);
+                        inputHolder.SetValue(Inputs.ClassicController.LT, cc.L.value > 0.1f ? cc.L.value : 0f);
+                        inputHolder.SetValue(Inputs.ClassicController.RT, cc.R.value > 0.1f ? cc.R.value : 0f);
+                        inputHolder.SetValue(Inputs.ClassicController.LRIGHT, cc.LJoy.X > 0 ? cc.LJoy.X : 0f);
+                        inputHolder.SetValue(Inputs.ClassicController.LLEFT, cc.LJoy.X < 0 ? -cc.LJoy.X : 0f);
+                        inputHolder.SetValue(Inputs.ClassicController.LUP, cc.LJoy.Y > 0 ? cc.LJoy.Y : 0f);
+                        inputHolder.SetValue(Inputs.ClassicController.LDOWN, cc.LJoy.Y < 0 ? -cc.LJoy.Y : 0f);
+                        inputHolder.SetValue(Inputs.ClassicController.RRIGHT, cc.RJoy.X > 0 ? cc.RJoy.X : 0f);
+                        inputHolder.SetValue(Inputs.ClassicController.RLEFT, cc.RJoy.X < 0 ? -cc.RJoy.X : 0f);
+                        inputHolder.SetValue(Inputs.ClassicController.RUP, cc.RJoy.Y > 0 ? cc.RJoy.Y : 0f);
+                        inputHolder.SetValue(Inputs.ClassicController.RDOWN, cc.RJoy.Y < 0 ? -cc.RJoy.Y : 0f);
+                        #endregion
+                        break;
+                    case ControllerType.ClassicControllerPro:
+                        #region Classic Controller Pro
+                        ClassicControllerPro ccp = (ClassicControllerPro)e.state;
+                        SetWiimoteInputs(inputHolder, ccp.wiimote);
+                        inputHolder.SetValue(Inputs.ClassicControllerPro.A, ccp.A); inputHolder.SetValue(Inputs.ClassicControllerPro.B, ccp.B);
+                        inputHolder.SetValue(Inputs.ClassicControllerPro.X, ccp.X); inputHolder.SetValue(Inputs.ClassicControllerPro.Y, ccp.Y);
+                        inputHolder.SetValue(Inputs.ClassicControllerPro.UP, ccp.Up); inputHolder.SetValue(Inputs.ClassicControllerPro.DOWN, ccp.Down);
+                        inputHolder.SetValue(Inputs.ClassicControllerPro.LEFT, ccp.Left); inputHolder.SetValue(Inputs.ClassicControllerPro.RIGHT, ccp.Right);
+                        inputHolder.SetValue(Inputs.ClassicControllerPro.L, ccp.L); inputHolder.SetValue(Inputs.ClassicControllerPro.R, ccp.R);
+                        inputHolder.SetValue(Inputs.ClassicControllerPro.ZL, ccp.ZL); inputHolder.SetValue(Inputs.ClassicControllerPro.ZR, ccp.ZR);
+                        inputHolder.SetValue(Inputs.ClassicControllerPro.START, ccp.Start); inputHolder.SetValue(Inputs.ClassicControllerPro.SELECT, ccp.Select);
+                        inputHolder.SetValue(Inputs.ClassicControllerPro.HOME, ccp.Home);
+                        inputHolder.SetValue(Inputs.ClassicControllerPro.LRIGHT, ccp.LJoy.X > 0 ? ccp.LJoy.X : 0f);
+                        inputHolder.SetValue(Inputs.ClassicControllerPro.LLEFT, ccp.LJoy.X < 0 ? -ccp.LJoy.X : 0f);
+                        inputHolder.SetValue(Inputs.ClassicControllerPro.LUP, ccp.LJoy.Y > 0 ? ccp.LJoy.Y : 0f);
+                        inputHolder.SetValue(Inputs.ClassicControllerPro.LDOWN, ccp.LJoy.Y < 0 ? -ccp.LJoy.Y : 0f);
+                        inputHolder.SetValue(Inputs.ClassicControllerPro.RRIGHT, ccp.RJoy.X > 0 ? ccp.RJoy.X : 0f);
+                        inputHolder.SetValue(Inputs.ClassicControllerPro.RLEFT, ccp.RJoy.X < 0 ? -ccp.RJoy.X : 0f);
+                        inputHolder.SetValue(Inputs.ClassicControllerPro.RUP, ccp.RJoy.Y > 0 ? ccp.RJoy.Y : 0f);
+                        inputHolder.SetValue(Inputs.ClassicControllerPro.RDOWN, ccp.RJoy.Y < 0 ? -ccp.RJoy.Y : 0f);
+                        #endregion
+                        break;
+                    case ControllerType.Drums:
+                        #region Wii Drums
+                        WiiDrums wdr = (WiiDrums)e.state;
+                        inputHolder.SetValue(Inputs.WiiDrums.G, wdr.G); inputHolder.SetValue(Inputs.WiiDrums.R, wdr.R);
+                        inputHolder.SetValue(Inputs.WiiDrums.Y, wdr.Y); inputHolder.SetValue(Inputs.WiiDrums.B, wdr.B);
+                        inputHolder.SetValue(Inputs.WiiDrums.O, wdr.O); inputHolder.SetValue(Inputs.WiiDrums.BASS, wdr.Bass);
+                        inputHolder.SetValue(Inputs.WiiDrums.UP, wdr.Up); inputHolder.SetValue(Inputs.WiiDrums.DOWN, wdr.Down);
+                        inputHolder.SetValue(Inputs.WiiDrums.LEFT, wdr.Left); inputHolder.SetValue(Inputs.WiiDrums.RIGHT, wdr.Right);
+                        inputHolder.SetValue(Inputs.WiiDrums.START, wdr.Start); inputHolder.SetValue(Inputs.WiiDrums.SELECT, wdr.Select);
+                        #endregion
+                        break;
+                }
+                inputHolder.Update();
+            }
+
+            if (updateTimer is not null) updateTimer.Change(100, UPDATE_SPEED);
         }
 
-        private void device_Disconnected(object? sender, DisconnectedEventArgs e)
+        private void DeviceDisconnected(object? sender, DisconnectedEventArgs e)
         {
             DispatcherQueue.TryEnqueue(() =>
             {
                 Detatch();
                 OnConnectionLost?.Invoke(this);
-                MainWindow.Instance?.ShowBalloon("Connection Lost",
-                    "Failed to communicate with controller. It may no longer be connected.", 2);
+                var mainWindow = MainWindow.Instance;
+                if (mainWindow is not null)
+                {
+                    mainWindow.ShowBalloon("Connection Lost",
+                        "Failed to communicate with controller. It may no longer be connected.", 2);
+                }
+                else
+                {
+                    Debug.WriteLine("Skipping connection-lost balloon because MainWindow is unavailable.");
+                }
             });
         }
 
-        private void SetWiimoteInputs(Wiimote wm)
+        private void SetWiimoteInputs(Holders.Holder inputHolder, Wiimote wm)
         {
-            if (holder == null) return;
-
             wm.irSensor.Normalize();
-            holder.SetValue(Inputs.Wiimote.A, wm.buttons.A); holder.SetValue(Inputs.Wiimote.B, wm.buttons.B);
-            holder.SetValue(Inputs.Wiimote.ONE, wm.buttons.One); holder.SetValue(Inputs.Wiimote.TWO, wm.buttons.Two);
-            holder.SetValue(Inputs.Wiimote.UP, wm.buttons.Up); holder.SetValue(Inputs.Wiimote.DOWN, wm.buttons.Down);
-            holder.SetValue(Inputs.Wiimote.LEFT, wm.buttons.Left); holder.SetValue(Inputs.Wiimote.RIGHT, wm.buttons.Right);
-            holder.SetValue(Inputs.Wiimote.MINUS, wm.buttons.Minus); holder.SetValue(Inputs.Wiimote.PLUS, wm.buttons.Plus);
-            holder.SetValue(Inputs.Wiimote.HOME, wm.buttons.Home);
-            holder.SetValue(Inputs.Wiimote.TILT_RIGHT, wm.accelerometer.X > 0 ? wm.accelerometer.X : 0);
-            holder.SetValue(Inputs.Wiimote.TILT_LEFT, wm.accelerometer.X < 0 ? wm.accelerometer.X : 0);
-            holder.SetValue(Inputs.Wiimote.TILT_UP, wm.accelerometer.Y > 0 ? wm.accelerometer.Y : 0);
-            holder.SetValue(Inputs.Wiimote.TILT_DOWN, wm.accelerometer.Y < 0 ? wm.accelerometer.Y : 0);
-            holder.SetValue(Inputs.Wiimote.ACC_SHAKE_X, wm.accelerometer.X > 1.15);
-            holder.SetValue(Inputs.Wiimote.ACC_SHAKE_Y, wm.accelerometer.Y > 1.15);
-            holder.SetValue(Inputs.Wiimote.ACC_SHAKE_Z, wm.accelerometer.Z > 1.15);
+            inputHolder.SetValue(Inputs.Wiimote.A, wm.buttons.A); inputHolder.SetValue(Inputs.Wiimote.B, wm.buttons.B);
+            inputHolder.SetValue(Inputs.Wiimote.ONE, wm.buttons.One); inputHolder.SetValue(Inputs.Wiimote.TWO, wm.buttons.Two);
+            inputHolder.SetValue(Inputs.Wiimote.UP, wm.buttons.Up); inputHolder.SetValue(Inputs.Wiimote.DOWN, wm.buttons.Down);
+            inputHolder.SetValue(Inputs.Wiimote.LEFT, wm.buttons.Left); inputHolder.SetValue(Inputs.Wiimote.RIGHT, wm.buttons.Right);
+            inputHolder.SetValue(Inputs.Wiimote.MINUS, wm.buttons.Minus); inputHolder.SetValue(Inputs.Wiimote.PLUS, wm.buttons.Plus);
+            inputHolder.SetValue(Inputs.Wiimote.HOME, wm.buttons.Home);
+            inputHolder.SetValue(Inputs.Wiimote.TILT_RIGHT, wm.accelerometer.X > 0 ? wm.accelerometer.X : 0);
+            inputHolder.SetValue(Inputs.Wiimote.TILT_LEFT, wm.accelerometer.X < 0 ? wm.accelerometer.X : 0);
+            inputHolder.SetValue(Inputs.Wiimote.TILT_UP, wm.accelerometer.Y > 0 ? wm.accelerometer.Y : 0);
+            inputHolder.SetValue(Inputs.Wiimote.TILT_DOWN, wm.accelerometer.Y < 0 ? wm.accelerometer.Y : 0);
+            inputHolder.SetValue(Inputs.Wiimote.ACC_SHAKE_X, wm.accelerometer.X > 1.15);
+            inputHolder.SetValue(Inputs.Wiimote.ACC_SHAKE_Y, wm.accelerometer.Y > 1.15);
+            inputHolder.SetValue(Inputs.Wiimote.ACC_SHAKE_Z, wm.accelerometer.Z > 1.15);
             if (snapIRpointer && !wm.irSensor.point1.visible && !wm.irSensor.point2.visible)
             {
                 if (properties.pointerMode == Property.PointerOffScreenMode.SnapX ||
@@ -533,10 +562,10 @@ namespace WiinUSoft
                     properties.pointerMode == Property.PointerOffScreenMode.SnapXY)
                     wm.irSensor.Y = previousIR.Y;
             }
-            holder.SetValue(Inputs.Wiimote.IR_RIGHT, wm.irSensor.X > 0 ? wm.irSensor.X : 0);
-            holder.SetValue(Inputs.Wiimote.IR_LEFT, wm.irSensor.X < 0 ? wm.irSensor.X : 0);
-            holder.SetValue(Inputs.Wiimote.IR_UP, wm.irSensor.Y > 0 ? wm.irSensor.Y : 0);
-            holder.SetValue(Inputs.Wiimote.IR_DOWN, wm.irSensor.Y < 0 ? wm.irSensor.Y : 0);
+            inputHolder.SetValue(Inputs.Wiimote.IR_RIGHT, wm.irSensor.X > 0 ? wm.irSensor.X : 0);
+            inputHolder.SetValue(Inputs.Wiimote.IR_LEFT, wm.irSensor.X < 0 ? wm.irSensor.X : 0);
+            inputHolder.SetValue(Inputs.Wiimote.IR_UP, wm.irSensor.Y > 0 ? wm.irSensor.Y : 0);
+            inputHolder.SetValue(Inputs.Wiimote.IR_DOWN, wm.irSensor.Y < 0 ? wm.irSensor.Y : 0);
             previousIR = wm.irSensor;
         }
 
@@ -632,9 +661,9 @@ namespace WiinUSoft
                 if (saveResult.IsError)
                     System.Diagnostics.Debug.WriteLine(saveResult.Error.ToDisplayString());
 
-                previewModeSelector.SelectionChanged -= previewModeSelector_SelectionChanged;
+                previewModeSelector.SelectionChanged -= PreviewModeSelectorSelectionChanged;
                 previewModeSelector.SelectedIndex = (int)GuitarPreviewMode.VirtualOutput;
-                previewModeSelector.SelectionChanged += previewModeSelector_SelectionChanged;
+                previewModeSelector.SelectionChanged += PreviewModeSelectorSelectionChanged;
             }
 
             int targetId = selectedMode == VirtualOutputMode.VJoyExperimental
@@ -665,7 +694,7 @@ namespace WiinUSoft
             if (readbackResult.IsOk)
             {
                 virtualReadback = readbackResult.Value;
-                if (virtualIdentity != null)
+                if (virtualIdentity is not null)
                 {
                     var attachResult = virtualReadback.Attach(virtualIdentity);
                     if (attachResult.IsError)
@@ -675,11 +704,11 @@ namespace WiinUSoft
                     }
                 }
 
-                if (virtualReadback != null)
+                if (virtualReadback is not null)
                     virtualReadbackStateText.Text = "Readback: connected";
             }
 
-            if (virtualReadback == null)
+            if (virtualReadback is null)
             {
                 virtualOutputDiffText.Text = "Output preview unavailable";
                 virtualReadbackStateText.Text = "Readback: unavailable";
@@ -690,7 +719,7 @@ namespace WiinUSoft
 
         private Result<ControllerOutputState, VirtualControllerError> TryReadVirtualOutputState()
         {
-            if (virtualReadback == null)
+            if (virtualReadback is null)
             {
                 return Result<ControllerOutputState, VirtualControllerError>.Err(
                     VirtualControllerError.DriverNotReady("Output preview unavailable for the selected backend."));
@@ -737,13 +766,13 @@ namespace WiinUSoft
 
         private void DisconnectVirtualBackend()
         {
-            if (virtualReadback != null)
+            if (virtualReadback is not null)
             {
                 virtualReadback.Dispose();
                 virtualReadback = null;
             }
 
-            if (virtualBackend != null)
+            if (virtualBackend is not null)
             {
                 virtualBackend.Disconnect();
                 virtualBackend.Dispose();
@@ -753,12 +782,9 @@ namespace WiinUSoft
             virtualIdentity = null;
             lastReadbackOutput = ControllerOutputState.Empty;
             backendWriteFailed = false;
-            if (virtualOutputStatusText != null)
-                virtualOutputStatusText.Text = "Virtual output: not connected";
-            if (virtualSourceStateText != null)
-                virtualSourceStateText.Text = "Source: n/a";
-            if (virtualReadbackStateText != null)
-                virtualReadbackStateText.Text = "Readback: n/a";
+            virtualOutputStatusText?.Text = "Virtual output: not connected";
+            virtualSourceStateText?.Text = "Source: n/a";
+            virtualReadbackStateText?.Text = "Readback: n/a";
         }
 
         private async System.Threading.Tasks.Task ShowVirtualControllerErrorAsync(VirtualControllerError error)
@@ -769,7 +795,7 @@ namespace WiinUSoft
                     || UserPrefs.Instance.virtualOutputMode == VirtualOutputMode.VJoyExperimental))
                 return;
 
-            if (this.XamlRoot == null)
+            if (XamlRoot is null)
                 return;
 
             var dlg = new ContentDialog
@@ -820,27 +846,39 @@ namespace WiinUSoft
 
         private void HolderUpdate(object? holderState)
         {
-            holder?.Update();
+            if (holder is not null)
+                holder.Update();
             RumbleStep();
             SetBatteryStatus(device.BatteryLevel == BatteryStatus.Low);
         }
 
         void RumbleStep()
         {
-            if (holder == null && virtualBackend == null) return;
+            if (holder is null && virtualBackend is null) return;
 
             if (identifying) return;
             bool cur = device.RumbleEnabled;
             if (!properties.useRumble) { if (cur) device.RumbleEnabled = false; return; }
-            rumbleAmount = holder?.RumbleAmount ?? ((virtualBackend as ScpXInputBackend)?.LastRumbleAmount ?? 0);
+            if (holder is not null)
+            {
+                rumbleAmount = holder.RumbleAmount;
+            }
+            else if (virtualBackend is ScpXInputBackend xinputBackend)
+            {
+                rumbleAmount = xinputBackend.LastRumbleAmount;
+            }
+            else
+            {
+                rumbleAmount = 0f;
+            }
             float modifier = properties.rumbleIntensity * 0.5f;
             float dutyCycle = rumbleAmount < 256
-                ? rumbleSlowMult * rumbleAmount / 256f
+                ? RumbleSlowMult * rumbleAmount / 256f
                 : rumbleAmount / 65535f;
-            int stopStep = (int)Math.Round(modifier * dutyCycle * rumbleStepPeriod);
+            int stopStep = (int)Math.Round(modifier * dutyCycle * RumbleStepPeriod);
             if (rumbleStepCount < stopStep) { if (!cur) device.RumbleEnabled = true; }
             else { if (cur) device.RumbleEnabled = false; }
-            if (++rumbleStepCount >= rumbleStepPeriod) rumbleStepCount = 0;
+            if (++rumbleStepCount >= RumbleStepPeriod) rumbleStepCount = 0;
         }
 
         private void SetBatteryStatus(bool isLow)
@@ -850,15 +888,23 @@ namespace WiinUSoft
                 DispatcherQueue.TryEnqueue(() =>
                 {
                     statusGradient.Background = new SolidColorBrush(global::Microsoft.UI.Colors.OrangeRed);
-                    if (_trayService_IsVisible())
+                    if (TrayServiceIsVisible())
                     {
                         lowBatteryFired = true;
-                        MainWindow.Instance?.ShowBalloon(
-                            "Battery Low",
-                            dName + (!dName.Equals(device.Type.ToString()) ? " (" + device.Type.ToString() + ") " : " ")
-                                  + "is running low on battery life.",
-                            2,
-                            System.Media.SystemSounds.Hand);
+                        var mainWindow = MainWindow.Instance;
+                        if (mainWindow is not null)
+                        {
+                            mainWindow.ShowBalloon(
+                                "Battery Low",
+                                dName + (!dName.Equals(device.Type.ToString()) ? " (" + device.Type.ToString() + ") " : " ")
+                                      + "is running low on battery life.",
+                                2,
+                                System.Media.SystemSounds.Hand);
+                        }
+                        else
+                        {
+                            Debug.WriteLine("Skipping battery-low balloon because MainWindow is unavailable.");
+                        }
                     }
                 });
             }
@@ -873,7 +919,7 @@ namespace WiinUSoft
         }
 
         // Helper: tray visible check avoids dependency on the tray field
-        private static bool _trayService_IsVisible() => MainWindow.Instance != null;
+        private static bool TrayServiceIsVisible() => MainWindow.Instance is not null;
 
         private void LoadProfile(string profilePath, Holders.Holder h)
         {
@@ -888,8 +934,8 @@ namespace WiinUSoft
                 System.Diagnostics.Debug.WriteLine(profileResult.Error.ToDisplayString());
             }
 
-            if (loadedProfile == null) loadedProfile = UserPrefs.Instance.defaultProfile;
-            if (loadedProfile != null)
+            loadedProfile ??= UserPrefs.Instance.defaultProfile;
+            if (loadedProfile is not null)
             {
                 for (int i = 0; i < Math.Min(loadedProfile.controllerMapKeys.Count, loadedProfile.controllerMapValues.Count); i++)
                 {
@@ -915,7 +961,7 @@ namespace WiinUSoft
                 using var stream = File.OpenRead(profilePath);
                 using var reader = new StreamReader(stream);
                 var profile = serializer.Deserialize(reader) as Profile;
-                if (profile == null)
+                if (profile is null)
                 {
                     return Result<Profile, PreferencesError>.Err(
                         PreferencesError.InvalidXml(profilePath, new InvalidOperationException("Profile XML did not deserialize to a valid profile.")));
@@ -986,7 +1032,7 @@ namespace WiinUSoft
 
         private void CheckIR(string assignment)
         {
-            if (assignment.StartsWith("wIR") && device != null && device.IRMode == IRCamMode.Off)
+            if (assignment.StartsWith("wIR") && device is not null && device.IRMode == IRCamMode.Off)
             {
                 if (device.Type == ControllerType.Wiimote || device.Type == ControllerType.Nunchuk || device.Type == ControllerType.NunchukB)
                     device.IRMode = IRCamMode.Basic;
@@ -995,13 +1041,17 @@ namespace WiinUSoft
 
         #region UI Events
 
-        private void icon_RightTapped(object sender, RightTappedRoutedEventArgs e)
+        private void IconRightTapped(object sender, RightTappedRoutedEventArgs e)
         {
+            _ = sender;
+            _ = e;
             FlyoutBase.ShowAttachedFlyout(icon);
         }
 
         private void XInputFlyout_Opening(object sender, object e)
         {
+            _ = sender;
+            _ = e;
             XOption1.IsEnabled = Holders.XInputHolder.availabe[0];
             XOption2.IsEnabled = Holders.XInputHolder.availabe[1];
             XOption3.IsEnabled = Holders.XInputHolder.availabe[2];
@@ -1017,8 +1067,9 @@ namespace WiinUSoft
             RefreshState();
         }
 
-        private async void XOption_Click(object sender, RoutedEventArgs e)
+        private async void XOptionClick(object sender, RoutedEventArgs e)
         {
+            _ = e;
             var item = (MenuFlyoutItem)sender;
             if (Device.Type != ControllerType.ProController)
             {
@@ -1039,8 +1090,9 @@ namespace WiinUSoft
             }
         }
 
-        private void typeOption_Click(object sender, RoutedEventArgs e)
+        private void TypeOptionClick(object sender, RoutedEventArgs e)
         {
+            _ = e;
             var item = (MenuFlyoutItem)sender;
             ControllerType ct = item.Name switch
             {
@@ -1057,28 +1109,18 @@ namespace WiinUSoft
             RefreshState();
         }
 
-        private void btnDetatch_Click(object sender, RoutedEventArgs e) => Detatch();
-
-        private async void btnConfig_Click(object sender, RoutedEventArgs e)
+        private void BtnDetatchClick(object sender, RoutedEventArgs e)
         {
-            if (holder == null) return;
-
-            var config = new ControllerMappingWindow(holder.Mappings, device.Type);
-            config.XamlRoot = this.XamlRoot;
-            await config.ShowAsync();
-            if (config.result)
-            {
-                foreach (var pair in config.map)
-                {
-                    holder.SetMapping(pair.Key, pair.Value);
-                    CheckIR(pair.Key);
-                }
-            }
+            _ = sender;
+            _ = e;
+            Detatch();
         }
 
-        private void btnIdentify_Click(object sender, RoutedEventArgs e)
+        private void BtnIdentifyClick(object sender, RoutedEventArgs e)
         {
-            Console.WriteLine("Start of btnIdentify_click");
+            _ = sender;
+            _ = e;
+            Console.WriteLine("Start of BtnIdentifyClick");
             bool wasConnected = Connected;
 
             if (wasConnected || TryOpenDeviceStream())
@@ -1098,7 +1140,7 @@ namespace WiinUSoft
                 if (targetXDevice != 0) Delay(L).ContinueWith(o => device.SetPlayerLED(targetXDevice));
             }
 
-            Console.WriteLine("end of btnIdentify_Click");
+            Console.WriteLine("end of BtnIdentifyClick");
         }
 
         private bool TryOpenDeviceStream()
@@ -1116,13 +1158,16 @@ namespace WiinUSoft
             return device.DataStream.CanRead;
         }
 
-        private void btnXinput_IsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e)
+        private void BtnXinputIsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
+            _ = sender;
             btnXinput.Visibility = (bool)e.NewValue ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        private async void outputModeSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void OutputModeSelectorSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            _ = sender;
+            _ = e;
             if (outputModeSelector.SelectedIndex < 0)
                 return;
 
@@ -1142,8 +1187,10 @@ namespace WiinUSoft
             }
         }
 
-        private void previewModeSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void PreviewModeSelectorSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            _ = sender;
+            _ = e;
             if (previewModeSelector.SelectedIndex < 0)
                 return;
 
@@ -1156,8 +1203,10 @@ namespace WiinUSoft
                 UpdateGuitarPreviewPanel();
         }
 
-        private void btnEditName_Click(object sender, RoutedEventArgs e)
+        private void BtnEditNameClick(object sender, RoutedEventArgs e)
         {
+            _ = sender;
+            _ = e;
             nameInput.Text = dName;
             labelName.Visibility = Visibility.Collapsed;
             nameInput.Visibility = Visibility.Visible;
@@ -1165,14 +1214,17 @@ namespace WiinUSoft
             nameInput.SelectAll();
         }
 
-        private void nameInput_TextChanged(object sender, TextChangedEventArgs e)
+        private void NameInputTextChanged(object sender, TextChangedEventArgs e)
         {
-            if (properties != null)
+            _ = sender;
+            _ = e;
+            if (properties is not null)
                 properties.name = nameInput.Text;
         }
 
-        private void nameInput_KeyDown(object sender, KeyRoutedEventArgs e)
+        private void NameInputKeyDown(object sender, KeyRoutedEventArgs e)
         {
+            _ = sender;
             if (e.Key == VirtualKey.Enter)
             {
                 CommitNameEdit();
@@ -1186,7 +1238,12 @@ namespace WiinUSoft
             }
         }
 
-        private void nameInput_LostFocus(object sender, RoutedEventArgs e) => CommitNameEdit();
+        private void NameInputLostFocus(object sender, RoutedEventArgs e)
+        {
+            _ = sender;
+            _ = e;
+            CommitNameEdit();
+        }
 
         private void CommitNameEdit()
         {
@@ -1203,9 +1260,11 @@ namespace WiinUSoft
             labelName.Visibility = Visibility.Visible;
         }
 
-        private void AutoConnect_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void AutoConnectSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (properties == null) return;
+            _ = sender;
+            _ = e;
+            if (properties is null) return;
 
             properties.autoConnect = autoConnectNumber.SelectedIndex > 0;
             properties.autoNum = autoConnectNumber.SelectedIndex;
@@ -1220,40 +1279,10 @@ namespace WiinUSoft
                 System.Diagnostics.Debug.WriteLine(saveResult.Error.ToDisplayString());
         }
 
-        private async void btnProperties_Click(object sender, RoutedEventArgs e)
+        private void BtnDebugViewClick(object sender, RoutedEventArgs e)
         {
-            var win = new PropWindow(properties, device.Type.ToString());
-            win.XamlRoot = this.XamlRoot;
-            await win.ShowAsync();
-
-            if (win.customCalibrate)
-            {
-                var cb = new CalibrateWindow(device);
-                cb.XamlRoot = this.XamlRoot;
-                await cb.ShowAsync();
-                if (cb.doSave)
-                {
-                    win.props.calString = cb.Calibration.ToString();
-                    win.XamlRoot = this.XamlRoot;
-                    await win.ShowAsync();
-                }
-            }
-
-            if (win.doSave)
-            {
-                ApplyCalibration(win.props.calPref, win.props.calString);
-                properties = new Property(win.props);
-                snapIRpointer = properties.pointerMode != Property.PointerOffScreenMode.Center;
-                SetName(properties.name);
-                UserPrefs.Instance.AddDevicePref(properties);
-                var saveResult = UserPrefs.SavePrefs();
-                if (saveResult.IsError)
-                    System.Diagnostics.Debug.WriteLine(saveResult.Error.ToDisplayString());
-            }
-        }
-
-        private void btnDebugView_Click(object sender, RoutedEventArgs e)
-        {
+            _ = sender;
+            _ = e;
 #if DEBUG
             DebugViewActivate();
 #endif
@@ -1261,11 +1290,6 @@ namespace WiinUSoft
 
         #endregion
 
-        static System.Threading.Tasks.Task Delay(int ms)
-        {
-            var tcs = new System.Threading.Tasks.TaskCompletionSource<object?>();
-            new System.Threading.Timer(_ => tcs.SetResult(null)).Change(ms, -1);
-            return tcs.Task;
-        }
+        static System.Threading.Tasks.Task Delay(int ms) => System.Threading.Tasks.Task.Delay(ms);
     }
 }

@@ -2,21 +2,23 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
 using HIDMaestro;
 using NintrollerLib;
 using Shared;
 
 namespace WiinUSoft.VirtualOutput;
 
-internal sealed class HidMaestroBackend : IVirtualControllerBackend
+internal sealed partial class HidMaestroBackend : IVirtualControllerBackend
 {
     private const string HIDMAESTRO_CORE_DLL = "HIDMaestro.Core.dll";
     private const string DefaultProfileId = "xbox-360-guitar-v2";
 
-    private HMContext? _context;
-    private HMProfile? _profile;
-    private HMController? _controller;
-    private int _controllerIndex;
+    private HMContext? hmContext;
+    private HMProfile? hmProfile;
+    private HMController? hmController;
+    private int hmControllerIndex;
+    private readonly Lock syncRoot = new();
 
     public string DisplayName => "Virtual Guitar (HIDMaestro)";
     public VirtualOutputMode Mode => VirtualOutputMode.HidMaestroExperimental;
@@ -38,7 +40,7 @@ internal sealed class HidMaestroBackend : IVirtualControllerBackend
         }
         catch (Exception)
         {
-            return FindHidMaestroPath() != null;
+            return FindHidMaestroPath() is not null;
         }
     }
 
@@ -52,15 +54,16 @@ internal sealed class HidMaestroBackend : IVirtualControllerBackend
 
         try
         {
-            _context = new HMContext();
-            if (!_context.IsDriverInstalled)
+            var context = new HMContext();
+            if (!context.IsDriverInstalled)
             {
                 try
                 {
-                    _context.InstallDriver();
+                    context.InstallDriver();
                 }
                 catch (UnauthorizedAccessException ex)
                 {
+                    context.Dispose();
                     return Result<Unit, VirtualControllerError>.Err(
                         VirtualControllerError.DriverNotReady(
                             "HIDMaestro is bundled, but its driver is not installed. Restart WiitarThing as administrator and select HIDMaestro again to install it.",
@@ -69,6 +72,7 @@ internal sealed class HidMaestroBackend : IVirtualControllerBackend
                 }
                 catch (CryptographicException ex) when (IsAccessDenied(ex))
                 {
+                    context.Dispose();
                     return Result<Unit, VirtualControllerError>.Err(
                         VirtualControllerError.DriverNotReady(
                             "HIDMaestro is bundled, but Windows denied access while installing its embedded driver certificate. Restart WiitarThing as administrator and select HIDMaestro again.",
@@ -77,24 +81,35 @@ internal sealed class HidMaestroBackend : IVirtualControllerBackend
                 }
             }
 
-            int loaded = _context.LoadDefaultProfiles();
-            if (loaded == 0 && _context.AllProfiles.Count == 0)
+            int loaded = context.LoadDefaultProfiles();
+            if (loaded == 0 && context.AllProfiles.Count == 0)
             {
+                context.Dispose();
                 return Result<Unit, VirtualControllerError>.Err(
                     VirtualControllerError.DriverNotReady("HIDMaestro loaded, but no embedded controller profiles were available.", slotOrDeviceId));
             }
 
-            _profile = _context.GetProfile(DefaultProfileId);
-            if (_profile == null)
+            var profile = context.GetProfile(DefaultProfileId);
+            if (profile is null)
             {
+                context.Dispose();
                 return Result<Unit, VirtualControllerError>.Err(
                     VirtualControllerError.InvalidMapping($"HIDMaestro profile '{DefaultProfileId}' was not found.", slotOrDeviceId));
             }
 
             int controllerIndex = Math.Max(0, slotOrDeviceId - 1);
-            _controller = _context.CreateControllerAt(controllerIndex, _profile);
-            _controllerIndex = controllerIndex;
-            _context.FinalizeNames();
+            var controller = context.CreateControllerAt(controllerIndex, profile);
+            context.FinalizeNames();
+
+            Disconnect();
+            lock (syncRoot)
+            {
+                hmContext = context;
+                hmProfile = profile;
+                hmController = controller;
+                hmControllerIndex = controllerIndex;
+            }
+
             return Result<Unit, VirtualControllerError>.Ok(Unit.Value);
         }
         catch (FileNotFoundException ex)
@@ -131,15 +146,19 @@ internal sealed class HidMaestroBackend : IVirtualControllerBackend
 
     public Result<Unit, VirtualControllerError> Update(ControllerOutputState state)
     {
-        if (_controller == null || _profile == null)
-        {
-            return Result<Unit, VirtualControllerError>.Err(
-                VirtualControllerError.ConnectionFailed("HIDMaestro virtual controller is not connected."));
-        }
-
         try
         {
-            _controller.SubmitState(ToHidMaestroState(_profile, state));
+            lock (syncRoot)
+            {
+                if (hmController is null || hmProfile is null)
+                {
+                    return Result<Unit, VirtualControllerError>.Err(
+                        VirtualControllerError.ConnectionFailed("HIDMaestro virtual controller is not connected."));
+                }
+
+                hmController.SubmitState(ToHidMaestroState(hmProfile, state));
+            }
+
             return Result<Unit, VirtualControllerError>.Ok(Unit.Value);
         }
         catch (Exception ex)
@@ -151,49 +170,64 @@ internal sealed class HidMaestroBackend : IVirtualControllerBackend
 
     public Result<Unit, VirtualControllerError> Disconnect()
     {
+        HMController? controller;
+        HMContext? context;
+
+        lock (syncRoot)
+        {
+            controller = hmController;
+            context = hmContext;
+            hmController = null;
+            hmProfile = null;
+            hmContext = null;
+            hmControllerIndex = 0;
+        }
+
         try
         {
-            _controller?.Dispose();
+            controller?.Dispose();
         }
         catch { }
 
         try
         {
-            _context?.Dispose();
+            context?.Dispose();
         }
         catch { }
 
-        _controller = null;
-        _profile = null;
-        _context = null;
-        _controllerIndex = 0;
         return Result<Unit, VirtualControllerError>.Ok(Unit.Value);
     }
 
     public Result<VirtualControllerIdentity, VirtualControllerError> GetIdentity()
     {
-        if (_controller == null || _profile == null)
+        lock (syncRoot)
         {
-            return Result<VirtualControllerIdentity, VirtualControllerError>.Err(
-                VirtualControllerError.ConnectionFailed("HIDMaestro virtual controller is not connected."));
-        }
+            if (hmController is null || hmProfile is null)
+            {
+                return Result<VirtualControllerIdentity, VirtualControllerError>.Err(
+                    VirtualControllerError.ConnectionFailed("HIDMaestro virtual controller is not connected."));
+            }
 
-        return Result<VirtualControllerIdentity, VirtualControllerError>.Ok(
-            new VirtualControllerIdentity(
-                DisplayName,
-                XInputSlot: _controllerIndex + 1,
-                VendorId: _profile.VendorId,
-                ProductId: _profile.ProductId,
-                ProductName: _profile.ProductString,
-                InstanceId: $"HIDMaestro:{DefaultProfileId}:{_controllerIndex}"));
+            return Result<VirtualControllerIdentity, VirtualControllerError>.Ok(
+                new VirtualControllerIdentity(
+                    DisplayName,
+                    XInputSlot: hmControllerIndex + 1,
+                    VendorId: hmProfile.VendorId,
+                    ProductId: hmProfile.ProductId,
+                    ProductName: hmProfile.ProductString,
+                    InstanceId: $"HIDMaestro:{DefaultProfileId}:{hmControllerIndex}"));
+        }
     }
 
     public Result<IVirtualControllerReadback, VirtualControllerError> CreateReadback()
     {
-        if (_controller == null)
+        lock (syncRoot)
         {
-            return Result<IVirtualControllerReadback, VirtualControllerError>.Err(
-                VirtualControllerError.ConnectionFailed("HIDMaestro virtual controller is not connected."));
+            if (hmController is null)
+            {
+                return Result<IVirtualControllerReadback, VirtualControllerError>.Err(
+                    VirtualControllerError.ConnectionFailed("HIDMaestro virtual controller is not connected."));
+            }
         }
 
         return Result<IVirtualControllerReadback, VirtualControllerError>.Ok(new XInputReadback());
@@ -273,14 +307,14 @@ internal sealed class HidMaestroBackend : IVirtualControllerBackend
         return ex.HResult == E_ACCESSDENIED
             || ex.Message.Contains("access is denied", StringComparison.OrdinalIgnoreCase)
             || ex.Message.Contains("access denied", StringComparison.OrdinalIgnoreCase)
-            || (ex.InnerException != null && IsAccessDenied(ex.InnerException));
+            || (ex.InnerException is not null && IsAccessDenied(ex.InnerException));
     }
 
     private static string[] GetHidMaestroSearchPaths()
     {
-        var paths = new System.Collections.Generic.List<string>();
+        List<string> paths = [];
         var current = new DirectoryInfo(AppContext.BaseDirectory);
-        for (int i = 0; current != null && i < 8; i++)
+        for (int i = 0; current is not null && i < 8; i++)
         {
             paths.Add(Path.Combine(current.FullName, HIDMAESTRO_CORE_DLL));
             paths.Add(Path.Combine(current.FullName, "Drivers", "HIDMaestro", HIDMAESTRO_CORE_DLL));

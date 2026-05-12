@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Xml;
 using System.Text;
+using System.Diagnostics;
 
 using System.Net;
 using System.Net.Sockets;
@@ -157,11 +158,14 @@ namespace ScpControl
 
                         m_Map.LoadXml(Data);
 
-                        m_Mapper.Initialize(m_Map);
+                        XmlMapper.ControllerParseError parseError;
+                        if (!m_Mapper.TryInitialize(m_Map, out parseError))
+                        {
+                            Debug.WriteLine(parseError.ToDisplayString());
+                        }
+                        else Loaded = true;
                     }
                 }
-
-                Loaded = true;
             }
             catch { }
 

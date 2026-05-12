@@ -1,9 +1,10 @@
-﻿using Microsoft.Shell;
+using Microsoft.Shell;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Diagnostics;
 
 namespace WiinUSoft
 {
@@ -55,13 +56,21 @@ namespace WiinUSoft
             WiitarDebug.Log($"ERROR:\n{e}", WiitarDebug.LogLevel.Error);
 
             // Show on UI thread if possible
-            if (_mainWindow?.DispatcherQueue != null)
+            var mainWindow = _mainWindow;
+            if (mainWindow != null && mainWindow.DispatcherQueue != null)
             {
-                _mainWindow.DispatcherQueue.TryEnqueue(async () =>
+                mainWindow.DispatcherQueue.TryEnqueue(async () =>
                 {
                     var box = new ErrorWindow(e);
-                    if (_mainWindow?.Content?.XamlRoot != null)
-                        box.XamlRoot = _mainWindow.Content.XamlRoot;
+                    var xamlRoot = mainWindow.Content?.XamlRoot;
+                    if (xamlRoot != null)
+                    {
+                        box.XamlRoot = xamlRoot;
+                    }
+                    else
+                    {
+                        Debug.WriteLine("Skipping error dialog XamlRoot assignment because MainWindow.Content is unavailable.");
+                    }
                     await box.ShowDialogAsync();
                     SingleInstance<App>.Cleanup();
                     Application.Current.Exit();
@@ -69,6 +78,7 @@ namespace WiinUSoft
             }
             else
             {
+                Debug.WriteLine("Skipping error dialog because MainWindow or DispatcherQueue is unavailable.");
                 SingleInstance<App>.Cleanup();
             }
         }
@@ -151,19 +161,33 @@ namespace WiinUSoft
         public bool SignalExternalCommandLineArgs(IList<string> args)
         {
             // Show the original instance
-            _mainWindow?.DispatcherQueue.TryEnqueue(() =>
+            var mainWindow = _mainWindow;
+            if (mainWindow == null || mainWindow.DispatcherQueue == null)
             {
-                _mainWindow.ShowWindow();
+                Debug.WriteLine("Unable to signal the main window because it is not available.");
+                return true;
+            }
+
+            mainWindow.DispatcherQueue.TryEnqueue(() =>
+            {
+                mainWindow.ShowWindow();
 
                 // Show "already running" info dialog
-                _mainWindow.DispatcherQueue.TryEnqueue(async () =>
+                mainWindow.DispatcherQueue.TryEnqueue(async () =>
                 {
+                    var xamlRoot = mainWindow.Content?.XamlRoot;
+                    if (xamlRoot == null)
+                    {
+                        Debug.WriteLine("Skipping already-running dialog because MainWindow.Content is unavailable.");
+                        return;
+                    }
+
                     var dlg = new Microsoft.UI.Xaml.Controls.ContentDialog
                     {
                         Title = "WiitarThing Already Running",
                         Content = "WiitarThing was already running so the previous instance was brought into focus.",
                         CloseButtonText = "OK",
-                        XamlRoot = _mainWindow.Content.XamlRoot
+                        XamlRoot = xamlRoot
                     };
                     await dlg.ShowAsync();
                 });

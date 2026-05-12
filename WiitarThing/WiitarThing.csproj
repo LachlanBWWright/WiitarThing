@@ -4,7 +4,6 @@
     <!-- HIDMaestro.Core targets .NET 10 / Windows 10.0.26100.0. -->
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
-    <Nullable>enable</Nullable>
     <UseWinUI>true</UseWinUI>
     <!-- WPF removed; WinUI 3 is used instead -->
     <RootNamespace>WiinUSoft</RootNamespace>
@@ -88,7 +87,6 @@
   <Import Project="..\Shared\Shared.projitems" Label="Shared" />
 
 </Project>
-
 
 
 

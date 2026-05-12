@@ -19,6 +19,11 @@ http://www.wiinupro.com/
   * For Wii Rock Band guitars or Wii Rock Band drums, you connect them with the USB dongle in the exact same manner as a PS3 Rock Band guitar. None of this nonsense is needed.
 
 * You can connect up to 4 Wii instruments using this method.
+* WiitarThing now includes a per-device **Virtual Output** selector for guitars:
+  * `Xbox 360 Gamepad (SCP)` (default and recommended)
+  * `Virtual Guitar (HIDMaestro, experimental)`
+  * `DirectInput Joystick (vJoy, experimental)`
+* A guitar row also includes a **Preview Source** selector (`Wii Controller` vs `Virtual Output`) plus output state/mismatch readback text to help debug mapping and driver issues.
 * WiitarThing will not work out of the box for the Guitar Hero 3, Guitar Hero: Aerosmith, or Guitar Hero: World Tour games for PC.
   * This is because WiitarThing makes the guitar show up as a **regular Xbox 360 gamepad**. These official PC releases of these games expect **an Xbox 360 gamepad flagged as a guitar**.
   * To get around this, you can use [x360ce](https://www.x360ce.com/) to emulate a guitar-flagged controller.
@@ -27,7 +32,7 @@ http://www.wiinupro.com/
 ### Getting Started
 * **1.** Remove conflicting software.
   * **1.1.** Make sure you do NOT have HIDWiimote installed as it completely overrides the Wiimote's drivers and makes WiitarThing unable to communicate with them. [HIDWiimote Uninstallation Instructions](https://www.julianloehr.de/educational-work/hid-wiimote/)  (scroll down to "Uninstall Instructions")
-  * **1.2.** Make sure you do NOT have vJoy installed as it may interfere with the virtual gamepads WiitarThing creates to send inputs to Clone Hero. [vJoy Uninstallation Instructions](http://vjoystick.sourceforge.net/site/index.php/77-vjoy/102-removing-vjoy)
+* **1.2.** If you plan to use the default SCP mode, make sure vJoy is not interfering with your setup. If you specifically select the experimental vJoy backend, follow that backend's configuration requirements instead. [vJoy Uninstallation Instructions](http://vjoystick.sourceforge.net/site/index.php/77-vjoy/102-removing-vjoy)
   * **1.3.** Ok so you don't need to *remove* Steam, but make sure that Xbox controller configuration is DISABLED:
      * **1.3.1.** Go to the main `Settings` screen on Steam.
      * **1.3.2.** Go to the `Controller` tab.

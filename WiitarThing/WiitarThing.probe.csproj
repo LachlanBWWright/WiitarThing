@@ -3,7 +3,6 @@
     <OutputType>WinExe</OutputType>
     <!-- WinUI 3 requires the Windows 10 SDK TFM -->
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
-    <Nullable>enable</Nullable>
     <UseWinUI>true</UseWinUI>
     <!-- WPF removed; WinUI 3 is used instead -->
     <RootNamespace>WiinUSoft</RootNamespace>

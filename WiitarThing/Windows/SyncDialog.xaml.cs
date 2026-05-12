@@ -54,6 +54,26 @@ namespace WiinUSoft.Windows
                 NativeImports.BluetoothFindDeviceClose(handle);
         }
 
+        private static bool TryActivateHidService(
+            IntPtr radio,
+            ref NativeImports.BLUETOOTH_DEVICE_INFO deviceInfo,
+            ref Guid hidServiceClass,
+            out uint serviceError,
+            out uint activateError)
+        {
+            serviceError = 0;
+            activateError = 0;
+
+            uint serviceCount = 16;
+            Guid[] services = new Guid[16];
+            serviceError = NativeImports.BluetoothEnumerateInstalledServices(radio, ref deviceInfo, ref serviceCount, services);
+            if (serviceError != 0)
+                return false;
+
+            activateError = NativeImports.BluetoothSetServiceState(radio, ref deviceInfo, ref hidServiceClass, 0x01);
+            return activateError == 0;
+        }
+
         static string GetBluetoothAuthenticationError(uint errCode)
         {
             return (int)errCode switch
@@ -103,6 +123,111 @@ namespace WiinUSoft.Windows
             finally
             {
                 deferral.Complete();
+            }
+        }
+
+        private void ProcessDiscoveredWiiDevice(
+            IntPtr radio,
+            NativeImports.BLUETOOTH_RADIO_INFO radioInfo,
+            ref NativeImports.BLUETOOTH_DEVICE_INFO deviceInfo,
+            ref Guid hidServiceClass)
+        {
+            var rememberedButDisconnected = deviceInfo.fRemembered && !deviceInfo.fConnected;
+            var str_fRemembered = deviceInfo.fRemembered && !rememberedButDisconnected
+                ? ", but it is already synced!"
+                : ". Attempting to pair now...";
+            string label = deviceInfo.szName switch
+            {
+                "Nintendo RVL-CNT-01"    => "Found Wiimote",
+                "Nintendo RVL-CNT-01-TR" => "Found 2nd-Gen Wiimote+",
+                "Nintendo RVL-CNT-01-UC" => "Found Wii U Pro Controller",
+                _                        => "Found Unknown Wii Device Type"
+            };
+            Prompt($"{label} (\"{deviceInfo.szName}\"){str_fRemembered}",
+                isBold: !deviceInfo.fRemembered, isItalic: deviceInfo.fRemembered);
+
+            if (deviceInfo.fRemembered && !rememberedButDisconnected)
+            {
+                Prompt("Windows already has this controller paired. Refreshing its HID service, then press the controller's buttons to reconnect.",
+                    isItalic: true);
+
+                if (TryActivateHidService(radio, ref deviceInfo, ref hidServiceClass, out uint serviceError, out uint activateError))
+                {
+                    Prompt("Controller service refreshed. Waiting for Windows to expose it as a HID device...",
+                        isItalic: true);
+                    Count += 1;
+                    OnNewDeviceFound();
+                }
+                else
+                {
+                    var sb = new StringBuilder();
+                    sb.AppendLine("Windows still has this controller paired, but refreshing its HID service failed.");
+                    if (serviceError != 0) sb.AppendLine(" >>> SERVICE ERROR: " + new Win32Exception((int)serviceError).Message);
+                    if (activateError != 0) sb.AppendLine(" >>> ACTIVATION ERROR: " + new Win32Exception((int)activateError).Message);
+                    sb.AppendLine("Press the controller's buttons to reconnect, or use Remove All Wiimotes if the pairing is stale.");
+                    Prompt(sb.ToString(), isBold: true, isItalic: true);
+
+                    if (_notifiedRememberedDevices.Add(deviceInfo.Address))
+                        OnNewDeviceFound();
+                }
+
+                return;
+            }
+
+            var password = new StringBuilder();
+            bool success = true;
+            var bytes = BitConverter.GetBytes(radioInfo.address);
+            for (int i = 0; i < 6; i++) if (bytes[i] > 0) password.Append((char)bytes[i]);
+
+            uint errForget = 0, errAuth = 0, errService = 0, errActivate = 0;
+
+            if (rememberedButDisconnected)
+            {
+                Prompt("Windows has a stale pairing record for this controller. Removing it before reconnecting...",
+                    isItalic: true);
+                errForget = NativeImports.BluetoothRemoveDevice(ref deviceInfo.Address);
+                success = errForget == 0;
+            }
+
+            if (success)
+            {
+                errAuth = NativeImports.BluetoothAuthenticateDevice(IntPtr.Zero, radio, ref deviceInfo, password.ToString(), 6);
+                success = errAuth == 0;
+            }
+
+            if (!success)
+            {
+                var wiimoteBytes = BitConverter.GetBytes(deviceInfo.Address);
+                password.Clear();
+                for (int i = 0; i < 6; i++) if (wiimoteBytes[i] > 0) password.Append((char)wiimoteBytes[i]);
+                errAuth = NativeImports.BluetoothAuthenticateDevice(IntPtr.Zero, radio, ref deviceInfo, password.ToString(), 6);
+                success = errAuth == 0;
+            }
+
+            if (success)
+            {
+                success = TryActivateHidService(
+                    radio,
+                    ref deviceInfo,
+                    ref hidServiceClass,
+                    out errService,
+                    out errActivate);
+            }
+
+            if (success)
+            {
+                Prompt("Successfully Paired!", isBold: true);
+                Count += 1;
+                OnNewDeviceFound();
+            }
+            else
+            {
+                var sb = new StringBuilder();
+                if (errForget   != 0) sb.AppendLine(" >>> FAILED TO REMOVE: 0x" + errForget.ToString("X"));
+                if (errAuth     != 0) sb.AppendLine(GetBluetoothAuthenticationError(errAuth));
+                if (errService  != 0) sb.AppendLine(" >>> SERVICE ERROR: "    + new Win32Exception((int)errService).Message);
+                if (errActivate != 0) sb.AppendLine(" >>> ACTIVATION ERROR: " + new Win32Exception((int)errActivate).Message);
+                Prompt(sb.ToString(), isBold: true, isItalic: true);
             }
         }
 
@@ -210,111 +335,39 @@ namespace WiinUSoft.Windows
                             radioInfo.Initialize(); deviceInfo.Initialize(); searchParams.Initialize();
 
                             uint getInfoError = NativeImports.BluetoothGetRadioInfo(radio, ref radioInfo);
-                            if (getInfoError == 0)
-                            {
-                                PrepareRadioForPairing(radio);
-                                searchParams.hRadio = radio;
-                                searchParams.fIssueInquiry = true;
-                                searchParams.fReturnUnknown = true;
-                                searchParams.fReturnConnected = true;
-                                searchParams.fReturnRemembered = true;
-                                searchParams.fReturnAuthenticated = true;
-                                searchParams.cTimeoutMultiplier = ActiveInquiryTimeoutMultiplier;
-
-                                IntPtr found = NativeImports.BluetoothFindFirstDevice(ref searchParams, ref deviceInfo);
-                                try
-                                {
-                                    if (found != IntPtr.Zero)
-                                    {
-                                        do
-                                        {
-                                            if (deviceInfo.szName.StartsWith("Nintendo RVL-CNT-01"))
-                                            {
-                                                var str_fRemembered = deviceInfo.fRemembered ? ", but it is already synced!" : ". Attempting to pair now...";
-                                                string label = deviceInfo.szName switch
-                                                {
-                                                    "Nintendo RVL-CNT-01"    => "Found Wiimote",
-                                                    "Nintendo RVL-CNT-01-TR" => "Found 2nd-Gen Wiimote+",
-                                                    "Nintendo RVL-CNT-01-UC" => "Found Wii U Pro Controller",
-                                                    _                        => "Found Unknown Wii Device Type"
-                                                };
-                                                Prompt($"{label} (\"{deviceInfo.szName}\"){str_fRemembered}",
-                                                    isBold: !deviceInfo.fRemembered, isItalic: deviceInfo.fRemembered);
-
-                                                if (deviceInfo.fRemembered)
-                                                {
-                                                    Prompt("Windows already has this controller paired. Press the controller's buttons to reconnect, or use Remove All Wiimotes first if the pairing is stale.",
-                                                        isItalic: true);
-
-                                                    if (_notifiedRememberedDevices.Add(deviceInfo.Address))
-                                                        OnNewDeviceFound();
-
-                                                    continue;
-                                                }
-
-                                                var password = new StringBuilder();
-                                                uint pcService = 16;
-                                                Guid[] guids = new Guid[16];
-                                                bool success = true;
-                                                var bytes = BitConverter.GetBytes(radioInfo.address);
-                                                for (int i = 0; i < 6; i++) if (bytes[i] > 0) password.Append((char)bytes[i]);
-
-                                                uint errForget = 0, errAuth = 0, errService = 0, errActivate = 0;
-
-                                                if (success)
-                                                {
-                                                    errAuth = NativeImports.BluetoothAuthenticateDevice(IntPtr.Zero, radio, ref deviceInfo, password.ToString(), 6);
-                                                    success = errAuth == 0;
-                                                }
-
-                                                if (!success)
-                                                {
-                                                    var wiimoteBytes = BitConverter.GetBytes(deviceInfo.Address);
-                                                    password.Clear();
-                                                    for (int i = 0; i < 6; i++) if (wiimoteBytes[i] > 0) password.Append((char)wiimoteBytes[i]);
-                                                    errAuth = NativeImports.BluetoothAuthenticateDevice(IntPtr.Zero, radio, ref deviceInfo, password.ToString(), 6);
-                                                    success = errAuth == 0;
-                                                }
-
-                                                if (success)
-                                                {
-                                                    errService = NativeImports.BluetoothEnumerateInstalledServices(radio, ref deviceInfo, ref pcService, guids);
-                                                    success = errService == 0;
-                                                }
-
-                                                if (success)
-                                                {
-                                                    errActivate = NativeImports.BluetoothSetServiceState(radio, ref deviceInfo, ref HidServiceClass, 0x01);
-                                                    success = errActivate == 0;
-                                                }
-
-                                                if (success)
-                                                {
-                                                    Prompt("Successfully Paired!", isBold: true);
-                                                    Count += 1;
-                                                    OnNewDeviceFound();
-                                                }
-                                                else
-                                                {
-                                                    var sb = new StringBuilder();
-                                                    if (errForget   != 0) sb.AppendLine(" >>> FAILED TO REMOVE: 0x" + errForget.ToString("X"));
-                                                    if (errAuth     != 0) sb.AppendLine(GetBluetoothAuthenticationError(errAuth));
-                                                    if (errService  != 0) sb.AppendLine(" >>> SERVICE ERROR: "    + new Win32Exception((int)errService).Message);
-                                                    if (errActivate != 0) sb.AppendLine(" >>> ACTIVATION ERROR: " + new Win32Exception((int)errActivate).Message);
-                                                    Prompt(sb.ToString(), isBold: true, isItalic: true);
-                                                }
-                                            }
-                                        } while (!Cancelled && NativeImports.BluetoothFindNextDevice(found, ref deviceInfo));
-                                    }
-                                }
-                                finally
-                                {
-                                    CloseDeviceFindHandle(found);
-                                }
-                            }
-                            else
+                            if (getInfoError != 0)
                             {
                                 Prompt("Found Bluetooth adapter but was unable to interact with it.");
+                                if (Cancelled || Count > 0) break;
+                                continue;
+                            }
+
+                            PrepareRadioForPairing(radio);
+                            searchParams.hRadio = radio;
+                            searchParams.fIssueInquiry = true;
+                            searchParams.fReturnUnknown = true;
+                            searchParams.fReturnConnected = true;
+                            searchParams.fReturnRemembered = true;
+                            searchParams.fReturnAuthenticated = true;
+                            searchParams.cTimeoutMultiplier = ActiveInquiryTimeoutMultiplier;
+
+                            IntPtr found = NativeImports.BluetoothFindFirstDevice(ref searchParams, ref deviceInfo);
+                            try
+                            {
+                                if (found != IntPtr.Zero)
+                                {
+                                    do
+                                    {
+                                    if (!deviceInfo.szName.StartsWith("Nintendo RVL-CNT-01"))
+                                        continue;
+
+                                    ProcessDiscoveredWiiDevice(radio, radioInfo, ref deviceInfo, ref HidServiceClass);
+                                } while (!Cancelled && NativeImports.BluetoothFindNextDevice(found, ref deviceInfo));
+                            }
+                            }
+                            finally
+                            {
+                                CloseDeviceFindHandle(found);
                             }
 
                             if (Cancelled || Count > 0) break;

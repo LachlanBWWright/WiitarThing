@@ -60,6 +60,45 @@ namespace ScpService
             EventLog.WriteEntry("Scarlet.Crush Productions DS3 Service Stopped", System.Diagnostics.EventLogEntryType.Information, 2);
         }
 
+        protected void HandleDeviceEvent(Int32 Type, IntPtr Data)
+        {
+            ScpDevice.DEV_BROADCAST_HDR hdr;
+
+            hdr = (ScpDevice.DEV_BROADCAST_HDR) Marshal.PtrToStructure(Data, typeof(ScpDevice.DEV_BROADCAST_HDR));
+
+            if (hdr.dbch_devicetype != ScpDevice.DBT_DEVTYP_DEVICEINTERFACE)
+                return;
+
+            ScpDevice.DEV_BROADCAST_DEVICEINTERFACE_M deviceInterface;
+
+            deviceInterface = (ScpDevice.DEV_BROADCAST_DEVICEINTERFACE_M) Marshal.PtrToStructure(Data, typeof(ScpDevice.DEV_BROADCAST_DEVICEINTERFACE_M));
+
+            String Class = "{" + new Guid(deviceInterface.dbcc_classguid).ToString().ToUpper() + "}";
+
+            String Path = new String(deviceInterface.dbcc_name);
+            Path = Path.Substring(0, Path.IndexOf('\0')).ToUpper();
+
+            DsPadId Pad = rootHub.Notify((ScpDevice.Notified) Type, Class, Path);
+
+            if (Pad == DsPadId.None)
+                return;
+
+            if (!rootHub.Pairable || rootHub.Master == rootHub.Pad[(Byte) Pad].Remote)
+                return;
+
+            Byte[]   Master = new Byte[6];
+            String[] Parts  = rootHub.Master.Split(new String[] { ":" }, StringSplitOptions.RemoveEmptyEntries);
+
+            for (Int32 Part = 0; Part < Master.Length; Part++)
+            {
+                Master[Part] = Byte.Parse(Parts[Part], System.Globalization.NumberStyles.HexNumber);
+            }
+
+            rootHub.Pad[(Byte) Pad].Pair(Master);
+
+            EventLog.WriteEntry(String.Format("Paired DS3 [{0}] To BTH Dongle [{1}]", rootHub.Pad[(Byte) Pad].Local, rootHub.Master), System.Diagnostics.EventLogEntryType.Information, 6);
+        }
+
         protected Int32 ServiceControlHandler(Int32 Control, Int32 Type, IntPtr Data, IntPtr Context) 
         {
             switch (Control)
@@ -97,41 +136,7 @@ namespace ScpService
                         case ScpDevice.DBT_DEVICEARRIVAL:
                         case ScpDevice.DBT_DEVICEREMOVECOMPLETE:
 
-                            ScpDevice.DEV_BROADCAST_HDR hdr;
-
-                            hdr = (ScpDevice.DEV_BROADCAST_HDR) Marshal.PtrToStructure(Data, typeof(ScpDevice.DEV_BROADCAST_HDR));
-
-                            if (hdr.dbch_devicetype == ScpDevice.DBT_DEVTYP_DEVICEINTERFACE)
-                            {
-                                ScpDevice.DEV_BROADCAST_DEVICEINTERFACE_M deviceInterface;
-
-                                deviceInterface = (ScpDevice.DEV_BROADCAST_DEVICEINTERFACE_M) Marshal.PtrToStructure(Data, typeof(ScpDevice.DEV_BROADCAST_DEVICEINTERFACE_M));
-
-                                String Class = "{" + new Guid(deviceInterface.dbcc_classguid).ToString().ToUpper() + "}";
-
-                                String Path = new String(deviceInterface.dbcc_name);
-                                Path = Path.Substring(0, Path.IndexOf('\0')).ToUpper();
-
-                                DsPadId Pad = rootHub.Notify((ScpDevice.Notified) Type, Class, Path);
-
-                                if (Pad != DsPadId.None)
-                                {
-                                    if (rootHub.Pairable && (rootHub.Master != rootHub.Pad[(Byte) Pad].Remote))
-                                    {
-                                        Byte[]   Master = new Byte[6];
-                                        String[] Parts  = rootHub.Master.Split(new String[] { ":" }, StringSplitOptions.RemoveEmptyEntries);
-
-                                        for (Int32 Part = 0; Part < Master.Length; Part++)
-                                        {
-                                            Master[Part] = Byte.Parse(Parts[Part], System.Globalization.NumberStyles.HexNumber);
-                                        }
-
-                                        rootHub.Pad[(Byte) Pad].Pair(Master);
-
-                                        EventLog.WriteEntry(String.Format("Paired DS3 [{0}] To BTH Dongle [{1}]", rootHub.Pad[(Byte) Pad].Local, rootHub.Master), System.Diagnostics.EventLogEntryType.Information, 6);
-                                    }
-                                }
-                            }
+                            HandleDeviceEvent(Type, Data);
                             break;
                     }
                     break;

@@ -7,6 +7,15 @@ namespace ScpControl
 {
     public partial class XmlMapper : Component 
     {        
+        public sealed record ControllerParseError(string Message, Exception? Exception = null)
+        {
+            public string ToDisplayString() => Message;
+
+            public static ControllerParseError ValidationFailed(string message) => new(message);
+
+            public static ControllerParseError Unknown(string message, Exception? ex = null) => new(message, ex);
+        }
+
         public event EventHandler<DebugEventArgs>? Debug;
 
         protected virtual void LogDebug(String Data) 
@@ -60,6 +69,42 @@ namespace ScpControl
             Node.AppendChild(Item);
         }
 
+        private static bool TryReadText(XmlNode parent, string childName, bool required, string fallback, out string value, out ControllerParseError error)
+        {
+            value = fallback;
+            error = null!;
+
+            XmlNode? child = parent.SelectSingleNode(childName);
+            if (child == null || child.FirstChild == null || child.FirstChild.Value == null)
+            {
+                if (required)
+                {
+                    error = ControllerParseError.ValidationFailed($"Missing required XML element '{childName}'.");
+                    return false;
+                }
+
+                return true;
+            }
+
+            value = child.FirstChild.Value;
+            return true;
+        }
+
+        private static bool TryParseEnumValue<TEnum>(string value, string description, out TEnum parsed, out ControllerParseError error)
+            where TEnum : struct, Enum
+        {
+            if (Enum.TryParse<TEnum>(value, out TEnum parsedValue))
+            {
+                parsed = parsedValue;
+                error = null!;
+                return true;
+            }
+
+            parsed = default;
+            error = ControllerParseError.ValidationFailed($"Invalid {description}: '{value}'.");
+            return false;
+        }
+
 
         public XmlMapper() 
         {
@@ -110,8 +155,10 @@ namespace ScpControl
         }
 
 
-        public virtual Boolean Initialize(XmlDocument Map) 
+        public virtual bool TryInitialize(XmlDocument Map, out ControllerParseError error)
         {
+            error = null!;
+
             try
             {
                 m_Remapping = false; m_Mapper.Clear();
@@ -119,23 +166,41 @@ namespace ScpControl
                 XmlNode? Node = Map.SelectSingleNode("/ScpMapper");
                 if (Node is null)
                 {
+                    error = ControllerParseError.ValidationFailed("Missing required '/ScpMapper' root element.");
                     return false;
                 }
 
-                m_Description = Node.SelectSingleNode("Description")?.FirstChild?.Value ?? String.Empty;
-                m_Version     = Node.SelectSingleNode("Version"    )?.FirstChild?.Value ?? String.Empty;
-                m_Active      = Node.SelectSingleNode("Active"     )?.FirstChild?.Value ?? String.Empty;
+                string description;
+                if (!TryReadText(Node, "Description", false, String.Empty, out description, out error))
+                    return false;
+                m_Description = description;
+
+                string version;
+                if (!TryReadText(Node, "Version", false, String.Empty, out version, out error))
+                    return false;
+                m_Version = version;
+
+                string active;
+                if (!TryReadText(Node, "Active", false, String.Empty, out active, out error))
+                    return false;
+                m_Active = active;
 
                 XmlNodeList? profileNodes = Node.SelectNodes("Mapping/Profile");
-                if (profileNodes is null)
+                if (profileNodes is null || profileNodes.Count == 0)
                 {
+                    error = ControllerParseError.ValidationFailed("No profile mappings were found.");
                     return false;
                 }
 
                 foreach (XmlNode ProfileNode in profileNodes)
                 {
-                    String Name = ProfileNode.SelectSingleNode("Name")?.FirstChild?.Value ?? String.Empty;
-                    String Type = ProfileNode.SelectSingleNode("Type")?.FirstChild?.Value ?? DsMatch.Global.ToString();
+                    string Name;
+                    if (!TryReadText(ProfileNode, "Name", true, String.Empty, out Name, out error))
+                        return false;
+
+                    string Type;
+                    if (!TryReadText(ProfileNode, "Type", true, DsMatch.Global.ToString(), out Type, out error))
+                        return false;
 
                     String Qualifier = String.Empty;
 
@@ -143,112 +208,145 @@ namespace ScpControl
                     {
                         XmlNode? QualifierNode = ProfileNode.SelectSingleNode("Value");
 
-                        if (QualifierNode?.HasChildNodes == true)
+                        if (QualifierNode != null && QualifierNode.HasChildNodes && QualifierNode.FirstChild != null && QualifierNode.FirstChild.Value != null)
                         {
-                            Qualifier = QualifierNode.FirstChild?.Value ?? String.Empty;
+                            Qualifier = QualifierNode.FirstChild.Value;
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        error = ControllerParseError.Unknown($"Failed reading profile qualifier for '{Name}'.", ex);
+                        return false;
+                    }
 
                     Profile Profile = new Profile(Name == m_Active, Name, Type, Qualifier);
 
-                    try
+                    XmlNode? ds3Buttons = ProfileNode.SelectSingleNode("DS3/Button");
+                    if (ds3Buttons != null)
                     {
-                        XmlNode? mappings = ProfileNode.SelectSingleNode("DS3/Button");
-                        if (mappings is null)
+                        foreach (XmlNode mapping in ds3Buttons.ChildNodes)
                         {
-                            continue;
-                        }
+                            if (mapping.NodeType != XmlNodeType.Element)
+                                continue;
 
-                        foreach (XmlNode Mapping in mappings)
-                        {
-                            foreach (XmlNode Item in Mapping.ChildNodes)
+                            if (mapping.FirstChild == null || mapping.FirstChild.Value == null)
                             {
-                                Ds3Button Target = (Ds3Button) Enum.Parse(typeof(Ds3Button), Item.ParentNode?.Name ?? String.Empty);
-                                Ds3Button Mapped = (Ds3Button) Enum.Parse(typeof(Ds3Button), Item.Value ?? String.Empty);
-
-                                Profile.Ds3Button[Target] = Mapped;
+                                error = ControllerParseError.ValidationFailed($"DS3 button mapping '{mapping.Name}' is missing a value.");
+                                return false;
                             }
+
+                            Ds3Button target;
+                            if (!TryParseEnumValue<Ds3Button>(mapping.Name, $"DS3 button target '{mapping.Name}'", out target, out error))
+                                return false;
+
+                            Ds3Button mapped;
+                            if (!TryParseEnumValue<Ds3Button>(mapping.FirstChild.Value, $"DS3 button mapping for '{mapping.Name}'", out mapped, out error))
+                                return false;
+
+                            Profile.Ds3Button[target] = mapped;
                         }
                     }
-                    catch { }
 
-                    try
+                    XmlNode? ds3Axes = ProfileNode.SelectSingleNode("DS3/Axis");
+                    if (ds3Axes != null)
                     {
-                        XmlNode? mappings = ProfileNode.SelectSingleNode("DS3/Axis");
-                        if (mappings is null)
+                        foreach (XmlNode mapping in ds3Axes.ChildNodes)
                         {
-                            continue;
-                        }
+                            if (mapping.NodeType != XmlNodeType.Element)
+                                continue;
 
-                        foreach (XmlNode Mapping in mappings)
-                        {
-                            foreach (XmlNode Item in Mapping.ChildNodes)
+                            if (mapping.FirstChild == null || mapping.FirstChild.Value == null)
                             {
-                                Ds3Axis Target = (Ds3Axis) Enum.Parse(typeof(Ds3Axis), Item.ParentNode?.Name ?? String.Empty);
-                                Ds3Axis Mapped = (Ds3Axis) Enum.Parse(typeof(Ds3Axis), Item.Value ?? String.Empty);
-
-                                Profile.Ds3Axis[Target] = Mapped;
+                                error = ControllerParseError.ValidationFailed($"DS3 axis mapping '{mapping.Name}' is missing a value.");
+                                return false;
                             }
+
+                            Ds3Axis target;
+                            if (!TryParseEnumValue<Ds3Axis>(mapping.Name, $"DS3 axis target '{mapping.Name}'", out target, out error))
+                                return false;
+
+                            Ds3Axis mapped;
+                            if (!TryParseEnumValue<Ds3Axis>(mapping.FirstChild.Value, $"DS3 axis mapping for '{mapping.Name}'", out mapped, out error))
+                                return false;
+
+                            Profile.Ds3Axis[target] = mapped;
                         }
                     }
-                    catch { }
 
-                    try
+                    XmlNode? ds4Buttons = ProfileNode.SelectSingleNode("DS4/Button");
+                    if (ds4Buttons != null)
                     {
-                        XmlNode? mappings = ProfileNode.SelectSingleNode("DS4/Button");
-                        if (mappings is null)
+                        foreach (XmlNode mapping in ds4Buttons.ChildNodes)
                         {
-                            continue;
-                        }
+                            if (mapping.NodeType != XmlNodeType.Element)
+                                continue;
 
-                        foreach (XmlNode Mapping in mappings)
-                        {
-                            foreach (XmlNode Item in Mapping.ChildNodes)
+                            if (mapping.FirstChild == null || mapping.FirstChild.Value == null)
                             {
-                                Ds4Button Target = (Ds4Button) Enum.Parse(typeof(Ds4Button), Item.ParentNode?.Name ?? String.Empty);
-                                Ds4Button Mapped = (Ds4Button) Enum.Parse(typeof(Ds4Button), Item.Value ?? String.Empty);
-
-                                Profile.Ds4Button[Target] = Mapped;
+                                error = ControllerParseError.ValidationFailed($"DS4 button mapping '{mapping.Name}' is missing a value.");
+                                return false;
                             }
+
+                            Ds4Button target;
+                            if (!TryParseEnumValue<Ds4Button>(mapping.Name, $"DS4 button target '{mapping.Name}'", out target, out error))
+                                return false;
+
+                            Ds4Button mapped;
+                            if (!TryParseEnumValue<Ds4Button>(mapping.FirstChild.Value, $"DS4 button mapping for '{mapping.Name}'", out mapped, out error))
+                                return false;
+
+                            Profile.Ds4Button[target] = mapped;
                         }
                     }
-                    catch { }
 
-                    try
+                    XmlNode? ds4Axes = ProfileNode.SelectSingleNode("DS4/Axis");
+                    if (ds4Axes != null)
                     {
-                        XmlNode? mappings = ProfileNode.SelectSingleNode("DS4/Axis");
-                        if (mappings is null)
+                        foreach (XmlNode mapping in ds4Axes.ChildNodes)
                         {
-                            continue;
-                        }
+                            if (mapping.NodeType != XmlNodeType.Element)
+                                continue;
 
-                        foreach (XmlNode Mapping in mappings)
-                        {
-                            foreach (XmlNode Item in Mapping.ChildNodes)
+                            if (mapping.FirstChild == null || mapping.FirstChild.Value == null)
                             {
-                                Ds4Axis Target = (Ds4Axis) Enum.Parse(typeof(Ds4Axis), Item.ParentNode?.Name ?? String.Empty);
-                                Ds4Axis Mapped = (Ds4Axis) Enum.Parse(typeof(Ds4Axis), Item.Value ?? String.Empty);
-
-                                Profile.Ds4Axis[Target] = Mapped;
+                                error = ControllerParseError.ValidationFailed($"DS4 axis mapping '{mapping.Name}' is missing a value.");
+                                return false;
                             }
+
+                            Ds4Axis target;
+                            if (!TryParseEnumValue<Ds4Axis>(mapping.Name, $"DS4 axis target '{mapping.Name}'", out target, out error))
+                                return false;
+
+                            Ds4Axis mapped;
+                            if (!TryParseEnumValue<Ds4Axis>(mapping.FirstChild.Value, $"DS4 axis mapping for '{mapping.Name}'", out mapped, out error))
+                                return false;
+
+                            Profile.Ds4Axis[target] = mapped;
                         }
                     }
-                    catch { }
 
                     m_Mapper[Profile.Name] = Profile;
                 }
 
-                Int32 Mappings = m_Mapper.TryGetValue(m_Active, out Profile? activeProfile)
+                Int32 Mappings = m_Mapper.TryGetValue(m_Active, out Profile? activeProfile) && activeProfile != null
                     ? activeProfile.Ds3Button.Count + activeProfile.Ds3Axis.Count + activeProfile.Ds4Button.Count + activeProfile.Ds4Axis.Count
                     : 0;
                 LogDebug(String.Format("## Mapper.Initialize() - Profiles [{0}] Active [{1}] Mappings [{2}]", m_Mapper.Count, m_Active, Mappings));
 
                 m_Remapping = true;
+                error = null!;
+                return true;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                error = ControllerParseError.Unknown("Unexpected error while loading the mapper configuration.", ex);
+                return false;
+            }
+        }
 
-            return m_Remapping;
+        public virtual Boolean Initialize(XmlDocument Map) 
+        {
+            return TryInitialize(Map, out _);
         }
 
         public virtual Boolean Shutdown() 

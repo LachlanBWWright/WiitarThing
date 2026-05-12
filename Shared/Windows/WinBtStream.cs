@@ -218,6 +218,14 @@ namespace Shared.Windows
             }
         }
 
+        private FileStream GetOpenStream()
+        {
+            if (_fileStream == null)
+                throw new ObjectDisposedException(nameof(WinBtStream), "The HID stream is not open.");
+
+            return _fileStream;
+        }
+
         public Result<int, HidStreamError> TryRead(byte[] buffer, int offset, int count)
         {
             if (_fileStream == null)
@@ -430,19 +438,18 @@ namespace Shared.Windows
 
         public override bool CanSeek { get { return _fileStream?.CanSeek ?? false; } }
 
-        public override long Length { get { return _fileStream?.Length ?? 0; } }
+        public override long Length { get { return GetOpenStream().Length; } }
 
         public override long Position
         {
             get
             {
-                return _fileStream?.Position ?? 0;
+                return GetOpenStream().Position;
             }
 
             set
             {
-                if (_fileStream != null)
-                    _fileStream.Position = value;
+                GetOpenStream().Position = value;
             }
         }
         #endregion
@@ -458,15 +465,12 @@ namespace Shared.Windows
 
         public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback? callback, object? state)
         {
-            if (_fileStream == null)
-                return System.Threading.Tasks.Task.FromResult(0);
-            return _fileStream.BeginRead(buffer, 0, count, callback, state);
+            return GetOpenStream().BeginRead(buffer, 0, count, callback, state);
         }
 
         public override int EndRead(IAsyncResult asyncResult)
         {
-            // TODO: Handle device not connected
-            return _fileStream?.EndRead(asyncResult) ?? -1;
+            return GetOpenStream().EndRead(asyncResult);
         }
 
         public override void Write(byte[] buffer, int offset, int count)
@@ -496,26 +500,17 @@ namespace Shared.Windows
 
         public override void Flush()
         {
-            if (_fileStream == null)
-                return;
-
-            _fileStream.Flush();
+            GetOpenStream().Flush();
         }
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            if (_fileStream == null)
-                return 0;
-
-            return _fileStream.Seek(offset, origin);
+            return GetOpenStream().Seek(offset, origin);
         }
 
         public override void SetLength(long value)
         {
-            if (_fileStream == null)
-                return;
-
-            _fileStream.SetLength(value);
+            GetOpenStream().SetLength(value);
         }
 
         public override int Read(byte[] buffer, int offset, int count)
