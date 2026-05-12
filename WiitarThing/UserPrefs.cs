@@ -5,12 +5,14 @@ using System.IO;
 using System.Security;
 using System.Xml.Serialization;
 using Shared;
+using WiinUSoft.Services;
 
 namespace WiinUSoft
 {
     public class UserPrefs
     {
         private static UserPrefs? _instance;
+        private static IStartupRegistrationService _startupRegistrationService = new StartupRegistrationService();
 
         public static UserPrefs Instance
         {
@@ -138,13 +140,10 @@ namespace WiinUSoft
                 {
                     if (!File.Exists(shortcutPath))
                     {
-                        if (MainWindow.Instance == null)
-                        {
-                            return Result<Unit, PreferencesError>.Err(
-                                PreferencesError.ValidationFailed("Main window is unavailable to create startup shortcut.", shortcutPath));
-                        }
+                        var createResult = _startupRegistrationService.CreateStartupShortcut(dir);
+                        if (createResult.IsError)
+                            return createResult;
 
-                        MainWindow.Instance.CreateShortcut(dir);
                         if (!File.Exists(shortcutPath))
                         {
                             return Result<Unit, PreferencesError>.Err(

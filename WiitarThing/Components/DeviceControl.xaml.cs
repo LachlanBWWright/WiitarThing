@@ -343,29 +343,30 @@ namespace WiinUSoft
             if (updateTimer != null) updateTimer.Change(1000, UPDATE_SPEED);
             if (holder == null && virtualBackend == null) return;
             RumbleStep();
-            holder?.ClearAllValues();
+            var inputHolder = holder;
+            inputHolder?.ClearAllValues();
             switch (e.controllerType)
             {
                 case ControllerType.ProController:
                     #region Pro Controller
                     ProController pro = (ProController)e.state;
-                    holder.SetValue(Inputs.ProController.A, pro.A); holder.SetValue(Inputs.ProController.B, pro.B);
-                    holder.SetValue(Inputs.ProController.X, pro.X); holder.SetValue(Inputs.ProController.Y, pro.Y);
-                    holder.SetValue(Inputs.ProController.UP, pro.Up); holder.SetValue(Inputs.ProController.DOWN, pro.Down);
-                    holder.SetValue(Inputs.ProController.LEFT, pro.Left); holder.SetValue(Inputs.ProController.RIGHT, pro.Right);
-                    holder.SetValue(Inputs.ProController.L, pro.L); holder.SetValue(Inputs.ProController.R, pro.R);
-                    holder.SetValue(Inputs.ProController.ZL, pro.ZL); holder.SetValue(Inputs.ProController.ZR, pro.ZR);
-                    holder.SetValue(Inputs.ProController.START, pro.Plus); holder.SetValue(Inputs.ProController.SELECT, pro.Minus);
-                    holder.SetValue(Inputs.ProController.HOME, pro.Home); holder.SetValue(Inputs.ProController.LS, pro.LStick);
-                    holder.SetValue(Inputs.ProController.RS, pro.RStick);
-                    holder.SetValue(Inputs.ProController.LRIGHT, pro.LJoy.X > 0 ? pro.LJoy.X : 0f);
-                    holder.SetValue(Inputs.ProController.LLEFT, pro.LJoy.X < 0 ? -pro.LJoy.X : 0f);
-                    holder.SetValue(Inputs.ProController.LUP, pro.LJoy.Y > 0 ? pro.LJoy.Y : 0f);
-                    holder.SetValue(Inputs.ProController.LDOWN, pro.LJoy.Y < 0 ? -pro.LJoy.Y : 0f);
-                    holder.SetValue(Inputs.ProController.RRIGHT, pro.RJoy.X > 0 ? pro.RJoy.X : 0f);
-                    holder.SetValue(Inputs.ProController.RLEFT, pro.RJoy.X < 0 ? -pro.RJoy.X : 0f);
-                    holder.SetValue(Inputs.ProController.RUP, pro.RJoy.Y > 0 ? pro.RJoy.Y : 0f);
-                    holder.SetValue(Inputs.ProController.RDOWN, pro.RJoy.Y < 0 ? -pro.RJoy.Y : 0f);
+                    inputHolder?.SetValue(Inputs.ProController.A, pro.A); inputHolder?.SetValue(Inputs.ProController.B, pro.B);
+                    inputHolder?.SetValue(Inputs.ProController.X, pro.X); inputHolder?.SetValue(Inputs.ProController.Y, pro.Y);
+                    inputHolder?.SetValue(Inputs.ProController.UP, pro.Up); inputHolder?.SetValue(Inputs.ProController.DOWN, pro.Down);
+                    inputHolder?.SetValue(Inputs.ProController.LEFT, pro.Left); inputHolder?.SetValue(Inputs.ProController.RIGHT, pro.Right);
+                    inputHolder?.SetValue(Inputs.ProController.L, pro.L); inputHolder?.SetValue(Inputs.ProController.R, pro.R);
+                    inputHolder?.SetValue(Inputs.ProController.ZL, pro.ZL); inputHolder?.SetValue(Inputs.ProController.ZR, pro.ZR);
+                    inputHolder?.SetValue(Inputs.ProController.START, pro.Plus); inputHolder?.SetValue(Inputs.ProController.SELECT, pro.Minus);
+                    inputHolder?.SetValue(Inputs.ProController.HOME, pro.Home); inputHolder?.SetValue(Inputs.ProController.LS, pro.LStick);
+                    inputHolder?.SetValue(Inputs.ProController.RS, pro.RStick);
+                    inputHolder?.SetValue(Inputs.ProController.LRIGHT, pro.LJoy.X > 0 ? pro.LJoy.X : 0f);
+                    inputHolder?.SetValue(Inputs.ProController.LLEFT, pro.LJoy.X < 0 ? -pro.LJoy.X : 0f);
+                    inputHolder?.SetValue(Inputs.ProController.LUP, pro.LJoy.Y > 0 ? pro.LJoy.Y : 0f);
+                    inputHolder?.SetValue(Inputs.ProController.LDOWN, pro.LJoy.Y < 0 ? -pro.LJoy.Y : 0f);
+                    inputHolder?.SetValue(Inputs.ProController.RRIGHT, pro.RJoy.X > 0 ? pro.RJoy.X : 0f);
+                    inputHolder?.SetValue(Inputs.ProController.RLEFT, pro.RJoy.X < 0 ? -pro.RJoy.X : 0f);
+                    inputHolder?.SetValue(Inputs.ProController.RUP, pro.RJoy.Y > 0 ? pro.RJoy.Y : 0f);
+                    inputHolder?.SetValue(Inputs.ProController.RDOWN, pro.RJoy.Y < 0 ? -pro.RJoy.Y : 0f);
                     #endregion
                     break;
                 case ControllerType.Wiimote: SetWiimoteInputs(((Wiimote)e.state)); break;
@@ -374,78 +375,78 @@ namespace WiinUSoft
                     #region Nunchuk
                     Nunchuk nun = (Nunchuk)e.state;
                     SetWiimoteInputs(nun.wiimote);
-                    holder.SetValue(Inputs.Nunchuk.C, nun.C); holder.SetValue(Inputs.Nunchuk.Z, nun.Z);
-                    holder.SetValue(Inputs.Nunchuk.RIGHT, nun.joystick.X > 0 ? nun.joystick.X : 0f);
-                    holder.SetValue(Inputs.Nunchuk.LEFT, nun.joystick.X < 0 ? -nun.joystick.X : 0f);
-                    holder.SetValue(Inputs.Nunchuk.UP, nun.joystick.Y > 0 ? nun.joystick.Y : 0f);
-                    holder.SetValue(Inputs.Nunchuk.DOWN, nun.joystick.Y < 0 ? -nun.joystick.Y : 0f);
-                    holder.SetValue(Inputs.Nunchuk.TILT_RIGHT, nun.accelerometer.X > 0 ? nun.accelerometer.X : 0f);
-                    holder.SetValue(Inputs.Nunchuk.TILT_LEFT, nun.accelerometer.X < 0 ? -nun.accelerometer.X : 0f);
-                    holder.SetValue(Inputs.Nunchuk.TILT_UP, nun.accelerometer.Y > 0 ? nun.accelerometer.Y : 0f);
-                    holder.SetValue(Inputs.Nunchuk.TILT_DOWN, nun.accelerometer.Y < 0 ? -nun.accelerometer.Y : 0f);
-                    holder.SetValue(Inputs.Nunchuk.ACC_SHAKE_X, nun.accelerometer.X > 1.15f);
-                    holder.SetValue(Inputs.Nunchuk.ACC_SHAKE_Y, nun.accelerometer.Y > 1.15f);
-                    holder.SetValue(Inputs.Nunchuk.ACC_SHAKE_Z, nun.accelerometer.Z > 1.15f);
+                    inputHolder?.SetValue(Inputs.Nunchuk.C, nun.C); inputHolder?.SetValue(Inputs.Nunchuk.Z, nun.Z);
+                    inputHolder?.SetValue(Inputs.Nunchuk.RIGHT, nun.joystick.X > 0 ? nun.joystick.X : 0f);
+                    inputHolder?.SetValue(Inputs.Nunchuk.LEFT, nun.joystick.X < 0 ? -nun.joystick.X : 0f);
+                    inputHolder?.SetValue(Inputs.Nunchuk.UP, nun.joystick.Y > 0 ? nun.joystick.Y : 0f);
+                    inputHolder?.SetValue(Inputs.Nunchuk.DOWN, nun.joystick.Y < 0 ? -nun.joystick.Y : 0f);
+                    inputHolder?.SetValue(Inputs.Nunchuk.TILT_RIGHT, nun.accelerometer.X > 0 ? nun.accelerometer.X : 0f);
+                    inputHolder?.SetValue(Inputs.Nunchuk.TILT_LEFT, nun.accelerometer.X < 0 ? -nun.accelerometer.X : 0f);
+                    inputHolder?.SetValue(Inputs.Nunchuk.TILT_UP, nun.accelerometer.Y > 0 ? nun.accelerometer.Y : 0f);
+                    inputHolder?.SetValue(Inputs.Nunchuk.TILT_DOWN, nun.accelerometer.Y < 0 ? -nun.accelerometer.Y : 0f);
+                    inputHolder?.SetValue(Inputs.Nunchuk.ACC_SHAKE_X, nun.accelerometer.X > 1.15f);
+                    inputHolder?.SetValue(Inputs.Nunchuk.ACC_SHAKE_Y, nun.accelerometer.Y > 1.15f);
+                    inputHolder?.SetValue(Inputs.Nunchuk.ACC_SHAKE_Z, nun.accelerometer.Z > 1.15f);
                     #endregion
                     break;
                 case ControllerType.ClassicController:
                     #region Classic Controller
                     ClassicController cc = (ClassicController)e.state;
                     SetWiimoteInputs(cc.wiimote);
-                    holder.SetValue(Inputs.ClassicController.A, cc.A); holder.SetValue(Inputs.ClassicController.B, cc.B);
-                    holder.SetValue(Inputs.ClassicController.X, cc.X); holder.SetValue(Inputs.ClassicController.Y, cc.Y);
-                    holder.SetValue(Inputs.ClassicController.UP, cc.Up); holder.SetValue(Inputs.ClassicController.DOWN, cc.Down);
-                    holder.SetValue(Inputs.ClassicController.LEFT, cc.Left); holder.SetValue(Inputs.ClassicController.RIGHT, cc.Right);
-                    holder.SetValue(Inputs.ClassicController.L, cc.L.value > 0); holder.SetValue(Inputs.ClassicController.R, cc.R.value > 0);
-                    holder.SetValue(Inputs.ClassicController.ZL, cc.ZL); holder.SetValue(Inputs.ClassicController.ZR, cc.ZR);
-                    holder.SetValue(Inputs.ClassicController.START, cc.Start); holder.SetValue(Inputs.ClassicController.SELECT, cc.Select);
-                    holder.SetValue(Inputs.ClassicController.HOME, cc.Home);
-                    holder.SetValue(Inputs.ClassicController.LFULL, cc.LFull); holder.SetValue(Inputs.ClassicController.RFULL, cc.RFull);
-                    holder.SetValue(Inputs.ClassicController.LT, cc.L.value > 0.1f ? cc.L.value : 0f);
-                    holder.SetValue(Inputs.ClassicController.RT, cc.R.value > 0.1f ? cc.R.value : 0f);
-                    holder.SetValue(Inputs.ClassicController.LRIGHT, cc.LJoy.X > 0 ? cc.LJoy.X : 0f);
-                    holder.SetValue(Inputs.ClassicController.LLEFT, cc.LJoy.X < 0 ? -cc.LJoy.X : 0f);
-                    holder.SetValue(Inputs.ClassicController.LUP, cc.LJoy.Y > 0 ? cc.LJoy.Y : 0f);
-                    holder.SetValue(Inputs.ClassicController.LDOWN, cc.LJoy.Y < 0 ? -cc.LJoy.Y : 0f);
-                    holder.SetValue(Inputs.ClassicController.RRIGHT, cc.RJoy.X > 0 ? cc.RJoy.X : 0f);
-                    holder.SetValue(Inputs.ClassicController.RLEFT, cc.RJoy.X < 0 ? -cc.RJoy.X : 0f);
-                    holder.SetValue(Inputs.ClassicController.RUP, cc.RJoy.Y > 0 ? cc.RJoy.Y : 0f);
-                    holder.SetValue(Inputs.ClassicController.RDOWN, cc.RJoy.Y < 0 ? -cc.RJoy.Y : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicController.A, cc.A); inputHolder?.SetValue(Inputs.ClassicController.B, cc.B);
+                    inputHolder?.SetValue(Inputs.ClassicController.X, cc.X); inputHolder?.SetValue(Inputs.ClassicController.Y, cc.Y);
+                    inputHolder?.SetValue(Inputs.ClassicController.UP, cc.Up); inputHolder?.SetValue(Inputs.ClassicController.DOWN, cc.Down);
+                    inputHolder?.SetValue(Inputs.ClassicController.LEFT, cc.Left); inputHolder?.SetValue(Inputs.ClassicController.RIGHT, cc.Right);
+                    inputHolder?.SetValue(Inputs.ClassicController.L, cc.L.value > 0); inputHolder?.SetValue(Inputs.ClassicController.R, cc.R.value > 0);
+                    inputHolder?.SetValue(Inputs.ClassicController.ZL, cc.ZL); inputHolder?.SetValue(Inputs.ClassicController.ZR, cc.ZR);
+                    inputHolder?.SetValue(Inputs.ClassicController.START, cc.Start); inputHolder?.SetValue(Inputs.ClassicController.SELECT, cc.Select);
+                    inputHolder?.SetValue(Inputs.ClassicController.HOME, cc.Home);
+                    inputHolder?.SetValue(Inputs.ClassicController.LFULL, cc.LFull); inputHolder?.SetValue(Inputs.ClassicController.RFULL, cc.RFull);
+                    inputHolder?.SetValue(Inputs.ClassicController.LT, cc.L.value > 0.1f ? cc.L.value : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicController.RT, cc.R.value > 0.1f ? cc.R.value : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicController.LRIGHT, cc.LJoy.X > 0 ? cc.LJoy.X : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicController.LLEFT, cc.LJoy.X < 0 ? -cc.LJoy.X : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicController.LUP, cc.LJoy.Y > 0 ? cc.LJoy.Y : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicController.LDOWN, cc.LJoy.Y < 0 ? -cc.LJoy.Y : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicController.RRIGHT, cc.RJoy.X > 0 ? cc.RJoy.X : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicController.RLEFT, cc.RJoy.X < 0 ? -cc.RJoy.X : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicController.RUP, cc.RJoy.Y > 0 ? cc.RJoy.Y : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicController.RDOWN, cc.RJoy.Y < 0 ? -cc.RJoy.Y : 0f);
                     #endregion
                     break;
                 case ControllerType.ClassicControllerPro:
                     #region Classic Controller Pro
                     ClassicControllerPro ccp = (ClassicControllerPro)e.state;
                     SetWiimoteInputs(ccp.wiimote);
-                    holder.SetValue(Inputs.ClassicControllerPro.A, ccp.A); holder.SetValue(Inputs.ClassicControllerPro.B, ccp.B);
-                    holder.SetValue(Inputs.ClassicControllerPro.X, ccp.X); holder.SetValue(Inputs.ClassicControllerPro.Y, ccp.Y);
-                    holder.SetValue(Inputs.ClassicControllerPro.UP, ccp.Up); holder.SetValue(Inputs.ClassicControllerPro.DOWN, ccp.Down);
-                    holder.SetValue(Inputs.ClassicControllerPro.LEFT, ccp.Left); holder.SetValue(Inputs.ClassicControllerPro.RIGHT, ccp.Right);
-                    holder.SetValue(Inputs.ClassicControllerPro.L, ccp.L); holder.SetValue(Inputs.ClassicControllerPro.R, ccp.R);
-                    holder.SetValue(Inputs.ClassicControllerPro.ZL, ccp.ZL); holder.SetValue(Inputs.ClassicControllerPro.ZR, ccp.ZR);
-                    holder.SetValue(Inputs.ClassicControllerPro.START, ccp.Start); holder.SetValue(Inputs.ClassicControllerPro.SELECT, ccp.Select);
-                    holder.SetValue(Inputs.ClassicControllerPro.HOME, ccp.Home);
-                    holder.SetValue(Inputs.ClassicControllerPro.LRIGHT, ccp.LJoy.X > 0 ? ccp.LJoy.X : 0f);
-                    holder.SetValue(Inputs.ClassicControllerPro.LLEFT, ccp.LJoy.X < 0 ? -ccp.LJoy.X : 0f);
-                    holder.SetValue(Inputs.ClassicControllerPro.LUP, ccp.LJoy.Y > 0 ? ccp.LJoy.Y : 0f);
-                    holder.SetValue(Inputs.ClassicControllerPro.LDOWN, ccp.LJoy.Y < 0 ? -ccp.LJoy.Y : 0f);
-                    holder.SetValue(Inputs.ClassicControllerPro.RRIGHT, ccp.RJoy.X > 0 ? ccp.RJoy.X : 0f);
-                    holder.SetValue(Inputs.ClassicControllerPro.RLEFT, ccp.RJoy.X < 0 ? -ccp.RJoy.X : 0f);
-                    holder.SetValue(Inputs.ClassicControllerPro.RUP, ccp.RJoy.Y > 0 ? ccp.RJoy.Y : 0f);
-                    holder.SetValue(Inputs.ClassicControllerPro.RDOWN, ccp.RJoy.Y < 0 ? -ccp.RJoy.Y : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicControllerPro.A, ccp.A); inputHolder?.SetValue(Inputs.ClassicControllerPro.B, ccp.B);
+                    inputHolder?.SetValue(Inputs.ClassicControllerPro.X, ccp.X); inputHolder?.SetValue(Inputs.ClassicControllerPro.Y, ccp.Y);
+                    inputHolder?.SetValue(Inputs.ClassicControllerPro.UP, ccp.Up); inputHolder?.SetValue(Inputs.ClassicControllerPro.DOWN, ccp.Down);
+                    inputHolder?.SetValue(Inputs.ClassicControllerPro.LEFT, ccp.Left); inputHolder?.SetValue(Inputs.ClassicControllerPro.RIGHT, ccp.Right);
+                    inputHolder?.SetValue(Inputs.ClassicControllerPro.L, ccp.L); inputHolder?.SetValue(Inputs.ClassicControllerPro.R, ccp.R);
+                    inputHolder?.SetValue(Inputs.ClassicControllerPro.ZL, ccp.ZL); inputHolder?.SetValue(Inputs.ClassicControllerPro.ZR, ccp.ZR);
+                    inputHolder?.SetValue(Inputs.ClassicControllerPro.START, ccp.Start); inputHolder?.SetValue(Inputs.ClassicControllerPro.SELECT, ccp.Select);
+                    inputHolder?.SetValue(Inputs.ClassicControllerPro.HOME, ccp.Home);
+                    inputHolder?.SetValue(Inputs.ClassicControllerPro.LRIGHT, ccp.LJoy.X > 0 ? ccp.LJoy.X : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicControllerPro.LLEFT, ccp.LJoy.X < 0 ? -ccp.LJoy.X : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicControllerPro.LUP, ccp.LJoy.Y > 0 ? ccp.LJoy.Y : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicControllerPro.LDOWN, ccp.LJoy.Y < 0 ? -ccp.LJoy.Y : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicControllerPro.RRIGHT, ccp.RJoy.X > 0 ? ccp.RJoy.X : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicControllerPro.RLEFT, ccp.RJoy.X < 0 ? -ccp.RJoy.X : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicControllerPro.RUP, ccp.RJoy.Y > 0 ? ccp.RJoy.Y : 0f);
+                    inputHolder?.SetValue(Inputs.ClassicControllerPro.RDOWN, ccp.RJoy.Y < 0 ? -ccp.RJoy.Y : 0f);
                     #endregion
                     break;
                 case ControllerType.Guitar:
                     #region Wii Guitar
                     WiiGuitar wgt = (WiiGuitar)e.state;
-                    holder?.SetValue(Inputs.WiiGuitar.G, wgt.G); holder?.SetValue(Inputs.WiiGuitar.R, wgt.R);
-                    holder?.SetValue(Inputs.WiiGuitar.Y, wgt.Y); holder?.SetValue(Inputs.WiiGuitar.B, wgt.B);
-                    holder?.SetValue(Inputs.WiiGuitar.O, wgt.O);
-                    holder?.SetValue(Inputs.WiiGuitar.UP, wgt.Up); holder?.SetValue(Inputs.WiiGuitar.DOWN, wgt.Down);
-                    holder?.SetValue(Inputs.WiiGuitar.LEFT, wgt.Left); holder?.SetValue(Inputs.WiiGuitar.RIGHT, wgt.Right);
-                    holder?.SetValue(Inputs.WiiGuitar.WHAMMYHIGH, wgt.WhammyHigh); holder?.SetValue(Inputs.WiiGuitar.WHAMMYLOW, wgt.WhammyLow);
-                    holder?.SetValue(Inputs.WiiGuitar.TILTHIGH, wgt.TiltHigh); holder?.SetValue(Inputs.WiiGuitar.TILTLOW, wgt.TiltLow);
-                    holder?.SetValue(Inputs.WiiGuitar.START, wgt.Start); holder?.SetValue(Inputs.WiiGuitar.SELECT, wgt.Select);
+                    inputHolder?.SetValue(Inputs.WiiGuitar.G, wgt.G); inputHolder?.SetValue(Inputs.WiiGuitar.R, wgt.R);
+                    inputHolder?.SetValue(Inputs.WiiGuitar.Y, wgt.Y); inputHolder?.SetValue(Inputs.WiiGuitar.B, wgt.B);
+                    inputHolder?.SetValue(Inputs.WiiGuitar.O, wgt.O);
+                    inputHolder?.SetValue(Inputs.WiiGuitar.UP, wgt.Up); inputHolder?.SetValue(Inputs.WiiGuitar.DOWN, wgt.Down);
+                    inputHolder?.SetValue(Inputs.WiiGuitar.LEFT, wgt.Left); inputHolder?.SetValue(Inputs.WiiGuitar.RIGHT, wgt.Right);
+                    inputHolder?.SetValue(Inputs.WiiGuitar.WHAMMYHIGH, wgt.WhammyHigh); inputHolder?.SetValue(Inputs.WiiGuitar.WHAMMYLOW, wgt.WhammyLow);
+                    inputHolder?.SetValue(Inputs.WiiGuitar.TILTHIGH, wgt.TiltHigh); inputHolder?.SetValue(Inputs.WiiGuitar.TILTLOW, wgt.TiltLow);
+                    inputHolder?.SetValue(Inputs.WiiGuitar.START, wgt.Start); inputHolder?.SetValue(Inputs.WiiGuitar.SELECT, wgt.Select);
 
                     lastSourceOutput = ControllerOutputState.FromWiiGuitar(wgt);
                     if (virtualBackend != null)
@@ -481,16 +482,16 @@ namespace WiinUSoft
                 case ControllerType.Drums:
                     #region Wii Drums
                     WiiDrums wdr = (WiiDrums)e.state;
-                    holder.SetValue(Inputs.WiiDrums.G, wdr.G); holder.SetValue(Inputs.WiiDrums.R, wdr.R);
-                    holder.SetValue(Inputs.WiiDrums.Y, wdr.Y); holder.SetValue(Inputs.WiiDrums.B, wdr.B);
-                    holder.SetValue(Inputs.WiiDrums.O, wdr.O); holder.SetValue(Inputs.WiiDrums.BASS, wdr.Bass);
-                    holder.SetValue(Inputs.WiiDrums.UP, wdr.Up); holder.SetValue(Inputs.WiiDrums.DOWN, wdr.Down);
-                    holder.SetValue(Inputs.WiiDrums.LEFT, wdr.Left); holder.SetValue(Inputs.WiiDrums.RIGHT, wdr.Right);
-                    holder.SetValue(Inputs.WiiDrums.START, wdr.Start); holder.SetValue(Inputs.WiiDrums.SELECT, wdr.Select);
+                    inputHolder?.SetValue(Inputs.WiiDrums.G, wdr.G); inputHolder?.SetValue(Inputs.WiiDrums.R, wdr.R);
+                    inputHolder?.SetValue(Inputs.WiiDrums.Y, wdr.Y); inputHolder?.SetValue(Inputs.WiiDrums.B, wdr.B);
+                    inputHolder?.SetValue(Inputs.WiiDrums.O, wdr.O); inputHolder?.SetValue(Inputs.WiiDrums.BASS, wdr.Bass);
+                    inputHolder?.SetValue(Inputs.WiiDrums.UP, wdr.Up); inputHolder?.SetValue(Inputs.WiiDrums.DOWN, wdr.Down);
+                    inputHolder?.SetValue(Inputs.WiiDrums.LEFT, wdr.Left); inputHolder?.SetValue(Inputs.WiiDrums.RIGHT, wdr.Right);
+                    inputHolder?.SetValue(Inputs.WiiDrums.START, wdr.Start); inputHolder?.SetValue(Inputs.WiiDrums.SELECT, wdr.Select);
                     #endregion
                     break;
             }
-            holder?.Update();
+            inputHolder?.Update();
             if (updateTimer != null) updateTimer.Change(100, UPDATE_SPEED);
         }
 

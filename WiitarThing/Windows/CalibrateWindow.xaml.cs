@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NintrollerLib;
+using WiinUSoft.ViewModels;
 
 namespace WiinUSoft
 {
@@ -32,6 +33,7 @@ namespace WiinUSoft
         private List<ControllerType> _calibratedTypes = new List<ControllerType>();
         private CalibrationStep _step = CalibrationStep.ChangeController;
         private CalibrationStorage _calibrations = new CalibrationStorage();
+        private readonly CalibrationViewModel _viewModel = new();
 
         private CalibrateWindow()
         {
@@ -58,6 +60,7 @@ namespace WiinUSoft
         {
             if (_calibratedTypes.Contains(deviceType)) return;
             _changingType = true;
+            _viewModel.CalibrationTarget = deviceType;
             if (deviceType == ControllerType.ProController)
             {
                 _step = CalibrationStep.Pro_joy_center;
@@ -365,6 +368,8 @@ namespace WiinUSoft
                     _calibrations.ProCalibration.RJoy.centerY = group4_center.Value; _calibrations.ProCalibration.RJoy.minY = group4_min.Value; _calibrations.ProCalibration.RJoy.maxY = group4_max.Value; _calibrations.ProCalibration.RJoy.deadY = group4_dead.Value;
                     _calibratedTypes.Add(ControllerType.ProController); break;
             }
+
+            _viewModel.CalibratedTypes.Add(type);
         }
 
         private void nextBtn_Click(object sender, RoutedEventArgs e)
@@ -380,7 +385,7 @@ namespace WiinUSoft
                     case CalibrationStep.Wiimote_acc_y_center: _step = CalibrationStep.Wiimote_acc_y_range; break;
                     case CalibrationStep.Wiimote_acc_y_range: _step = CalibrationStep.Wiimote_acc_z_center; break;
                     case CalibrationStep.Wiimote_acc_z_center: _step = CalibrationStep.Wiimote_acc_z_range; break;
-                    case CalibrationStep.Wiimote_acc_z_range: _calibrationToSave = ControllerType.Wiimote; _step = CalibrationStep.ChangeController; group3_min.IsEnabled = true; group3_max.IsEnabled = true; group3_dead.IsEnabled = true; group5.IsHitTestVisible = true; break;
+                case CalibrationStep.Wiimote_acc_z_range: _calibrationToSave = ControllerType.Wiimote; _step = CalibrationStep.ChangeController; group3_min.IsEnabled = true; group3_max.IsEnabled = true; group3_dead.IsEnabled = true; group5.IsHitTestVisible = true; break;
                     case CalibrationStep.Nunchuk_acc_x_center: _step = CalibrationStep.Nunchuk_acc_x_range; break;
                     case CalibrationStep.Nunchuk_acc_x_range: _step = CalibrationStep.Nunchuk_acc_y_center; break;
                     case CalibrationStep.Nunchuk_acc_y_center: _step = CalibrationStep.Nunchuk_acc_y_range; break;

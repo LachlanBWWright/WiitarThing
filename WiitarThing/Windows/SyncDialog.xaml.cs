@@ -19,6 +19,7 @@ namespace WiinUSoft.Windows
         private bool _startFired;
         private bool _scanRunning;
         private Task? _scanTask;
+        private readonly HashSet<ulong> _notifiedRememberedDevices = new();
 
         public SyncDialog()
         {
@@ -244,6 +245,10 @@ namespace WiinUSoft.Windows
                                                 {
                                                     Prompt("Windows already has this controller paired. Press the controller's buttons to reconnect, or use Remove All Wiimotes first if the pairing is stale.",
                                                         isItalic: true);
+
+                                                    if (_notifiedRememberedDevices.Add(deviceInfo.Address))
+                                                        OnNewDeviceFound();
+
                                                     continue;
                                                 }
 

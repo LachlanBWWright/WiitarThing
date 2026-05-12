@@ -34,7 +34,10 @@
                     <Border x:Name="group1"
                             Width="190"
                             Height="190"
+                            CornerRadius="{ThemeResource ControlCornerRadius}"
                             BorderThickness="1"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             Padding="10">
                         <Grid>
                             <Grid.RowDefinitions>
@@ -104,7 +107,10 @@
                     <Border x:Name="group2"
                             Width="190"
                             Height="190"
+                            CornerRadius="{ThemeResource ControlCornerRadius}"
                             BorderThickness="1"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             Padding="10">
                         <Grid>
                             <Grid.RowDefinitions>
@@ -174,7 +180,10 @@
                     <Border x:Name="group3"
                             Width="190"
                             Height="190"
+                            CornerRadius="{ThemeResource ControlCornerRadius}"
                             BorderThickness="1"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             Padding="10">
                         <Grid>
                             <Grid.RowDefinitions>
@@ -244,7 +253,10 @@
                     <Border x:Name="group4"
                             Width="190"
                             Height="190"
+                            CornerRadius="{ThemeResource ControlCornerRadius}"
                             BorderThickness="1"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             Padding="10">
                         <Grid>
                             <Grid.RowDefinitions>
@@ -315,7 +327,10 @@
                 <!-- IR and Trigger groups -->
                 <!-- group5: IR bounding box -->
                 <Border x:Name="group5"
+                        CornerRadius="{ThemeResource ControlCornerRadius}"
                         BorderThickness="1"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         Padding="10"
                         Margin="0,4,0,0">
                     <Grid>
@@ -386,7 +401,10 @@
                         Margin="0,4,0,0">
                     <Border x:Name="groupL"
                             Visibility="Collapsed"
+                            CornerRadius="{ThemeResource ControlCornerRadius}"
                             BorderThickness="1"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             Padding="10"
                             HorizontalAlignment="Left">
                         <Grid MinWidth="280">
@@ -427,7 +445,10 @@
                     </Border>
                     <Border x:Name="groupR"
                             Visibility="Collapsed"
+                            CornerRadius="{ThemeResource ControlCornerRadius}"
                             BorderThickness="1"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             Padding="10"
                             HorizontalAlignment="Left">
                         <Grid MinWidth="280">

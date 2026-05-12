@@ -19,5 +19,9 @@
   <ItemGroup>
     <Compile Include="..\Shared\Result.cs" Link="Shared\Result.cs" />
     <Compile Include="..\Shared\Errors.cs" Link="Shared\Errors.cs" />
+    <Compile Include="..\WiitarThing\ViewModels\ViewModelBase.cs" Link="ViewModels\ViewModelBase.cs" />
+    <Compile Include="..\WiitarThing\ViewModels\RelayCommand.cs" Link="ViewModels\RelayCommand.cs" />
+    <Compile Include="..\WiitarThing\ViewModels\AsyncRelayCommand.cs" Link="ViewModels\AsyncRelayCommand.cs" />
+    <Compile Include="..\WiitarThing\ViewModels\ControllerMappingViewModel.cs" Link="ViewModels\ControllerMappingViewModel.cs" />
   </ItemGroup>
 </Project>
