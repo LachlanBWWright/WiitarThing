@@ -184,6 +184,9 @@ namespace WiinUSoft
         public bool greedyMode;
         public bool toshibaMode;
         public bool autoRefresh = true;
+        public VirtualOutputMode virtualOutputMode = VirtualOutputMode.ScpXbox360;
+        public GuitarPreviewMode guitarPreviewMode = GuitarPreviewMode.WiiController;
+        public int vJoyDeviceId = 1;
 
         // Parameterless constructor required by XmlSerializer.
         public UserPrefs()

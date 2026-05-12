@@ -221,6 +221,55 @@
                     </Grid>
                 </StackPanel>
 
+                <StackPanel x:Name="virtualOutputPanel"
+                            Orientation="Vertical"
+                            VerticalAlignment="Center"
+                            Visibility="Collapsed"
+                            Spacing="2"
+                            Margin="0,0,6,0">
+                    <ComboBox x:Name="outputModeSelector"
+                              Width="230"
+                              Height="30"
+                              SelectionChanged="outputModeSelector_SelectionChanged"
+                              ToolTipService.ToolTip="Select virtual output backend">
+                        <ComboBoxItem Content="Xbox 360 Gamepad (SCP)"/>
+                        <ComboBoxItem Content="Virtual Guitar (HIDMaestro, experimental)"/>
+                        <ComboBoxItem Content="DirectInput Joystick (vJoy, experimental)"/>
+                    </ComboBox>
+                    <ComboBox x:Name="previewModeSelector"
+                              Width="230"
+                              Height="30"
+                              SelectionChanged="previewModeSelector_SelectionChanged"
+                              ToolTipService.ToolTip="Select guitar preview source">
+                        <ComboBoxItem Content="Wii Controller"/>
+                        <ComboBoxItem Content="Virtual Output"/>
+                    </ComboBox>
+                    <TextBlock x:Name="virtualOutputStatusText"
+                               Text="Virtual output: not connected"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               MaxWidth="230"/>
+                    <TextBlock x:Name="virtualSourceStateText"
+                               Text="Source: n/a"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               MaxWidth="230"/>
+                    <TextBlock x:Name="virtualReadbackStateText"
+                               Text="Readback: n/a"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               MaxWidth="230"/>
+                    <TextBlock x:Name="virtualOutputDiffText"
+                               Text="Mismatch: n/a"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               MaxWidth="230"/>
+                </StackPanel>
+
                 <!-- Debug view (debug builds only) -->
                 <Button x:Name="btnDebugView"
                         Width="34"
@@ -281,7 +330,7 @@
                         HorizontalContentAlignment="Center"
                         VerticalContentAlignment="Center"
                         Content="CONNECT"
-                        ToolTipService.ToolTip="Connect as an Xbox 360 controller"
+                        ToolTipService.ToolTip="Connect using selected virtual output mode"
                         IsEnabledChanged="btnXinput_IsEnabledChanged">
                     <Button.Flyout>
                         <MenuFlyout Opening="XInputFlyout_Opening">

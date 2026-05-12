@@ -12,6 +12,7 @@ using NintrollerLib;
 using Shared;
 using Shared.Windows;
 using Windows.System;
+using WiinUSoft.VirtualOutput;
 
 namespace WiinUSoft
 {
@@ -50,6 +51,12 @@ namespace WiinUSoft
         private static readonly SolidColorBrush FretYBrush = new(global::Windows.UI.Color.FromArgb(255, 255, 200, 61));
         private static readonly SolidColorBrush FretBBrush = new(global::Windows.UI.Color.FromArgb(255, 0, 120, 212));
         private static readonly SolidColorBrush FretOBrush = new(global::Windows.UI.Color.FromArgb(255, 255, 140, 0));
+        private IVirtualControllerBackend? virtualBackend;
+        private IVirtualControllerReadback? virtualReadback;
+        private VirtualControllerIdentity? virtualIdentity;
+        private ControllerOutputState lastSourceOutput = ControllerOutputState.Empty;
+        private ControllerOutputState lastReadbackOutput = ControllerOutputState.Empty;
+        private bool backendWriteFailed;
 
         public event ConnectStateChange? OnConnectStateChange;
         public event ConnectionLost? OnConnectionLost;
@@ -115,6 +122,7 @@ namespace WiinUSoft
         {
             updateTimer?.Dispose();
             updateTimer = null;
+            DisconnectVirtualBackend();
 
             if (device != null)
             {
@@ -179,6 +187,12 @@ namespace WiinUSoft
                 ? Math.Clamp(properties.autoNum, 1, autoConnectNumber.Items.Count - 1)
                 : 0;
             autoConnectNumber.SelectionChanged += AutoConnect_SelectionChanged;
+            outputModeSelector.SelectionChanged -= outputModeSelector_SelectionChanged;
+            outputModeSelector.SelectedIndex = (int)UserPrefs.Instance.virtualOutputMode;
+            outputModeSelector.SelectionChanged += outputModeSelector_SelectionChanged;
+            previewModeSelector.SelectionChanged -= previewModeSelector_SelectionChanged;
+            previewModeSelector.SelectedIndex = (int)UserPrefs.Instance.guitarPreviewMode;
+            previewModeSelector.SelectionChanged += previewModeSelector_SelectionChanged;
         }
 
         public void SetName(string newName)
@@ -192,6 +206,7 @@ namespace WiinUSoft
         {
             device?.StopReading();
             holder?.Close();
+            DisconnectVirtualBackend();
             lowBatteryFired = false;
             ConnectionState = DeviceState.Discovered;
             DispatcherQueue.TryEnqueue(() =>
@@ -215,6 +230,7 @@ namespace WiinUSoft
                     btnDetatch.Visibility = Visibility.Collapsed;
                     btnDebugView.Visibility = Visibility.Collapsed;
                     guitarPreview.Visibility = Visibility.Collapsed;
+                    virtualOutputPanel.Visibility = Visibility.Collapsed;
                     break;
 
                 case DeviceState.Discovered:
@@ -226,6 +242,7 @@ namespace WiinUSoft
                     btnDetatch.Visibility = Visibility.Collapsed;
                     btnDebugView.Visibility = Visibility.Collapsed;
                     guitarPreview.Visibility = Visibility.Collapsed;
+                    virtualOutputPanel.Visibility = Visibility.Collapsed;
                     break;
 
                 case DeviceState.Connected_XInput:
@@ -240,23 +257,62 @@ namespace WiinUSoft
 #else
                     btnDebugView.Visibility = Visibility.Collapsed;
 #endif
-                    guitarPreview.Visibility = device.Type == ControllerType.Guitar ? Visibility.Visible : Visibility.Collapsed;
-                    var xHolder = new Holders.XInputHolder(device.Type);
-                    LoadProfile(properties.profile, xHolder);
-                    var connectResult = xHolder.TryConnectXInput(targetXDevice);
-                    if (connectResult.IsError)
+                    if (device.Type == ControllerType.Guitar)
                     {
                         holder = null;
-                        DispatcherQueue.TryEnqueue(async () =>
+                        guitarPreview.Visibility = Visibility.Visible;
+                        virtualOutputPanel.Visibility = Visibility.Visible;
+                        outputModeSelector.SelectedIndex = (int)UserPrefs.Instance.virtualOutputMode;
+                        previewModeSelector.SelectedIndex = (int)UserPrefs.Instance.guitarPreviewMode;
+                        virtualOutputDiffText.Text = "Mismatch: n/a";
+                        virtualSourceStateText.Text = "Source: n/a";
+                        virtualReadbackStateText.Text = "Readback: n/a";
+
+                        var connectResult = ConnectVirtualBackendForGuitar();
+                        if (connectResult.IsError)
                         {
-                            Detatch();
-                            await ShowVirtualControllerErrorAsync(connectResult.Error);
-                            if (connectResult.Error.Kind == VirtualControllerErrorKind.DriverNotReady)
-                                await VirtualControllerDriverPrompt.PromptInstallAsync(this.XamlRoot);
-                        });
-                        break;
+                            if (IsOptionalVirtualOutputFailure(connectResult.Error))
+                            {
+                                DisconnectVirtualBackend();
+                                DispatcherQueue.TryEnqueue(async () =>
+                                {
+                                    await PromptForVirtualOutputDriverAsync(connectResult.Error);
+                                });
+                            }
+                            else
+                            {
+                                DispatcherQueue.TryEnqueue(async () =>
+                                {
+                                    Detatch();
+                                    await ShowVirtualControllerErrorAsync(connectResult.Error);
+                                    await PromptForVirtualOutputDriverAsync(connectResult.Error);
+                                });
+                                break;
+                            }
+                        }
                     }
-                    holder = xHolder;
+                    else
+                    {
+                        virtualOutputPanel.Visibility = Visibility.Collapsed;
+                        guitarPreview.Visibility = Visibility.Collapsed;
+                        var xHolder = new Holders.XInputHolder(device.Type);
+                        LoadProfile(properties.profile, xHolder);
+                        var connectResult = xHolder.TryConnectXInput(targetXDevice);
+                        if (connectResult.IsError)
+                        {
+                            holder = null;
+                            DispatcherQueue.TryEnqueue(async () =>
+                            {
+                                Detatch();
+                                await ShowVirtualControllerErrorAsync(connectResult.Error);
+                                if (connectResult.Error.Kind == VirtualControllerErrorKind.DriverNotReady)
+                                    await VirtualControllerDriverPrompt.PromptInstallAsync(this.XamlRoot);
+                            });
+                            break;
+                        }
+                        holder = xHolder;
+                    }
+
                     device.SetPlayerLED(targetXDevice);
                     updateTimer = new System.Threading.Timer(HolderUpdate, device, 1000, UPDATE_SPEED);
                     break;
@@ -285,9 +341,9 @@ namespace WiinUSoft
         void device_StateChange(object? sender, NintrollerStateEventArgs e)
         {
             if (updateTimer != null) updateTimer.Change(1000, UPDATE_SPEED);
-            if (holder == null) return;
+            if (holder == null && virtualBackend == null) return;
             RumbleStep();
-            holder.ClearAllValues();
+            holder?.ClearAllValues();
             switch (e.controllerType)
             {
                 case ControllerType.ProController:
@@ -382,15 +438,44 @@ namespace WiinUSoft
                 case ControllerType.Guitar:
                     #region Wii Guitar
                     WiiGuitar wgt = (WiiGuitar)e.state;
-                    holder.SetValue(Inputs.WiiGuitar.G, wgt.G); holder.SetValue(Inputs.WiiGuitar.R, wgt.R);
-                    holder.SetValue(Inputs.WiiGuitar.Y, wgt.Y); holder.SetValue(Inputs.WiiGuitar.B, wgt.B);
-                    holder.SetValue(Inputs.WiiGuitar.O, wgt.O);
-                    holder.SetValue(Inputs.WiiGuitar.UP, wgt.Up); holder.SetValue(Inputs.WiiGuitar.DOWN, wgt.Down);
-                    holder.SetValue(Inputs.WiiGuitar.LEFT, wgt.Left); holder.SetValue(Inputs.WiiGuitar.RIGHT, wgt.Right);
-                    holder.SetValue(Inputs.WiiGuitar.WHAMMYHIGH, wgt.WhammyHigh); holder.SetValue(Inputs.WiiGuitar.WHAMMYLOW, wgt.WhammyLow);
-                    holder.SetValue(Inputs.WiiGuitar.TILTHIGH, wgt.TiltHigh); holder.SetValue(Inputs.WiiGuitar.TILTLOW, wgt.TiltLow);
-                    holder.SetValue(Inputs.WiiGuitar.START, wgt.Start); holder.SetValue(Inputs.WiiGuitar.SELECT, wgt.Select);
-                    DispatcherQueue.TryEnqueue(() => UpdateGuitarPreview(wgt));
+                    holder?.SetValue(Inputs.WiiGuitar.G, wgt.G); holder?.SetValue(Inputs.WiiGuitar.R, wgt.R);
+                    holder?.SetValue(Inputs.WiiGuitar.Y, wgt.Y); holder?.SetValue(Inputs.WiiGuitar.B, wgt.B);
+                    holder?.SetValue(Inputs.WiiGuitar.O, wgt.O);
+                    holder?.SetValue(Inputs.WiiGuitar.UP, wgt.Up); holder?.SetValue(Inputs.WiiGuitar.DOWN, wgt.Down);
+                    holder?.SetValue(Inputs.WiiGuitar.LEFT, wgt.Left); holder?.SetValue(Inputs.WiiGuitar.RIGHT, wgt.Right);
+                    holder?.SetValue(Inputs.WiiGuitar.WHAMMYHIGH, wgt.WhammyHigh); holder?.SetValue(Inputs.WiiGuitar.WHAMMYLOW, wgt.WhammyLow);
+                    holder?.SetValue(Inputs.WiiGuitar.TILTHIGH, wgt.TiltHigh); holder?.SetValue(Inputs.WiiGuitar.TILTLOW, wgt.TiltLow);
+                    holder?.SetValue(Inputs.WiiGuitar.START, wgt.Start); holder?.SetValue(Inputs.WiiGuitar.SELECT, wgt.Select);
+
+                    lastSourceOutput = ControllerOutputState.FromWiiGuitar(wgt);
+                    if (virtualBackend != null)
+                    {
+                        var writeResult = virtualBackend.Update(lastSourceOutput);
+                        if (writeResult.IsError)
+                        {
+                            if (ShouldKeepVirtualOutputErrorInline(writeResult.Error))
+                            {
+                                DispatcherQueue.TryEnqueue(() =>
+                                {
+                                    virtualOutputStatusText.Text = $"Virtual output: {virtualBackend.DisplayName} ({writeResult.Error.Message})";
+                                });
+                            }
+                            else if (!backendWriteFailed)
+                            {
+                                backendWriteFailed = true;
+                                var errorToShow = writeResult.Error;
+                                _ = DispatcherQueue.TryEnqueue(async () => 
+                                {
+                                    await ShowVirtualControllerErrorAsync(errorToShow);
+                                });
+                            }
+                        }
+                        else
+                        {
+                            backendWriteFailed = false;
+                        }
+                    }
+                    DispatcherQueue.TryEnqueue(UpdateGuitarPreviewPanel);
                     #endregion
                     break;
                 case ControllerType.Drums:
@@ -405,7 +490,7 @@ namespace WiinUSoft
                     #endregion
                     break;
             }
-            holder.Update();
+            holder?.Update();
             if (updateTimer != null) updateTimer.Change(100, UPDATE_SPEED);
         }
 
@@ -454,22 +539,54 @@ namespace WiinUSoft
             previousIR = wm.irSensor;
         }
 
-        private void UpdateGuitarPreview(WiiGuitar guitar)
+        private void UpdateGuitarPreviewPanel()
         {
             guitarPreview.Visibility = Visibility.Visible;
-            SetFretPreview(fretG, guitar.G, FretGBrush);
-            SetFretPreview(fretR, guitar.R, FretRBrush);
-            SetFretPreview(fretY, guitar.Y, FretYBrush);
-            SetFretPreview(fretB, guitar.B, FretBBrush);
-            SetFretPreview(fretO, guitar.O, FretOBrush);
-            strumIndicator.Text = GetStrumPreview(guitar);
+            ControllerOutputState previewState = lastSourceOutput;
 
-            SetTextPreview(previewWH, guitar.WhammyHigh > 0.05f);
-            SetTextPreview(previewWL, guitar.WhammyLow < -0.05f);
-            SetTextPreview(previewTH, guitar.TiltHigh > 0.05f);
-            SetTextPreview(previewTL, guitar.TiltLow < -0.05f);
-            SetTextPreview(previewStart, guitar.Start);
-            SetTextPreview(previewSelect, guitar.Select);
+            if (UserPrefs.Instance.guitarPreviewMode == GuitarPreviewMode.VirtualOutput)
+            {
+                var readResult = TryReadVirtualOutputState();
+                if (readResult.IsOk)
+                {
+                    previewState = readResult.Value;
+                    lastReadbackOutput = previewState;
+                }
+                else
+                {
+                    virtualReadbackStateText.Text = "Readback: unavailable";
+                    virtualOutputDiffText.Text = $"Output preview unavailable: {readResult.Error.Message}";
+                }
+            }
+            else
+            {
+                lastReadbackOutput = ControllerOutputState.Empty;
+                virtualReadbackStateText.Text = "Readback: disabled";
+            }
+
+            UpdateGuitarPreview(previewState);
+            virtualSourceStateText.Text = $"Source: {lastSourceOutput.ToCompactDebugString()}";
+            virtualReadbackStateText.Text = lastReadbackOutput == ControllerOutputState.Empty
+                ? virtualReadbackStateText.Text
+                : $"Readback: {lastReadbackOutput.ToCompactDebugString()}";
+            virtualOutputDiffText.Text = BuildMismatchSummary(lastSourceOutput, lastReadbackOutput);
+        }
+
+        private void UpdateGuitarPreview(ControllerOutputState state)
+        {
+            SetFretPreview(fretG, state.Green, FretGBrush);
+            SetFretPreview(fretR, state.Red, FretRBrush);
+            SetFretPreview(fretY, state.Yellow, FretYBrush);
+            SetFretPreview(fretB, state.Blue, FretBBrush);
+            SetFretPreview(fretO, state.Orange, FretOBrush);
+            strumIndicator.Text = GetStrumPreview(state);
+
+            SetTextPreview(previewWH, state.Whammy > 0.05f);
+            SetTextPreview(previewWL, state.Whammy < -0.05f);
+            SetTextPreview(previewTH, state.Tilt > 0.05f);
+            SetTextPreview(previewTL, state.Tilt < -0.05f);
+            SetTextPreview(previewStart, state.Start);
+            SetTextPreview(previewSelect, state.Select);
         }
 
         private static void SetFretPreview(Microsoft.UI.Xaml.Controls.Border fret, bool pressed, SolidColorBrush activeBrush)
@@ -485,51 +602,236 @@ namespace WiinUSoft
                 : Microsoft.UI.Text.FontWeights.Normal;
         }
 
-        private static string GetStrumPreview(WiiGuitar guitar)
+        private static string GetStrumPreview(ControllerOutputState state)
         {
-            if (guitar.Up && guitar.Right) return "↗";
-            if (guitar.Up && guitar.Left) return "↖";
-            if (guitar.Down && guitar.Right) return "↘";
-            if (guitar.Down && guitar.Left) return "↙";
-            if (guitar.Up) return "↑";
-            if (guitar.Down) return "↓";
-            if (guitar.Left) return "←";
-            if (guitar.Right) return "→";
+            if (state.StrumUp && state.DPadRight) return "↗";
+            if (state.StrumUp && state.DPadLeft) return "↖";
+            if (state.StrumDown && state.DPadRight) return "↘";
+            if (state.StrumDown && state.DPadLeft) return "↙";
+            if (state.StrumUp) return "↑";
+            if (state.StrumDown) return "↓";
+            if (state.DPadLeft) return "←";
+            if (state.DPadRight) return "→";
             return "•";
+        }
+
+        private Result<Unit, VirtualControllerError> ConnectVirtualBackendForGuitar()
+        {
+            DisconnectVirtualBackend();
+            backendWriteFailed = false;
+            lastReadbackOutput = ControllerOutputState.Empty;
+
+            VirtualOutputMode selectedMode = UserPrefs.Instance.virtualOutputMode;
+            virtualBackend = VirtualControllerBackendFactory.Create(selectedMode);
+            if (selectedMode == VirtualOutputMode.HidMaestroExperimental
+                && UserPrefs.Instance.guitarPreviewMode != GuitarPreviewMode.VirtualOutput)
+            {
+                UserPrefs.Instance.guitarPreviewMode = GuitarPreviewMode.VirtualOutput;
+                var saveResult = UserPrefs.SavePrefs();
+                if (saveResult.IsError)
+                    System.Diagnostics.Debug.WriteLine(saveResult.Error.ToDisplayString());
+
+                previewModeSelector.SelectionChanged -= previewModeSelector_SelectionChanged;
+                previewModeSelector.SelectedIndex = (int)GuitarPreviewMode.VirtualOutput;
+                previewModeSelector.SelectionChanged += previewModeSelector_SelectionChanged;
+            }
+
+            int targetId = selectedMode == VirtualOutputMode.VJoyExperimental
+                ? Math.Max(1, UserPrefs.Instance.vJoyDeviceId)
+                : targetXDevice;
+
+            var connectResult = virtualBackend.Connect(targetId, ControllerType.Guitar);
+            if (connectResult.IsError)
+            {
+                virtualOutputStatusText.Text = $"Virtual output: {virtualBackend.DisplayName} (failed)";
+                virtualBackend.Dispose();
+                virtualBackend = null;
+                return connectResult;
+            }
+
+            var identityResult = virtualBackend.GetIdentity();
+            if (identityResult.IsOk)
+            {
+                virtualIdentity = identityResult.Value;
+                virtualOutputStatusText.Text = $"Virtual output: {virtualIdentity.ToCompactDisplayString()}";
+            }
+            else
+            {
+                virtualOutputStatusText.Text = $"Virtual output: {virtualBackend.DisplayName}";
+            }
+
+            var readbackResult = virtualBackend.CreateReadback();
+            if (readbackResult.IsOk)
+            {
+                virtualReadback = readbackResult.Value;
+                if (virtualIdentity != null)
+                {
+                    var attachResult = virtualReadback.Attach(virtualIdentity);
+                    if (attachResult.IsError)
+                    {
+                        virtualReadback.Dispose();
+                        virtualReadback = null;
+                    }
+                }
+
+                if (virtualReadback != null)
+                    virtualReadbackStateText.Text = "Readback: connected";
+            }
+
+            if (virtualReadback == null)
+            {
+                virtualOutputDiffText.Text = "Output preview unavailable";
+                virtualReadbackStateText.Text = "Readback: unavailable";
+            }
+
+            return Result<Unit, VirtualControllerError>.Ok(Unit.Value);
+        }
+
+        private Result<ControllerOutputState, VirtualControllerError> TryReadVirtualOutputState()
+        {
+            if (virtualReadback == null)
+            {
+                return Result<ControllerOutputState, VirtualControllerError>.Err(
+                    VirtualControllerError.DriverNotReady("Output preview unavailable for the selected backend."));
+            }
+
+            try
+            {
+                return virtualReadback.ReadState();
+            }
+            catch (Exception ex)
+            {
+                return Result<ControllerOutputState, VirtualControllerError>.Err(
+                    VirtualControllerError.WriteFailed($"Readback failed: {ex.Message}"));
+            }
+        }
+
+        private static string BuildMismatchSummary(ControllerOutputState source, ControllerOutputState output)
+        {
+            if (output == ControllerOutputState.Empty)
+                return "Mismatch: n/a";
+
+            var mismatch = new List<string>(14);
+            bool skipAnalogReadbackMismatch = UserPrefs.Instance.virtualOutputMode == VirtualOutputMode.HidMaestroExperimental;
+            if (source.Green != output.Green) mismatch.Add("G");
+            if (source.Red != output.Red) mismatch.Add("R");
+            if (source.Yellow != output.Yellow) mismatch.Add("Y");
+            if (source.Blue != output.Blue) mismatch.Add("B");
+            if (source.Orange != output.Orange) mismatch.Add("O");
+            if (source.StrumUp != output.StrumUp) mismatch.Add("SU");
+            if (source.StrumDown != output.StrumDown) mismatch.Add("SD");
+            if (source.DPadLeft != output.DPadLeft) mismatch.Add("DL");
+            if (source.DPadRight != output.DPadRight) mismatch.Add("DR");
+            if (source.Start != output.Start) mismatch.Add("St");
+            if (source.Select != output.Select) mismatch.Add("Sl");
+            if (source.Home != output.Home) mismatch.Add("Hm");
+            if (!skipAnalogReadbackMismatch && Math.Abs(source.Whammy - output.Whammy) > 0.12f) mismatch.Add("Wh");
+            if (!skipAnalogReadbackMismatch && Math.Abs(source.Tilt - output.Tilt) > 0.12f) mismatch.Add("Tl");
+
+            if (mismatch.Count == 0)
+                return "Mismatch: none";
+
+            return $"Mismatch: {string.Join(", ", mismatch)}";
+        }
+
+        private void DisconnectVirtualBackend()
+        {
+            if (virtualReadback != null)
+            {
+                virtualReadback.Dispose();
+                virtualReadback = null;
+            }
+
+            if (virtualBackend != null)
+            {
+                virtualBackend.Disconnect();
+                virtualBackend.Dispose();
+                virtualBackend = null;
+            }
+
+            virtualIdentity = null;
+            lastReadbackOutput = ControllerOutputState.Empty;
+            backendWriteFailed = false;
+            if (virtualOutputStatusText != null)
+                virtualOutputStatusText.Text = "Virtual output: not connected";
+            if (virtualSourceStateText != null)
+                virtualSourceStateText.Text = "Source: n/a";
+            if (virtualReadbackStateText != null)
+                virtualReadbackStateText.Text = "Readback: n/a";
         }
 
         private async System.Threading.Tasks.Task ShowVirtualControllerErrorAsync(VirtualControllerError error)
         {
-            if (error.Kind == VirtualControllerErrorKind.DriverNotReady)
+            if (error.Kind == VirtualControllerErrorKind.DriverNotReady
+                && (UserPrefs.Instance.virtualOutputMode == VirtualOutputMode.ScpXbox360
+                    || UserPrefs.Instance.virtualOutputMode == VirtualOutputMode.HidMaestroExperimental
+                    || UserPrefs.Instance.virtualOutputMode == VirtualOutputMode.VJoyExperimental))
+                return;
+
+            if (this.XamlRoot == null)
                 return;
 
             var dlg = new ContentDialog
             {
-                Title = "Virtual Xbox Controller Failed",
+                Title = "Virtual Output Failed",
                 Content = error.ToDisplayString(),
                 PrimaryButtonText = "OK",
                 XamlRoot = this.XamlRoot
             };
 
-            await dlg.ShowAsync();
+            await VirtualControllerDriverPrompt.ShowDialogAsync(dlg);
+        }
+
+        private async System.Threading.Tasks.Task PromptForVirtualOutputDriverAsync(VirtualControllerError error)
+        {
+            if (error.Kind != VirtualControllerErrorKind.DriverNotReady)
+                return;
+
+            switch (UserPrefs.Instance.virtualOutputMode)
+            {
+                case VirtualOutputMode.ScpXbox360:
+                    await VirtualControllerDriverPrompt.PromptInstallAsync(this.XamlRoot);
+                    break;
+
+                case VirtualOutputMode.VJoyExperimental:
+                    await VirtualControllerDriverPrompt.PromptVJoyInstallAsync(this.XamlRoot);
+                    break;
+
+                case VirtualOutputMode.HidMaestroExperimental:
+                    await VirtualControllerDriverPrompt.PromptHidMaestroInstallAsync(this.XamlRoot);
+                    break;
+            }
+        }
+
+        private static bool IsOptionalVirtualOutputFailure(VirtualControllerError error)
+        {
+            return (UserPrefs.Instance.virtualOutputMode == VirtualOutputMode.HidMaestroExperimental
+                    || UserPrefs.Instance.virtualOutputMode == VirtualOutputMode.VJoyExperimental)
+                && error.Kind == VirtualControllerErrorKind.DriverNotReady;
+        }
+
+        private static bool ShouldKeepVirtualOutputErrorInline(VirtualControllerError error)
+        {
+            return UserPrefs.Instance.virtualOutputMode == VirtualOutputMode.HidMaestroExperimental
+                && (error.Kind == VirtualControllerErrorKind.ConnectionFailed
+                    || error.Kind == VirtualControllerErrorKind.WriteFailed);
         }
 
         private void HolderUpdate(object? holderState)
         {
-            if (holder == null) return;
-            holder.Update();
+            holder?.Update();
             RumbleStep();
             SetBatteryStatus(device.BatteryLevel == BatteryStatus.Low);
         }
 
         void RumbleStep()
         {
-            if (holder == null) return;
+            if (holder == null && virtualBackend == null) return;
 
             if (identifying) return;
             bool cur = device.RumbleEnabled;
             if (!properties.useRumble) { if (cur) device.RumbleEnabled = false; return; }
-            rumbleAmount = holder.RumbleAmount;
+            rumbleAmount = holder?.RumbleAmount ?? ((virtualBackend as ScpXInputBackend)?.LastRumbleAmount ?? 0);
             float modifier = properties.rumbleIntensity * 0.5f;
             float dutyCycle = rumbleAmount < 256
                 ? rumbleSlowMult * rumbleAmount / 256f
@@ -816,6 +1118,41 @@ namespace WiinUSoft
         private void btnXinput_IsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
             btnXinput.Visibility = (bool)e.NewValue ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private async void outputModeSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (outputModeSelector.SelectedIndex < 0)
+                return;
+
+            UserPrefs.Instance.virtualOutputMode = (VirtualOutputMode)outputModeSelector.SelectedIndex;
+            var saveResult = UserPrefs.SavePrefs();
+            if (saveResult.IsError)
+                System.Diagnostics.Debug.WriteLine(saveResult.Error.ToDisplayString());
+
+            if (device.Type != ControllerType.Guitar || ConnectionState != DeviceState.Connected_XInput)
+                return;
+
+            var reconnect = ConnectVirtualBackendForGuitar();
+            if (reconnect.IsError)
+            {
+                await ShowVirtualControllerErrorAsync(reconnect.Error);
+                await PromptForVirtualOutputDriverAsync(reconnect.Error);
+            }
+        }
+
+        private void previewModeSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (previewModeSelector.SelectedIndex < 0)
+                return;
+
+            UserPrefs.Instance.guitarPreviewMode = (GuitarPreviewMode)previewModeSelector.SelectedIndex;
+            var saveResult = UserPrefs.SavePrefs();
+            if (saveResult.IsError)
+                System.Diagnostics.Debug.WriteLine(saveResult.Error.ToDisplayString());
+
+            if (device.Type == ControllerType.Guitar && ConnectionState == DeviceState.Connected_XInput)
+                UpdateGuitarPreviewPanel();
         }
 
         private void btnEditName_Click(object sender, RoutedEventArgs e)

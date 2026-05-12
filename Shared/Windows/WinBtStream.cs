@@ -135,8 +135,13 @@ namespace Shared.Windows
             if (string.IsNullOrWhiteSpace(_hidPath))
                 return Result<WinBtStream, HidStreamError>.Err(HidStreamError.InvalidPath("Device path is empty.", _hidPath));
 
+            if (_fileStream?.CanRead == true && _fileStream.CanWrite)
+                return Result<WinBtStream, HidStreamError>.Ok(this);
+
             try
             {
+                Close();
+
                 if (OverrideSharingMode)
                 {
                     _fileHandle = CreateFile(_hidPath, FileAccess.ReadWrite, OverridenFileShare, IntPtr.Zero, FileMode.Open, EFileAttributes.Overlapped, IntPtr.Zero);
@@ -146,18 +151,28 @@ namespace Shared.Windows
                     // Open the file handle with the specified sharing mode and an overlapped file attribute flag for asynchronous operation
                     _fileHandle = CreateFile(_hidPath, FileAccess.ReadWrite, SharingMode, IntPtr.Zero, FileMode.Open, EFileAttributes.Overlapped, IntPtr.Zero);
                 }
+
+                if (_fileHandle == null || _fileHandle.IsInvalid)
+                {
+                    _fileHandle?.Close();
+                    _fileHandle = null;
+                    return Result<WinBtStream, HidStreamError>.Err(
+                        HidStreamError.OpenFailed("Failed to open HID stream.", _hidPath));
+                }
+
                 _fileStream = new FileStream(_fileHandle, FileAccess.ReadWrite, 22, true);
 
                 return Result<WinBtStream, HidStreamError>.Ok(this);
             }
             catch (UnauthorizedAccessException ex)
             {
+                Close();
                 _fileHandle = null;
                 return Result<WinBtStream, HidStreamError>.Err(HidStreamError.AccessDenied("Access denied opening HID stream.", _hidPath, ex));
             }
             catch (IOException ex)
             {
-                _fileHandle = null;
+                Close();
                 if (SharingMode == FileShare.None)
                 {
                     SharingMode = FileShare.ReadWrite;
@@ -168,7 +183,7 @@ namespace Shared.Windows
             }
             catch (Exception ex)
             {
-                _fileHandle = null;
+                Close();
                 if (SharingMode == FileShare.None)
                 {
                     SharingMode = FileShare.ReadWrite;
@@ -436,7 +451,9 @@ namespace Shared.Windows
         public override void Close()
         {
             _fileStream?.Close();
+            _fileStream = null;
             _fileHandle?.Close();
+            _fileHandle = null;
         }
 
         public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback? callback, object? state)

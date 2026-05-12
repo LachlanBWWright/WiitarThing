@@ -242,8 +242,8 @@ namespace WiinUSoft.Windows
 
                                                 if (deviceInfo.fRemembered)
                                                 {
-                                                    Count += 1;
-                                                    OnNewDeviceFound();
+                                                    Prompt("Windows already has this controller paired. Press the controller's buttons to reconnect, or use Remove All Wiimotes first if the pairing is stale.",
+                                                        isItalic: true);
                                                     continue;
                                                 }
 

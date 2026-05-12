@@ -2,18 +2,49 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using ScpControl;
 using WiinUSoft.Holders;
+using WiinUSoft.VirtualOutput;
 
 namespace WiinUSoft
 {
     internal static class VirtualControllerDriverPrompt
     {
+        private const string HidMaestroDownloadUrl = "https://hidmaestro.org/";
+        private const string VJoyDownloadUrl = "https://github.com/shauleiz/vJoy/releases";
         private static bool _startupPromptShown;
-        private static bool _dialogOpen;
+        private static readonly SemaphoreSlim DialogGate = new(1, 1);
+
+        public static async Task<ContentDialogResult> ShowDialogAsync(ContentDialog dialog)
+        {
+            await DialogGate.WaitAsync();
+            try
+            {
+                for (int attempt = 0; attempt < 10; attempt++)
+                {
+                    try
+                    {
+                        return await dialog.ShowAsync();
+                    }
+                    catch (COMException ex) when (ex.Message.Contains("Only a single ContentDialog can be open", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Debug.WriteLine(ex);
+                        await Task.Delay(200);
+                    }
+                }
+
+                return ContentDialogResult.None;
+            }
+            finally
+            {
+                DialogGate.Release();
+            }
+        }
 
         public static bool IsDriverAvailable()
         {
@@ -39,10 +70,30 @@ namespace WiinUSoft
             await PromptInstallAsync(xamlRoot, startupCheck: true);
         }
 
+        public static async Task CheckVJoyAtStartupAsync()
+        {
+            if (_startupPromptShown || VJoyBackend.IsDriverAvailable()) return;
+
+            XamlRoot? xamlRoot = await WaitForXamlRootAsync();
+            if (xamlRoot == null) return;
+
+            _startupPromptShown = true;
+            await PromptVJoyInstallAsync(xamlRoot);
+        }
+
+        public static async Task CheckHidMaestroAtStartupAsync()
+        {
+            if (_startupPromptShown || HidMaestroBackend.IsRuntimeAvailable()) return;
+
+            XamlRoot? xamlRoot = await WaitForXamlRootAsync();
+            if (xamlRoot == null) return;
+
+            _startupPromptShown = true;
+            await PromptHidMaestroInstallAsync(xamlRoot);
+        }
+
         public static async Task<bool> PromptInstallAsync(XamlRoot? xamlRoot, bool startupCheck = false)
         {
-            if (_dialogOpen) return false;
-
             xamlRoot = TryResolveXamlRoot(xamlRoot);
             if (xamlRoot == null) return false;
 
@@ -62,16 +113,7 @@ namespace WiinUSoft
                 XamlRoot = xamlRoot
             };
 
-            _dialogOpen = true;
-            ContentDialogResult result;
-            try
-            {
-                result = await dlg.ShowAsync();
-            }
-            finally
-            {
-                _dialogOpen = false;
-            }
+            ContentDialogResult result = await ShowDialogAsync(dlg);
 
             if (result == ContentDialogResult.Secondary)
                 return IsDriverAvailable();
@@ -92,8 +134,81 @@ namespace WiinUSoft
                 CloseButtonText = "OK",
                 XamlRoot = xamlRoot
             };
-            await restartDlg.ShowAsync();
+            await ShowDialogAsync(restartDlg);
             return false;
+        }
+
+        public static async Task<bool> PromptVJoyInstallAsync(XamlRoot? xamlRoot)
+        {
+            xamlRoot = TryResolveXamlRoot(xamlRoot);
+            if (xamlRoot == null) return false;
+
+            string? dllPath = VJoyBackend.FindVJoyInterfacePath();
+            if (dllPath != null)
+                return VJoyBackend.IsDriverAvailable();
+
+            string? installerPath = FindVJoyInstallerPath();
+            string content = installerPath == null
+                ? "WiitarThing could not find vJoyInterface.dll. Install vJoy, then restart WiitarThing. If vJoy is already installed, make sure vJoyInterface.dll is available in the vJoy installation folder or next to WiitarThing."
+                : "WiitarThing could not find vJoyInterface.dll. Install vJoy, then restart WiitarThing before selecting the vJoy backend.";
+
+            var dlg = new ContentDialog
+            {
+                Title = "vJoy Required",
+                Content = content,
+                PrimaryButtonText = installerPath == null ? "Open vJoy Download" : "Install vJoy",
+                SecondaryButtonText = "Retry",
+                CloseButtonText = "Cancel",
+                XamlRoot = xamlRoot
+            };
+
+            ContentDialogResult result = await ShowDialogAsync(dlg);
+
+            if (result == ContentDialogResult.Secondary)
+                return VJoyBackend.IsDriverAvailable();
+
+            if (result != ContentDialogResult.Primary)
+                return false;
+
+            if (installerPath != null)
+                return await LaunchInstallerAsync(installerPath, xamlRoot);
+
+            return await LaunchDownloadPageAsync(VJoyDownloadUrl, xamlRoot);
+        }
+
+        public static async Task<bool> PromptHidMaestroInstallAsync(XamlRoot? xamlRoot)
+        {
+            xamlRoot = TryResolveXamlRoot(xamlRoot);
+            if (xamlRoot == null) return false;
+
+            string? dllPath = HidMaestroBackend.FindHidMaestroPath();
+            bool bundled = dllPath != null;
+            if (bundled && HidMaestroBackend.IsRuntimeAvailable())
+                return true;
+
+            string content = bundled
+                ? "HIDMaestro.Core.dll is bundled, but the HIDMaestro driver is not installed or is not ready. Restart WiitarThing as administrator and select the HIDMaestro backend again to install the embedded driver."
+                : "WiitarThing could not find HIDMaestro.Core.dll. Bundle it under Drivers\\HIDMaestro or install HIDMaestro, then restart WiitarThing.";
+
+            var dlg = new ContentDialog
+            {
+                Title = "HIDMaestro Required",
+                Content = content,
+                PrimaryButtonText = bundled ? "Retry" : "Open HIDMaestro Download",
+                SecondaryButtonText = bundled ? "" : "Retry",
+                CloseButtonText = "Cancel",
+                XamlRoot = xamlRoot
+            };
+
+            ContentDialogResult result = await ShowDialogAsync(dlg);
+
+            if (result == ContentDialogResult.Secondary || (bundled && result == ContentDialogResult.Primary))
+                return HidMaestroBackend.IsRuntimeAvailable();
+
+            if (result != ContentDialogResult.Primary)
+                return false;
+
+            return await LaunchDownloadPageAsync(HidMaestroDownloadUrl, xamlRoot);
         }
 
         private static async Task<XamlRoot?> WaitForXamlRootAsync()
@@ -153,7 +268,7 @@ namespace WiinUSoft
                     CloseButtonText = "OK",
                     XamlRoot = xamlRoot
                 };
-                await dlg.ShowAsync();
+                await ShowDialogAsync(dlg);
                 return false;
             }
         }
@@ -173,6 +288,51 @@ namespace WiinUSoft
             }
 
             return null;
+        }
+
+        private static string? FindVJoyInstallerPath()
+        {
+            foreach (string root in GetSearchRoots())
+            {
+                foreach (string fileName in new[] { "vJoySetup.exe", "vJoySetup64.exe", "vJoyInstall.exe" })
+                {
+                    string path = Path.Combine(root, "Installers", "Drivers", "vJoy", fileName);
+                    if (File.Exists(path)) return path;
+
+                    path = Path.Combine(root, "Drivers", "vJoy", fileName);
+                    if (File.Exists(path)) return path;
+
+                    path = Path.Combine(root, "vJoy", fileName);
+                    if (File.Exists(path)) return path;
+                }
+            }
+
+            return null;
+        }
+
+        private static async Task<bool> LaunchDownloadPageAsync(string url, XamlRoot xamlRoot)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo(url)
+                {
+                    UseShellExecute = true
+                });
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
+                var dlg = new ContentDialog
+                {
+                    Title = "Could Not Open Download Page",
+                    Content = $"Open this page manually to install vJoy: {url}",
+                    CloseButtonText = "OK",
+                    XamlRoot = xamlRoot
+                };
+                await ShowDialogAsync(dlg);
+                return false;
+            }
         }
 
         private static string[] GetSearchRoots()

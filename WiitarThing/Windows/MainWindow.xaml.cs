@@ -353,7 +353,20 @@ namespace WiinUSoft
             }
 
             Refresh();
-            _ = VirtualControllerDriverPrompt.CheckAtStartupAsync();
+            switch (UserPrefs.Instance.virtualOutputMode)
+            {
+                case VirtualOutputMode.ScpXbox360:
+                    _ = VirtualControllerDriverPrompt.CheckAtStartupAsync();
+                    break;
+
+                case VirtualOutputMode.VJoyExperimental:
+                    _ = VirtualControllerDriverPrompt.CheckVJoyAtStartupAsync();
+                    break;
+
+                case VirtualOutputMode.HidMaestroExperimental:
+                    _ = VirtualControllerDriverPrompt.CheckHidMaestroAtStartupAsync();
+                    break;
+            }
             AutoRefresh(menu_AutoRefresh.IsChecked && ApplicationIsActivated());
         }
 

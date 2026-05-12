@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <!-- WinUI 3 with net8.0-windows -->
-    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <!-- HIDMaestro.Core targets .NET 10 / Windows 10.0.26100.0. -->
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
     <UseWinUI>true</UseWinUI>
@@ -63,6 +63,9 @@
       <Link>Drivers\SCP_Driver\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Drivers\HIDMaestro\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="GHWT_Wii_Guitar.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -71,6 +74,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Nintroller\Nintroller.csproj" />
     <ProjectReference Include="..\Scp\ScpControl\ScpControl.csproj" />
+    <Reference Include="HIDMaestro.Core">
+      <HintPath>Drivers\HIDMaestro\HIDMaestro.Core.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
@@ -81,7 +88,6 @@
   <Import Project="..\Shared\Shared.projitems" Label="Shared" />
 
 </Project>
-
 
 
 
