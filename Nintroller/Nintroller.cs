@@ -44,6 +44,7 @@ namespace NintrollerLib
         // Read/Writing Variables
         private Stream           _stream = null!;             // Read and Write Stream
         private bool             _reading    = false;        // true if actively reading
+        private bool             _disconnectNotified;
         private readonly object  _readingObj = new object(); // for locking/blocking
         
         // help with parsing Reports
@@ -389,13 +390,22 @@ namespace NintrollerLib
         public void BeginReading()
         {
             _connected = true;
-            
-            // kickoff the reading process if it hasn't started already
-            if (!_reading && _stream != null)
+
+            bool shouldStart;
+            lock (_readingObj)
             {
-                _reading = true;
-                ReadAsync();
+                // Serialize starts so repeated connection notifications cannot
+                // create overlapping read chains.
+                shouldStart = !_reading && _stream != null;
+                if (shouldStart)
+                {
+                    _reading = true;
+                    _disconnectNotified = false;
+                }
             }
+
+            if (shouldStart)
+                ReadAsync();
         }
 
         /// <summary>
@@ -446,21 +456,20 @@ namespace NintrollerLib
                         ar = _stream.BeginRead(readResult, 0, readResult.Length, RecieveDataAsync, readResult);
                         wh = ar.AsyncWaitHandle;
                     }
-                    catch (ObjectDisposedException)
+                    catch (ObjectDisposedException ex)
                     {
                         Log("Can't read, the stream was disposed");
+                        NotifyDisconnected(ex);
                     }
                     catch (IOException e)
                     {
                         Log("Error Begining Read, is it not connected?");
-                        StopReading();
-                        Disconnected?.Invoke(this, new DisconnectedEventArgs(e));
+                        NotifyDisconnected(e);
                     }
                     catch (InvalidOperationException e)
                     {
                         Log("Error Begining Read, stream is not in a readable state.");
-                        StopReading();
-                        Disconnected?.Invoke(this, new DisconnectedEventArgs(e));
+                        NotifyDisconnected(e);
                     }
                 }
 
@@ -469,7 +478,7 @@ namespace NintrollerLib
                 {
                     try
                     {
-                        if (wh != null && !wh.SafeWaitHandle.IsClosed && !wh.WaitOne(3000))
+                        if (wh != null && !wh.SafeWaitHandle.IsClosed && !wh.WaitOne(3000) && _reading && _connected)
                         {
                             // If read is not completed send a status report to check connection status
                             GetStatus();
@@ -478,6 +487,10 @@ namespace NintrollerLib
                     catch (ObjectDisposedException)
                     {
                         Log("Disposed");
+                    }
+                    finally
+                    {
+                        wh?.Dispose();
                     }
                 });
                 t.Start();
@@ -513,8 +526,7 @@ namespace NintrollerLib
                 Log("IO Error, is the device not connected?");
                 if (_reading || _connected)
                 {
-                    StopReading();
-                    Disconnected?.Invoke(this, new DisconnectedEventArgs(e));
+                    NotifyDisconnected(e);
                 }
             }
             catch (ObjectDisposedException e)
@@ -522,8 +534,7 @@ namespace NintrollerLib
                 Log("Read failed because the stream is disposed.");
                 if (_reading || _connected)
                 {
-                    StopReading();
-                    Disconnected?.Invoke(this, new DisconnectedEventArgs(e));
+                    NotifyDisconnected(e);
                 }
             }
         }
@@ -601,14 +612,17 @@ namespace NintrollerLib
             catch (IOException ex)
             {
                 Log("Error while writing to the stream: " + ex.Message);
+                NotifyDisconnected(ex);
             }
             catch (ObjectDisposedException ex)
             {
                 Log("Error while writing to the stream: " + ex.Message);
+                NotifyDisconnected(ex);
             }
             catch (InvalidOperationException ex)
             {
                 Log("Error while writing to the stream: " + ex.Message);
+                NotifyDisconnected(ex);
             }
         }
 
@@ -1451,8 +1465,26 @@ namespace NintrollerLib
         /// </summary>
         public void StopReading()
         {
-            _reading = false;
-            _connected = false;
+            lock (_readingObj)
+            {
+                _reading = false;
+                _connected = false;
+            }
+        }
+
+        private void NotifyDisconnected(Exception exception)
+        {
+            lock (_readingObj)
+            {
+                if (_disconnectNotified)
+                    return;
+
+                _disconnectNotified = true;
+                _reading = false;
+                _connected = false;
+            }
+
+            Disconnected?.Invoke(this, new DisconnectedEventArgs(exception));
         }
 
 #endregion
