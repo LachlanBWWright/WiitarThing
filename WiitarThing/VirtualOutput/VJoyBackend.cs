@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using NintrollerLib;
 using Shared;
@@ -122,7 +123,17 @@ internal sealed class VJoyBackend : IVirtualControllerBackend
             ResetVJD(_deviceId);
             return Result<Unit, VirtualControllerError>.Ok(Unit.Value);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return Result<Unit, VirtualControllerError>.Err(
+                VirtualControllerError.ConnectionFailed($"vJoy connection failed: {ex.Message}", slotOrDeviceId, ex));
+        }
+        catch (ArgumentException ex)
+        {
+            return Result<Unit, VirtualControllerError>.Err(
+                VirtualControllerError.InvalidMapping($"vJoy connection failed: {ex.Message}", slotOrDeviceId));
+        }
+        catch (SEHException ex)
         {
             return Result<Unit, VirtualControllerError>.Err(
                 VirtualControllerError.ConnectionFailed($"vJoy connection failed: {ex.Message}", slotOrDeviceId, ex));
@@ -164,7 +175,12 @@ internal sealed class VJoyBackend : IVirtualControllerBackend
 
             return Result<Unit, VirtualControllerError>.Ok(Unit.Value);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return Result<Unit, VirtualControllerError>.Err(
+                VirtualControllerError.WriteFailed($"vJoy update failed: {ex.Message}", (int)_deviceId, ex));
+        }
+        catch (SEHException ex)
         {
             return Result<Unit, VirtualControllerError>.Err(
                 VirtualControllerError.WriteFailed($"vJoy update failed: {ex.Message}", (int)_deviceId, ex));
@@ -180,7 +196,14 @@ internal sealed class VJoyBackend : IVirtualControllerBackend
                 ResetVJD(_deviceId);
                 RelinquishVJD(_deviceId);
             }
-            catch { }
+            catch (InvalidOperationException ex)
+            {
+                Debug.WriteLine(ex);
+            }
+            catch (SEHException ex)
+            {
+                Debug.WriteLine(ex);
+            }
         }
 
         _connected = false;

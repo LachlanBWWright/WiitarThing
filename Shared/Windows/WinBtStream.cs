@@ -255,7 +255,7 @@ namespace Shared.Windows
             BtStack resultStack = BtStack.Microsoft;
             IntPtr parentDeviceInfo = IntPtr.Zero;
             SP_DEVINFO_DATA parentData = new SP_DEVINFO_DATA();
-            parentData.cbSize = (uint)Marshal.SizeOf(typeof(SP_DEVINFO_DATA));
+            parentData.cbSize = (uint)Marshal.SizeOf<SP_DEVINFO_DATA>();
 
             int status = 0;
             int problemNum = 0;
@@ -351,7 +351,7 @@ namespace Shared.Windows
                 }
 
                 SP_DEVICE_INTERFACE_DATA diData = new SP_DEVICE_INTERFACE_DATA();
-                diData.cbSize = Marshal.SizeOf(diData);
+                diData.cbSize = Marshal.SizeOf<SP_DEVICE_INTERFACE_DATA>();
 
                 // Step through all devices
                 while (SetupDiEnumDeviceInterfaces(hDevInfo, IntPtr.Zero, ref guid, index, ref diData))
@@ -366,7 +366,7 @@ namespace Shared.Windows
                     diDetail.size = (uint)(IntPtr.Size == 8 ? 8 : 5);// 4 + Marshal.SystemDefaultCharSize);
 
                     SP_DEVINFO_DATA deviceInfoData = new SP_DEVINFO_DATA();
-                    deviceInfoData.cbSize = (uint)Marshal.SizeOf(typeof(SP_DEVINFO_DATA));
+                    deviceInfoData.cbSize = (uint)Marshal.SizeOf<SP_DEVINFO_DATA>();
 
                     // Populate Detail Struct
                     if (SetupDiGetDeviceInterfaceDetail(hDevInfo, ref diData, ref diDetail, size, out size, ref deviceInfoData))
@@ -376,7 +376,7 @@ namespace Shared.Windows
 
                         // Create Attributes Structure
                         HIDD_ATTRIBUTES attrib = new HIDD_ATTRIBUTES();
-                        attrib.Size = Marshal.SizeOf(attrib);
+                        attrib.Size = Marshal.SizeOf<HIDD_ATTRIBUTES>();
 
                         // Populate Attributes
                         if (HidD_GetAttributes(handle.DangerousGetHandle(), ref attrib))

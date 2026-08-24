@@ -960,7 +960,12 @@ namespace WiinUSoft
             {
                 using var stream = File.OpenRead(profilePath);
                 using var reader = new StreamReader(stream);
-                var profile = serializer.Deserialize(reader) as Profile;
+                using var xmlReader = System.Xml.XmlReader.Create(reader, new System.Xml.XmlReaderSettings
+                {
+                    DtdProcessing = System.Xml.DtdProcessing.Prohibit,
+                    XmlResolver = null
+                });
+                var profile = serializer.Deserialize(xmlReader) as Profile;
                 if (profile is null)
                 {
                     return Result<Profile, PreferencesError>.Err(
@@ -1032,7 +1037,7 @@ namespace WiinUSoft
 
         private void CheckIR(string assignment)
         {
-            if (assignment.StartsWith("wIR") && device is not null && device.IRMode == IRCamMode.Off)
+            if (assignment.StartsWith("wIR", StringComparison.Ordinal) && device is not null && device.IRMode == IRCamMode.Off)
             {
                 if (device.Type == ControllerType.Wiimote || device.Type == ControllerType.Nunchuk || device.Type == ControllerType.NunchukB)
                     device.IRMode = IRCamMode.Basic;

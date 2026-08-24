@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace WiinUSoft
 {
@@ -17,11 +18,21 @@ namespace WiinUSoft
         private const string Unique = "wiinupro-or-wiinusoft-instance";
 
         private static MainWindow? _mainWindow;
+        private static bool _captureUiGallery;
         internal static MainWindow? MainWindowInstance => _mainWindow;
 
         [STAThread]
-        public static void Main()
+        public static void Main(string[] args)
         {
+            foreach (string arg in args)
+            {
+                if (string.Equals(arg, "--capture-ui-gallery", StringComparison.OrdinalIgnoreCase))
+                {
+                    _captureUiGallery = true;
+                    break;
+                }
+            }
+
             EarlyLog("Main begin");
             System.Threading.Thread.Sleep(250);
 
@@ -94,6 +105,13 @@ namespace WiinUSoft
         protected override void OnLaunched(LaunchActivatedEventArgs args)
         {
             EarlyLog("OnLaunched begin");
+
+            if (_captureUiGallery)
+            {
+                _ = CaptureUiGalleryAndExitAsync();
+                return;
+            }
+
             // Load controller icon BitmapImages from the output directory
             LoadIconResources();
             EarlyLog("Icons loaded");
@@ -102,6 +120,26 @@ namespace WiinUSoft
             EarlyLog("MainWindow constructed");
             _mainWindow.Activate();
             EarlyLog("MainWindow activated");
+        }
+
+        private static async Task CaptureUiGalleryAndExitAsync()
+        {
+            try
+            {
+                var gallery = new Windows.DesignGalleryWindow();
+                gallery.Activate();
+                await Task.Delay(500);
+                await gallery.CaptureAllAsync();
+                gallery.Close();
+                SingleInstance<App>.Cleanup();
+                Environment.Exit(0);
+            }
+            catch (Exception ex)
+            {
+                EarlyLog($"UI gallery capture failed: {ex}");
+                SingleInstance<App>.Cleanup();
+                Environment.Exit(1);
+            }
         }
 
         private static void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)

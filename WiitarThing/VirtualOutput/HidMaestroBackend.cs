@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
@@ -38,8 +39,19 @@ internal sealed partial class HidMaestroBackend : IVirtualControllerBackend
         {
             return false;
         }
-        catch (Exception)
+        catch (InvalidOperationException ex)
         {
+            Debug.WriteLine(ex);
+            return FindHidMaestroPath() is not null;
+        }
+        catch (DllNotFoundException ex)
+        {
+            Debug.WriteLine(ex);
+            return FindHidMaestroPath() is not null;
+        }
+        catch (EntryPointNotFoundException ex)
+        {
+            Debug.WriteLine(ex);
             return FindHidMaestroPath() is not null;
         }
     }
@@ -137,7 +149,22 @@ internal sealed partial class HidMaestroBackend : IVirtualControllerBackend
             return Result<Unit, VirtualControllerError>.Err(
                 VirtualControllerError.DriverNotReady("HIDMaestro driver setup was denied by Windows. Restart WiitarThing as administrator and try the HIDMaestro backend again.", slotOrDeviceId, ex));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return Result<Unit, VirtualControllerError>.Err(
+                VirtualControllerError.ConnectionFailed($"HIDMaestro connection failed: {ex.Message}", slotOrDeviceId, ex));
+        }
+        catch (ArgumentException ex)
+        {
+            return Result<Unit, VirtualControllerError>.Err(
+                VirtualControllerError.InvalidMapping($"HIDMaestro connection failed: {ex.Message}", slotOrDeviceId));
+        }
+        catch (DllNotFoundException ex)
+        {
+            return Result<Unit, VirtualControllerError>.Err(
+                VirtualControllerError.DriverNotReady("HIDMaestro.Core.dll could not be loaded.", slotOrDeviceId, ex));
+        }
+        catch (EntryPointNotFoundException ex)
         {
             return Result<Unit, VirtualControllerError>.Err(
                 VirtualControllerError.ConnectionFailed($"HIDMaestro connection failed: {ex.Message}", slotOrDeviceId, ex));
@@ -161,7 +188,12 @@ internal sealed partial class HidMaestroBackend : IVirtualControllerBackend
 
             return Result<Unit, VirtualControllerError>.Ok(Unit.Value);
         }
-        catch (Exception ex)
+        catch (ObjectDisposedException ex)
+        {
+            return Result<Unit, VirtualControllerError>.Err(
+                VirtualControllerError.WriteFailed($"HIDMaestro update failed: {ex.Message}", ex: ex));
+        }
+        catch (InvalidOperationException ex)
         {
             return Result<Unit, VirtualControllerError>.Err(
                 VirtualControllerError.WriteFailed($"HIDMaestro update failed: {ex.Message}", ex: ex));
@@ -187,13 +219,27 @@ internal sealed partial class HidMaestroBackend : IVirtualControllerBackend
         {
             controller?.Dispose();
         }
-        catch { }
+        catch (ObjectDisposedException ex)
+        {
+            Debug.WriteLine(ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Debug.WriteLine(ex);
+        }
 
         try
         {
             context?.Dispose();
         }
-        catch { }
+        catch (ObjectDisposedException ex)
+        {
+            Debug.WriteLine(ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Debug.WriteLine(ex);
+        }
 
         return Result<Unit, VirtualControllerError>.Ok(Unit.Value);
     }

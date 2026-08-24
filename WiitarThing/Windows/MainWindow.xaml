@@ -56,6 +56,10 @@
                                                 Command="{x:Bind ViewModel.TestControllersCommand}"/>
                                 <MenuFlyoutItem Text="Default Calibration"
                                                 Command="{x:Bind ViewModel.SetDefaultCalibrationCommand}"/>
+                                <MenuFlyoutSeparator />
+                                <MenuFlyoutItem x:Name="UiGalleryMenuItem"
+                                                Text="UI Gallery (Debug)"
+                                                Click="UiGalleryMenuItem_Click" />
                         </MenuBarItem>
                         <MenuBarItem Title="Settings">
                                 <MenuFlyoutItem Text="{x:Bind ViewModel.VersionText, Mode=OneWay}"

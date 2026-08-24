@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 #if MouseMode
 using WindowsInput;
@@ -30,15 +30,7 @@ namespace WiinUSoft.Holders
         {
             if (Mappings.ContainsKey(name))
             {
-                if (Values.ContainsKey(name))
-                {
-                    Values[name] = Math.Abs(value);
-                }
-                else if (!Values.ContainsKey(name))
-                {
-                    //Values.Add(name, Math.Abs(value));
-                    Values.TryAdd(name, Math.Abs(value));
-                }
+                Values.AddOrUpdate(name, Math.Abs(value), (_, _) => Math.Abs(value));
             }
         }
 
@@ -50,16 +42,13 @@ namespace WiinUSoft.Holders
             }
             else
             {
-                Mappings.Add(name, mapping);
+                Mappings.TryAdd(name, mapping);
             }
         }
 
         public void ClearMapping(string name)
         {
-            if (Mappings.ContainsKey(name))
-            {
-                Mappings.Remove(name);
-            }
+            Mappings.Remove(name);
         }
 
         public void ClearAllMappings()
@@ -74,14 +63,7 @@ namespace WiinUSoft.Holders
 
         public bool GetFlag(string name)
         {
-            if (Flags.ContainsKey(name))
-            {
-                return Flags[name];
-            }
-            else
-            {
-                return false;
-            }
+            return Flags.TryGetValue(name, out bool value) && value;
         }
 
         public abstract void Update();

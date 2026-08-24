@@ -62,7 +62,7 @@ namespace Shared.Windows
         {
             // Only checking changed event since it gets called when devices are added and removed
             // while remove notifications don't always get called.
-            if (msg == WmDevicechange && (int)wparam == DbtDevNodesChanged)
+            if (msg == WmDevicechange && checked((int)wparam) == DbtDevNodesChanged)
             {
                 OnDevicesUpdated?.Invoke();
             }

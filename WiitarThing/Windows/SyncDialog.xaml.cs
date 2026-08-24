@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Controls;
@@ -89,7 +90,7 @@ namespace WiinUSoft.Windows
                 ERROR_NOT_READY             => "Unspecified error; Windows has refused to connect the Wiimote.",
                 ERROR_VC_DISCONNECTED       => "Windows forced the connection to be dropped.",
                 ERROR_NO_MORE_ITEMS         => "Be patient; Wiimote restarted the pairing process for some reason...",
-                _                           => "(ERROR CODE 0x" + errCode.ToString("X") + ")"
+                _                           => "(ERROR CODE 0x" + errCode.ToString("X", CultureInfo.InvariantCulture) + ")"
             };
         }
 
@@ -279,10 +280,12 @@ namespace WiinUSoft.Windows
                             {
                                 do
                                 {
-                                    if (deviceInfo.szName.StartsWith("Nintendo RVL-CNT-01") &&
+                                    if (deviceInfo.szName.StartsWith("Nintendo RVL-CNT-01", StringComparison.Ordinal) &&
                                         (deviceInfo.fRemembered || deviceInfo.fConnected))
                                     {
-                                        NativeImports.BluetoothRemoveDevice(ref deviceInfo.Address);
+                                        uint removeError = NativeImports.BluetoothRemoveDevice(ref deviceInfo.Address);
+                                        if (removeError != 0)
+                                            WiitarDebug.Log($"BluetoothRemoveDevice failed: 0x{removeError:X8}");
                                     }
                                 } while (NativeImports.BluetoothFindNextDevice(found, ref deviceInfo));
                             }
@@ -358,7 +361,7 @@ namespace WiinUSoft.Windows
                                 {
                                     do
                                     {
-                                    if (!deviceInfo.szName.StartsWith("Nintendo RVL-CNT-01"))
+                                    if (!deviceInfo.szName.StartsWith("Nintendo RVL-CNT-01", StringComparison.Ordinal))
                                         continue;
 
                                     ProcessDiscoveredWiiDevice(radio, radioInfo, ref deviceInfo, ref HidServiceClass);

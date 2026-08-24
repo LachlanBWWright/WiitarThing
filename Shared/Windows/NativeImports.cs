@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Globalization;
 using System.Text;
 using System.Threading;
 using System.Runtime.InteropServices;
@@ -299,7 +300,7 @@ namespace Shared.Windows
 
             public void Initialize()
             {
-                this.dwSize = (uint)Marshal.SizeOf(typeof(BLUETOOTH_DEVICE_INFO));
+                this.dwSize = (uint)Marshal.SizeOf<BLUETOOTH_DEVICE_INFO>();
             }
         }
 
@@ -351,7 +352,7 @@ namespace Shared.Windows
 
             internal void Initialize()
             {
-                this.dwSize = (uint)Marshal.SizeOf(typeof(BLUETOOTH_DEVICE_SEARCH_PARAMS));
+                this.dwSize = (uint)Marshal.SizeOf<BLUETOOTH_DEVICE_SEARCH_PARAMS>();
             }
         }
         #endregion
@@ -406,7 +407,7 @@ namespace Shared.Windows
             internal uint dwSize;
             internal void Initialize()
             {
-                this.dwSize = (uint)Marshal.SizeOf(typeof(BLUETOOTH_FIND_RADIO_PARAMS));
+                this.dwSize = (uint)Marshal.SizeOf<BLUETOOTH_FIND_RADIO_PARAMS>();
             }
         }
 
@@ -429,14 +430,14 @@ namespace Shared.Windows
                     var bytes = BitConverter.GetBytes(address);
                     StringBuilder str = new StringBuilder();
                     for (int i = bytes.Length - 1; i >= 0; i--)
-                        str.Append(bytes[i].ToString("X2"));
+                        str.Append(bytes[i].ToString("X2", CultureInfo.InvariantCulture));
                     return str.ToString();
                 }
             }
 
             internal void Initialize()
             {
-                this.dwSize = (uint)Marshal.SizeOf(typeof(BLUETOOTH_RADIO_INFO));
+                this.dwSize = (uint)Marshal.SizeOf<BLUETOOTH_RADIO_INFO>();
             }
         }
         #endregion

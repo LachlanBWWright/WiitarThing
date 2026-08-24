@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security;
+using System.Xml;
 using System.Xml.Serialization;
 using Shared;
 using WiinUSoft.Services;
@@ -213,8 +214,13 @@ namespace WiinUSoft
             {
                 using (var stream = File.OpenRead(DataPath))
                 using (var reader = new StreamReader(stream))
+                using (var xmlReader = XmlReader.Create(reader, new XmlReaderSettings
                 {
-                    _instance = serializer.Deserialize(reader) as UserPrefs ?? new UserPrefs();
+                    DtdProcessing = DtdProcessing.Prohibit,
+                    XmlResolver = null
+                }))
+                {
+                    _instance = serializer.Deserialize(xmlReader) as UserPrefs ?? new UserPrefs();
                 }
 
                 // Ensure collections are never null after deserialization.

@@ -38,9 +38,10 @@ namespace WiinUSoft
         private List<DeviceInfo> hidList = null!;
         private Task? _refreshTask;
         private CancellationTokenSource? _refreshToken;
-        private bool _refreshing;
+        private readonly SemaphoreSlim _refreshLifecycleGate = new(1, 1);
         private bool _loadedFired;
         private bool _syncDialogOpen;
+        private Windows.DesignGalleryWindow? _designGalleryWindow;
 
         public MainWindowViewModel ViewModel => _viewModel;
 
@@ -92,6 +93,7 @@ namespace WiinUSoft
             _viewModel.DebugBuildVisibility = Visibility.Visible;
 #else
             _viewModel.DebugBuildVisibility = Visibility.Collapsed;
+            UiGalleryMenuItem.Visibility = Visibility.Collapsed;
 #endif
 
             _preferencesService.ApplyRuntimeSettings();
@@ -142,7 +144,7 @@ namespace WiinUSoft
             if (activatedHandle == IntPtr.Zero)
                 return false;
 
-            int procId = Process.GetCurrentProcess().Id;
+            int procId = Environment.ProcessId;
             _ = GetWindowThreadProcessId(activatedHandle, out int activeProcId);
             return activeProcId == procId;
         }
@@ -278,32 +280,67 @@ namespace WiinUSoft
             _viewModel.RefreshDisconnectCommandState();
         }
 
-        private void AutoRefresh(bool set)
+        private async void AutoRefresh(bool set)
         {
-            if (set && !_refreshing)
+            await _refreshLifecycleGate.WaitAsync();
+            try
             {
-                _refreshing = true;
-                _refreshToken = new CancellationTokenSource();
-                _refreshTask = new Task(() =>
+                if (set)
                 {
-                    while (!_refreshToken.IsCancellationRequested)
+                    if (_refreshTask is { IsCompleted: false })
+                        return;
+
+                    _refreshToken = new CancellationTokenSource();
+                    _refreshTask = RunAutoRefreshLoopAsync(_refreshToken);
+                    return;
+                }
+
+                CancellationTokenSource? tokenSource = _refreshToken;
+                Task? refreshTask = _refreshTask;
+                _refreshToken = null;
+                _refreshTask = null;
+
+                if (tokenSource == null)
+                    return;
+
+                tokenSource.Cancel();
+                if (refreshTask != null)
+                {
+                    try
                     {
-                        Thread.Sleep(1000);
-                        if (_refreshToken.IsCancellationRequested)
-                            break;
-
-                        DispatcherQueue.TryEnqueue(Refresh);
+                        await refreshTask;
                     }
+                    catch (OperationCanceledException ex)
+                    {
+                        Debug.WriteLine($"Auto-refresh loop cancelled: {ex.Message}");
+                    }
+                }
 
-                    _refreshing = false;
-                }, _refreshToken.Token);
-                _refreshTask.Start();
+                tokenSource.Dispose();
             }
-            else if (!set && _refreshing)
+            finally
             {
-                if (_refreshToken != null)
-                    _refreshToken.Cancel();
-                _refreshing = false;
+                _refreshLifecycleGate.Release();
+            }
+        }
+
+        private async Task RunAutoRefreshLoopAsync(CancellationTokenSource tokenSource)
+        {
+            CancellationToken token = tokenSource.Token;
+            try
+            {
+                while (true)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1), token);
+                    if (token.IsCancellationRequested)
+                        return;
+
+                    DispatcherQueue.TryEnqueue(Refresh);
+                }
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                return;
             }
         }
 
@@ -388,6 +425,19 @@ namespace WiinUSoft
                 _syncDialogOpen = false;
                 Refresh();
             }
+        }
+
+        private void UiGalleryMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (_designGalleryWindow != null)
+            {
+                _designGalleryWindow.Activate();
+                return;
+            }
+
+            _designGalleryWindow = new Windows.DesignGalleryWindow();
+            _designGalleryWindow.Closed += (_, _) => _designGalleryWindow = null;
+            _ = _designGalleryWindow.ShowAsDialogAsync();
         }
 
         private async void Sync_NewDeviceFound(object? sender, EventArgs args)

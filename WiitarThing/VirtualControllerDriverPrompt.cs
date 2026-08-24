@@ -52,7 +52,12 @@ namespace WiinUSoft
             {
                 return XBus.Default.State == DsState.Connected;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                Debug.WriteLine(ex);
+                return false;
+            }
+            catch (Win32Exception ex)
             {
                 Debug.WriteLine(ex);
                 return false;
@@ -267,17 +272,24 @@ namespace WiinUSoft
             {
                 return false;
             }
-            catch (Exception ex)
+            catch (Win32Exception ex)
             {
-                Debug.WriteLine(ex);
-                var dlg = new ContentDialog
-                {
-                    Title = "Driver Installer Failed",
-                    Content = $"WiitarThing could not start the SCP driver installer: {ex.Message}",
-                    CloseButtonText = "OK",
-                    XamlRoot = xamlRoot
-                };
-                await ShowDialogAsync(dlg);
+                await ShowLaunchFailureAsync("Driver Installer Failed", $"WiitarThing could not start the SCP driver installer: {ex.Message}", xamlRoot, ex);
+                return false;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                await ShowLaunchFailureAsync("Driver Installer Failed", "WiitarThing was not allowed to start the SCP driver installer. Try running as administrator.", xamlRoot, ex);
+                return false;
+            }
+            catch (FileNotFoundException ex)
+            {
+                await ShowLaunchFailureAsync("Driver Installer Failed", "The SCP driver installer could not be found.", xamlRoot, ex);
+                return false;
+            }
+            catch (InvalidOperationException ex)
+            {
+                await ShowLaunchFailureAsync("Driver Installer Failed", $"WiitarThing could not start the SCP driver installer: {ex.Message}", xamlRoot, ex);
                 return false;
             }
         }
@@ -329,19 +341,34 @@ namespace WiinUSoft
                 });
                 return true;
             }
-            catch (Exception ex)
+            catch (Win32Exception ex)
             {
-                Debug.WriteLine(ex);
-                var dlg = new ContentDialog
-                {
-                    Title = "Could Not Open Download Page",
-                    Content = $"Open this page manually to install vJoy: {url}",
-                    CloseButtonText = "OK",
-                    XamlRoot = xamlRoot
-                };
-                await ShowDialogAsync(dlg);
+                await ShowLaunchFailureAsync("Could Not Open Download Page", $"Open this page manually to install vJoy: {url}", xamlRoot, ex);
                 return false;
             }
+            catch (InvalidOperationException ex)
+            {
+                await ShowLaunchFailureAsync("Could Not Open Download Page", $"Open this page manually to install vJoy: {url}", xamlRoot, ex);
+                return false;
+            }
+            catch (FileNotFoundException ex)
+            {
+                await ShowLaunchFailureAsync("Could Not Open Download Page", $"Open this page manually to install vJoy: {url}", xamlRoot, ex);
+                return false;
+            }
+        }
+
+        private static async Task ShowLaunchFailureAsync(string title, string content, XamlRoot xamlRoot, Exception exception)
+        {
+            Debug.WriteLine(exception);
+            var dlg = new ContentDialog
+            {
+                Title = title,
+                Content = content,
+                CloseButtonText = "OK",
+                XamlRoot = xamlRoot
+            };
+            await ShowDialogAsync(dlg);
         }
 
         private static string[] GetSearchRoots()
