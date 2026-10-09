@@ -1,4 +1,4 @@
-﻿/* * * * * * * * * * * * * * * * * * * * * * * * * * *
+/* * * * * * * * * * * * * * * * * * * * * * * * * * *
  * === Notes ===
  * 
  * - When using the Toshiba Stack,
@@ -16,6 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
 using static Shared.Windows.NativeImports;
@@ -27,10 +28,6 @@ namespace Shared.Windows
     public class WinBtStream : Stream
     {
         #region Members
-        public static bool OverrideSharingMode = false;
-        public static FileShare OverridenFileShare = FileShare.None;
-        public static bool ForceToshibaMode = false;
-
         protected string _hidPath = null!;
         protected SafeFileHandle? _fileHandle;
         protected FileStream? _fileStream;
@@ -42,22 +39,22 @@ namespace Shared.Windows
         /// Set to None to have exclusive access to the controller.
         /// Otherwise set to ReadWrite.
         /// </summary>
-        public FileShare SharingMode { get; set; } = FileShare.ReadWrite;
+        public FileShare SharingMode { get; } = FileShare.ReadWrite;
 
         /// <summary>
         /// Set if the user is using the Toshiba Bluetooth Stack
         /// </summary>
-        public static bool UseToshiba { get; set; }
+        public bool UseToshiba { get; }
 
         /// <summary>
         /// Set to use the WriteFile method (allows use with the Microsoft Bluetooth Stack)
         /// </summary>
-        public bool UseWriteFile { get; set; }
+        public bool UseWriteFile { get; }
 
         /// <summary>
         /// Set when using to use 22 byte reports when sending data (use with Toshiba Stack or Set_Output_Report)
         /// </summary>
-        public bool UseFullReportSize { get; set; }
+        public bool UseFullReportSize { get; }
         #endregion
 
         public enum BtStack
@@ -67,61 +64,23 @@ namespace Shared.Windows
             Other
         }
 
-        static WinBtStream()
+        public bool AllowSharingRetry { get; }
+
+        public WinBtStream(string path) : this(path, BtStack.Microsoft) { }
+
+        public WinBtStream(string path, BtStack btStack)
+            : this(path, btStack, btStack == BtStack.Toshiba ? FileShare.None : FileShare.ReadWrite) { }
+
+        public WinBtStream(string path, BtStack btStack, FileShare sharingMode, bool allowSharingRetry = false)
         {
-            // When true, Windows Stack is enabled
-            //var a = BluetoothEnableDiscovery(IntPtr.Zero, true);
-        }
-
-        public WinBtStream(string path)
-        {
-            UseToshiba = ForceToshibaMode;// || !BluetoothEnableDiscovery(IntPtr.Zero, true);
-
-            // Default Windows 8/10 to ReadWrite (non exclusive)
-            if (Environment.OSVersion.Version.Major > 6 
-                || (Environment.OSVersion.Version.Major == 6 && Environment.OSVersion.Version.Minor == 2)) // temp
-            {
-                SharingMode = FileShare.ReadWrite;
-                UseWriteFile = true;
-
-                // A certian build of Windows 10 seems to have fixed the FileShare.None issue
-                //if (Environment.OSVersion.Version.Major == 10 &&
-                //    Environment.OSVersion.Version.Build >= 10586/* &&
-                //    Environment.OSVersion.Version.Build < 14393*/)
-                //{
-                //    SharingMode = FileShare.None;
-                //}
-            }
-            else
-            {
-                SharingMode = FileShare.None;
-                UseFullReportSize = true;
-            }
-
-            // Determine if using the Toshiba Stack
-            if (UseToshiba)
-            {
-                SharingMode = FileShare.None;
-                UseFullReportSize = true;
-                UseWriteFile = true;
-            }
-            
             _hidPath = path;
             _writerBlock = new object();
-        }
-
-        public WinBtStream(string path, BtStack btStack) : this(path)
-        {
-            if (btStack == BtStack.Toshiba)
-            {
-                UseFullReportSize = true;
-                UseWriteFile = true;
-            }
-        }
-
-        public WinBtStream(string path, BtStack btStack, FileShare sharingMode) : this(path, btStack)
-        {
+            UseToshiba = btStack == BtStack.Toshiba;
             SharingMode = sharingMode;
+            AllowSharingRetry = allowSharingRetry;
+            var version = Environment.OSVersion.Version;
+            UseWriteFile = UseToshiba || version.Major > 6 || (version.Major == 6 && version.Minor >= 2);
+            UseFullReportSize = UseToshiba || !UseWriteFile;
         }
 
         public bool OpenConnection()
@@ -130,9 +89,9 @@ namespace Shared.Windows
             return result.IsOk;
         }
 
-        public Result<WinBtStream, HidStreamError> TryOpenConnection() => TryOpenConnection(allowSharingRetry: true);
+        public Result<WinBtStream, HidStreamError> TryOpenConnection() => TryOpenConnection(SharingMode, AllowSharingRetry);
 
-        private Result<WinBtStream, HidStreamError> TryOpenConnection(bool allowSharingRetry)
+        private Result<WinBtStream, HidStreamError> TryOpenConnection(FileShare sharingMode, bool allowSharingRetry)
         {
             if (string.IsNullOrWhiteSpace(_hidPath))
             {
@@ -147,19 +106,11 @@ namespace Shared.Windows
             {
                 Close();
 
-                if (OverrideSharingMode)
-                {
-                    _fileHandle = CreateFile(_hidPath, FileAccess.ReadWrite, OverridenFileShare, IntPtr.Zero, FileMode.Open, EFileAttributes.Overlapped, IntPtr.Zero);
-                }
-                else
-                {
-                    // Open the file handle with the specified sharing mode and an overlapped file attribute flag for asynchronous operation
-                    _fileHandle = CreateFile(_hidPath, FileAccess.ReadWrite, SharingMode, IntPtr.Zero, FileMode.Open, EFileAttributes.Overlapped, IntPtr.Zero);
-                }
-
+                _fileHandle = CreateFile(_hidPath, FileAccess.ReadWrite, sharingMode, IntPtr.Zero,
+                    FileMode.Open, EFileAttributes.Overlapped, IntPtr.Zero);
                 if (_fileHandle == null || _fileHandle.IsInvalid)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Failed to open HID stream: {_hidPath} (sharing={SharingMode}, override={OverrideSharingMode})");
+                    System.Diagnostics.Debug.WriteLine($"Failed to open HID stream: {_hidPath} (sharing={sharingMode})");
                     _fileHandle?.Close();
                     _fileHandle = null;
                     return Result<WinBtStream, HidStreamError>.Err(
@@ -168,7 +119,7 @@ namespace Shared.Windows
 
                 _fileStream = new FileStream(_fileHandle, FileAccess.ReadWrite, 22, true);
 
-                System.Diagnostics.Debug.WriteLine($"Opened HID stream: {_hidPath} (sharing={SharingMode}, override={OverrideSharingMode})");
+                System.Diagnostics.Debug.WriteLine($"Opened HID stream: {_hidPath} (sharing={sharingMode})");
 
                 return Result<WinBtStream, HidStreamError>.Ok(this);
             }
@@ -181,11 +132,11 @@ namespace Shared.Windows
             catch (IOException ex)
             {
                 Close();
-                if (allowSharingRetry && !OverrideSharingMode && SharingMode == FileShare.None)
+                if (allowSharingRetry && sharingMode == FileShare.None)
                 {
                     System.Diagnostics.Debug.WriteLine($"Retrying HID open with shared access: {_hidPath}");
-                    SharingMode = FileShare.ReadWrite;
-                    return TryOpenConnection(allowSharingRetry: false);
+
+                    return TryOpenConnection(FileShare.ReadWrite, allowSharingRetry: false);
                 }
 
                 return Result<WinBtStream, HidStreamError>.Err(HidStreamError.OpenFailed("I/O failure opening HID stream.", _hidPath, ex));
@@ -193,11 +144,11 @@ namespace Shared.Windows
             catch (Exception ex)
             {
                 Close();
-                if (allowSharingRetry && !OverrideSharingMode && SharingMode == FileShare.None)
+                if (allowSharingRetry && sharingMode == FileShare.None)
                 {
                     System.Diagnostics.Debug.WriteLine($"Retrying HID open with shared access after unexpected failure: {_hidPath}");
-                    SharingMode = FileShare.ReadWrite;
-                    return TryOpenConnection(allowSharingRetry: false);
+
+                    return TryOpenConnection(FileShare.ReadWrite, allowSharingRetry: false);
                 }
 
                 return Result<WinBtStream, HidStreamError>.Err(HidStreamError.Unknown("Unexpected failure opening HID stream.", _hidPath, ex));
@@ -481,6 +432,14 @@ namespace Shared.Windows
 
             return GetOpenStream().BeginRead(buffer, offset, count, callback, state);
         }
+
+        // Forward TAP directly so FileStream can cancel the pending overlapped native read.
+        // Capturing this stream also prevents completion from using a reopened connection.
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            => GetOpenStream().ReadAsync(buffer, cancellationToken);
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            => GetOpenStream().ReadAsync(buffer, offset, count, cancellationToken);
 
         public override int EndRead(IAsyncResult asyncResult)
         {

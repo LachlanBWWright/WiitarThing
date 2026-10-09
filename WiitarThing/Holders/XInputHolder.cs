@@ -489,10 +489,9 @@ namespace WiinUSoft.Holders
         public override void Close()
         {
             Flags[Inputs.Flags.RUMBLE] = false;
-            bus.Unplug(ID);
-
             if (ID > 0 && ID < 5)
             {
+                bus.Unplug(ID);
                 availabe[ID - 1] = true;
             }
 

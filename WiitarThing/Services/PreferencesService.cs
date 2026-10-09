@@ -1,5 +1,4 @@
 using Shared;
-using Shared.Windows;
 
 namespace WiinUSoft.Services;
 
@@ -12,7 +11,7 @@ public sealed class PreferencesService : IPreferencesService
         {
             var result = UserPrefs.SetAutoStart(value);
             if (result.IsError)
-                System.Diagnostics.Debug.WriteLine(result.Error.ToDisplayString());
+                WiitarDebug.Log(result.Error.ToDisplayString(), WiitarDebug.LogLevel.Error);
         }
     }
 
@@ -44,7 +43,6 @@ public sealed class PreferencesService : IPreferencesService
         set
         {
             UserPrefs.Instance.toshibaMode = !value;
-            WinBtStream.ForceToshibaMode = !value;
         }
     }
 
@@ -54,8 +52,6 @@ public sealed class PreferencesService : IPreferencesService
 
     public void ApplyRuntimeSettings()
     {
-        WinBtStream.OverrideSharingMode = UserPrefs.Instance.greedyMode;
-        if (UserPrefs.Instance.greedyMode)
-            WinBtStream.OverridenFileShare = System.IO.FileShare.None;
+        // Bluetooth preferences are captured when the next connection is created.
     }
 }

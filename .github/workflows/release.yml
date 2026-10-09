@@ -52,6 +52,9 @@ jobs:
       - name: Test
         run: dotnet test Shared.Tests/Shared.Tests.csproj -c Release --no-restore -v:m
 
+      - name: Test application workflows
+        run: dotnet test Application.Tests/Application.Tests.csproj -c Release --no-restore -v:m
+
       - name: Publish self-contained app
         run: dotnet publish $env:PROJECT_PATH -c Release -r $env:RUNTIME_IDENTIFIER --self-contained true -o $env:RELEASE_DIR -v:m
 

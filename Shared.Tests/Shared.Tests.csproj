@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Nintroller\Nintroller.csproj" />
+    <None Update="Fixtures\reports.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
@@ -26,6 +27,7 @@
     <Compile Include="..\WiitarThing\ViewModels\RelayCommand.cs" Link="ViewModels\RelayCommand.cs" />
     <Compile Include="..\WiitarThing\ViewModels\AsyncRelayCommand.cs" Link="ViewModels\AsyncRelayCommand.cs" />
     <Compile Include="..\WiitarThing\ViewModels\ControllerMappingViewModel.cs" Link="ViewModels\ControllerMappingViewModel.cs" />
+    <Compile Include="..\WiitarThing\ViewModels\SyncViewModel.cs" Link="ViewModels\SyncViewModel.cs" />
     <Compile Include="..\WiitarThing\Holders\Holder.cs" Link="Holders\Holder.cs" />
   </ItemGroup>
 </Project>

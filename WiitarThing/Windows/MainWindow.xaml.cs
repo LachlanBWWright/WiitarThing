@@ -1,13 +1,11 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using NintrollerLib;
 using Shared;
 using Shared.Windows;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Media;
 using System.Runtime.InteropServices;
@@ -18,7 +16,7 @@ using WiinUSoft.ViewModels;
 
 namespace WiinUSoft
 {
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, IMainWindowOperations
     {
         [DllImport("user32.dll", CharSet = CharSet.Auto, ExactSpelling = true)]
         private static extern IntPtr GetForegroundWindow();
@@ -32,10 +30,11 @@ namespace WiinUSoft
         private readonly IExternalProcessService _externalProcessService;
         private readonly IDeviceDiscoveryService _deviceDiscoveryService;
         private readonly IDeviceConnectionService _deviceConnectionService;
-        private readonly Dictionary<string, DeviceViewModel> _devicesByPath;
+        private readonly IUserNotificationService _notificationService;
+        private readonly DeviceViewModelFactory _deviceViewModelFactory;
+        private readonly IDeviceConfigurationService _configurationService;
         private readonly MainWindowViewModel _viewModel;
         private TrayIconService _trayService = null!;
-        private List<DeviceInfo> hidList = null!;
         private Task? _refreshTask;
         private CancellationTokenSource? _refreshToken;
         private readonly SemaphoreSlim _refreshLifecycleGate = new(1, 1);
@@ -51,20 +50,18 @@ namespace WiinUSoft
             _externalProcessService = new ExternalProcessService();
             _deviceDiscoveryService = new DeviceDiscoveryService();
             _deviceConnectionService = new DeviceConnectionService();
-            _devicesByPath = new Dictionary<string, DeviceViewModel>(StringComparer.OrdinalIgnoreCase);
-            hidList = new List<DeviceInfo>();
+            _configurationService = new DeviceConfigurationService();
+
+            InitializeComponent();
+            _deviceViewModelFactory = new DeviceViewModelFactory(_configurationService, new DispatcherQueueUiDispatcher(DispatcherQueue));
 
             _viewModel = new MainWindowViewModel(
                 _preferencesService,
-                refreshAction: Refresh,
-                syncAction: RunSyncDialogAsync,
-                disconnectAllAction: DisconnectAllConnectedControllers,
-                removeAllWiimotesAction: RemoveAllWiimotesAsync,
-                testControllersAction: _externalProcessService.OpenControllerTestPanel,
-                showDefaultCalibrationAction: ShowDefaultCalibrationAsync,
-                setAutoRefreshAction: AutoRefresh);
-
-            InitializeComponent();
+                deviceDiscoveryService: _deviceDiscoveryService,
+                deviceConnectionService: _deviceConnectionService,
+                deviceFactory: hid => _deviceViewModelFactory.Create(hid, _notificationService),
+                operations: this,
+                uiDispatcher: new DispatcherQueueUiDispatcher(DispatcherQueue));
             Instance = this;
             if (Content is FrameworkElement root)
                 root.DataContext = _viewModel;
@@ -99,8 +96,9 @@ namespace WiinUSoft
             _preferencesService.ApplyRuntimeSettings();
 
             _trayService = new TrayIconService();
+            _notificationService = new TrayNotificationService(_trayService);
             _trayService.ShowRequested += (_, _) => DispatcherQueue.TryEnqueue(ShowWindow);
-            _trayService.RefreshRequested += (_, _) => DispatcherQueue.TryEnqueue(Refresh);
+            _trayService.RefreshRequested += (_, _) => DispatcherQueue.TryEnqueue(_viewModel.RefreshDevices);
             _trayService.ExitRequested += (_, _) => DispatcherQueue.TryEnqueue(() =>
             {
                 DisconnectAllConnectedControllers();
@@ -136,6 +134,7 @@ namespace WiinUSoft
 
             Activated += Window_Loaded;
             Activated += Window_Activated;
+            Closed += (_, _) => _viewModel.Dispose();
         }
 
         public static bool ApplicationIsActivated()
@@ -155,129 +154,21 @@ namespace WiinUSoft
             Activate();
         }
 
-        public void TriggerRefresh() => Refresh();
+        public void TriggerRefresh() => _viewModel.RefreshDevices();
+
+        Task IMainWindowOperations.SynchronizeAsync() => RunSyncDialogAsync();
+        void IMainWindowOperations.DisconnectAllControllers() => DisconnectAllConnectedControllers();
+        Task IMainWindowOperations.RemoveAllWiimotesAsync() => RemoveAllWiimotesAsync();
+        void IMainWindowOperations.OpenControllerTestPanel() => _externalProcessService.OpenControllerTestPanel();
+        Task IMainWindowOperations.ShowDefaultCalibrationAsync() => ShowDefaultCalibrationAsync();
+        void IMainWindowOperations.OpenUiGallery() => OpenUiGallery();
+        void IMainWindowOperations.SetAutoRefresh(bool enabled) => AutoRefresh(enabled);
 
         public void ShowBalloon(string title, string message, int icon = 0, SystemSound? sound = null)
         {
             _trayService.ShowBalloon(title, message, icon);
             if (sound != null)
                 sound.Play();
-        }
-
-        private static void LogDiscoveryResult(Result<List<DeviceInfo>, DeviceDiscoveryError> result)
-        {
-            if (result.IsError)
-                Debug.WriteLine(result.Error.ToDisplayString());
-        }
-
-        private void Refresh()
-        {
-            var pathResult = _deviceDiscoveryService.DiscoverDevices();
-            LogDiscoveryResult(pathResult);
-            hidList = pathResult.ValueOr(_ => new List<DeviceInfo>());
-
-            RemoveStaleDiscoveredDevices();
-            var connectSeq = new List<KeyValuePair<int, DeviceViewModel>>();
-
-            foreach (var hid in hidList)
-            {
-                if (_devicesByPath.TryGetValue(hid.DevicePath, out DeviceViewModel? existingViewModel))
-                {
-                    DeviceControl existingDevice = existingViewModel.View;
-                    if (!existingDevice.Connected)
-                    {
-                        existingDevice.RefreshState();
-                        if (existingDevice.properties.autoConnect && existingDevice.ConnectionState == DeviceState.Discovered)
-                            connectSeq.Add(new KeyValuePair<int, DeviceViewModel>(existingDevice.properties.autoNum, existingViewModel));
-                    }
-
-                    continue;
-                }
-
-                var stream = new WinBtStream(
-                    hid.DevicePath,
-                    UserPrefs.Instance.toshibaMode ? WinBtStream.BtStack.Toshiba : WinBtStream.BtStack.Microsoft,
-                    UserPrefs.Instance.greedyMode ? FileShare.None : FileShare.ReadWrite);
-                var nintroller = new Nintroller(stream, hid.Type);
-
-                var openResult = stream.TryOpenConnection();
-                if (openResult.IsError)
-                {
-                    Debug.WriteLine(openResult.Error.ToDisplayString());
-                    continue;
-                }
-
-                if (!stream.CanRead)
-                    continue;
-
-                var control = new DeviceControl(nintroller, hid.DevicePath);
-                control.OnConnectStateChange += DeviceControl_OnConnectStateChange;
-                control.OnConnectionLost += DeviceControl_OnConnectionLost;
-                control.RefreshState();
-
-                var deviceViewModel = new DeviceViewModel(control);
-                _devicesByPath[hid.DevicePath] = deviceViewModel;
-                _viewModel.MoveDevice(deviceViewModel, control.ConnectionState);
-
-                if (control.properties.autoConnect)
-                    connectSeq.Add(new KeyValuePair<int, DeviceViewModel>(control.properties.autoNum, deviceViewModel));
-            }
-
-            int? firstAvailablePlayer = _deviceConnectionService.GetFirstAvailablePlayer();
-            if (firstAvailablePlayer == null)
-                return;
-
-            int targetPlayer = firstAvailablePlayer.Value;
-            foreach (var entry in connectSeq.Where(p => p.Key == 5))
-            {
-                if (targetPlayer > 4)
-                    break;
-
-                if (_deviceConnectionService.TryConnectToXInput(entry.Value.View, targetPlayer))
-                    targetPlayer++;
-            }
-
-            foreach (var entry in connectSeq.Where(p => p.Key != 5).OrderBy(p => p.Key))
-            {
-                if (targetPlayer > 4)
-                    break;
-
-                if (_deviceConnectionService.TryConnectToXInput(entry.Value.View, targetPlayer))
-                    targetPlayer++;
-            }
-        }
-
-        private void RemoveStaleDiscoveredDevices()
-        {
-            var presentPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var hid in hidList)
-            {
-                if (!string.IsNullOrWhiteSpace(hid.DevicePath))
-                    presentPaths.Add(hid.DevicePath);
-            }
-
-            var staleDevices = _devicesByPath.Values
-                .Where(vm => !vm.View.Connected && !presentPaths.Contains(vm.DevicePath))
-                .Select(vm => vm.View)
-                .ToList();
-
-            foreach (var staleDevice in staleDevices)
-                RemoveDeviceControl(staleDevice);
-        }
-
-        private void RemoveDeviceControl(DeviceControl deviceControl)
-        {
-            deviceControl.OnConnectStateChange -= DeviceControl_OnConnectStateChange;
-            deviceControl.OnConnectionLost -= DeviceControl_OnConnectionLost;
-
-            if (_devicesByPath.TryGetValue(deviceControl.DevicePath, out DeviceViewModel? vm))
-            {
-                _viewModel.RemoveDevice(vm);
-                _devicesByPath.Remove(deviceControl.DevicePath);
-            }
-
-            deviceControl.DisposeControl();
-            _viewModel.RefreshDisconnectCommandState();
         }
 
         private async void AutoRefresh(bool set)
@@ -335,7 +226,7 @@ namespace WiinUSoft
                     if (token.IsCancellationRequested)
                         return;
 
-                    DispatcherQueue.TryEnqueue(Refresh);
+                    DispatcherQueue.TryEnqueue(_viewModel.RefreshDevices);
                 }
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -356,7 +247,7 @@ namespace WiinUSoft
             if (_viewModel.StartMinimizedEnabled && AppWindow.Presenter is OverlappedPresenter presenter)
                 presenter.Minimize();
 
-            Refresh();
+            _viewModel.RefreshDevices();
 
             switch (_preferencesService.VirtualOutputMode)
             {
@@ -382,29 +273,10 @@ namespace WiinUSoft
             _viewModel.SetApplicationActive(args.WindowActivationState != WindowActivationState.Deactivated);
         }
 
-        private void DeviceControl_OnConnectStateChange(DeviceControl sender, DeviceState oldState, DeviceState newState)
-        {
-            if (oldState == newState)
-                return;
-
-            if (_devicesByPath.TryGetValue(sender.DevicePath, out DeviceViewModel? vm))
-                _viewModel.MoveDevice(vm, newState);
-
-            _viewModel.SetApplicationActive(ApplicationIsActivated());
-            _viewModel.RefreshDisconnectCommandState();
-        }
-
-        private void DeviceControl_OnConnectionLost(DeviceControl sender)
-        {
-            RemoveDeviceControl(sender);
-            _viewModel.SetApplicationActive(ApplicationIsActivated());
-        }
-
         private void DisconnectAllConnectedControllers()
         {
-            var connected = _viewModel.ConnectedDevices.Select(vm => vm.View).ToList();
-            foreach (DeviceControl device in connected)
-                device.Detatch();
+            foreach (var device in _viewModel.ConnectedDevices.ToList())
+                device.Session.Disconnect();
         }
 
         private async Task RunSyncDialogAsync()
@@ -423,11 +295,11 @@ namespace WiinUSoft
             {
                 sync.NewDeviceFound -= Sync_NewDeviceFound;
                 _syncDialogOpen = false;
-                Refresh();
+                _viewModel.RefreshDevices();
             }
         }
 
-        private void UiGalleryMenuItem_Click(object sender, RoutedEventArgs e)
+        private void OpenUiGallery()
         {
             if (_designGalleryWindow != null)
             {
@@ -444,7 +316,7 @@ namespace WiinUSoft
         {
             for (int i = 0; i < 30; i++)
             {
-                DispatcherQueue.TryEnqueue(Refresh);
+                DispatcherQueue.TryEnqueue(_viewModel.RefreshDevices);
                 await Task.Delay(1000);
             }
         }

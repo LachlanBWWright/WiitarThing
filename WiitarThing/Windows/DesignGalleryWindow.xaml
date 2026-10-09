@@ -28,13 +28,14 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <ComboBox x:Name="stateSelector" Width="180" Header="Mock state"
+            <ComboBox x:Name="stateSelector" Width="180" Header="Gallery state"
                       SelectionChanged="StateSelector_SelectionChanged">
                 <ComboBoxItem Content="Empty" />
                 <ComboBoxItem Content="Detected devices" />
                 <ComboBoxItem Content="Connected controllers" />
                 <ComboBoxItem Content="Driver warning" />
                 <ComboBoxItem Content="Sync in progress" />
+                <ComboBoxItem Content="Disconnected controller" />
             </ComboBox>
             <Button Grid.Column="1" Content="Capture current" VerticalAlignment="Bottom"
                     Click="CaptureCurrent_Click" />
@@ -66,103 +67,33 @@
                 </Grid>
 
                 <Grid x:Name="DetectedState" Visibility="Collapsed">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <StackPanel Spacing="4" Margin="0,0,0,16">
+                    <StackPanel Spacing="12">
                         <TextBlock Text="Detected Devices" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                        <TextBlock Text="Devices available to connect" Style="{ThemeResource CaptionTextBlockStyle}"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
-                    <StackPanel Grid.Row="1" Spacing="10">
-                        <Border Padding="14" Background="{ThemeResource ControlFillColorDefaultBrush}"
-                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1"
-                                CornerRadius="8">
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <SymbolIcon Symbol="Play" Width="28" Height="28" Margin="0,0,12,0" />
-                                <StackPanel Grid.Column="1" Spacing="2">
-                                    <TextBlock Text="Nintendo Wiimote · Guitar" Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="Ready to connect · Bluetooth" Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                </StackPanel>
-                                <Button Grid.Column="2" Content="Connect" Style="{StaticResource AccentButtonStyle}" />
-                            </Grid>
-                        </Border>
-                        <Border Padding="14" Background="{ThemeResource ControlFillColorDefaultBrush}"
-                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1"
-                                CornerRadius="8">
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <SymbolIcon Symbol="Play" Width="28" Height="28" Margin="0,0,12,0" />
-                                <StackPanel Grid.Column="1" Spacing="2">
-                                    <TextBlock Text="Nintendo Wiimote · Drums" Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="Waiting for connection" Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                </StackPanel>
-                                <Button Grid.Column="2" Content="Connect" />
-                            </Grid>
-                        </Border>
+                        <TextBlock Text="Production device controls with isolated gallery sessions" Style="{ThemeResource CaptionTextBlockStyle}" />
+                        <StackPanel x:Name="DetectedRows" />
                     </StackPanel>
                 </Grid>
 
                 <Grid x:Name="ConnectedState" Visibility="Collapsed">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                    <StackPanel Spacing="4" Margin="0,0,0,16">
+                    <StackPanel Spacing="12">
                         <TextBlock Text="Active Controllers" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                        <TextBlock Text="Virtual outputs are running" Style="{ThemeResource CaptionTextBlockStyle}"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
-                    <StackPanel Grid.Row="1" Spacing="10">
-                        <Border Padding="14" Background="{ThemeResource ControlFillColorDefaultBrush}"
-                                BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="1"
-                                CornerRadius="8">
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <SymbolIcon Symbol="Accept" Width="28" Height="28" Foreground="{ThemeResource AccentFillColorDefaultBrush}" Margin="0,0,12,0" />
-                                <StackPanel Grid.Column="1" Spacing="2">
-                                    <TextBlock Text="Player 1 · Wii Guitar" Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="Xbox 360 Gamepad (SCP) · Connected" Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                </StackPanel>
-                                <Button Grid.Column="2" Content="Disconnect" />
-                            </Grid>
-                        </Border>
-                        <Border Padding="14" Background="{ThemeResource ControlFillColorDefaultBrush}"
-                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1"
-                                CornerRadius="8">
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <SymbolIcon Symbol="Accept" Width="28" Height="28" Foreground="{ThemeResource AccentFillColorDefaultBrush}" Margin="0,0,12,0" />
-                                <StackPanel Grid.Column="1" Spacing="2">
-                                    <TextBlock Text="Player 2 · Wii Drums" Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="Xbox 360 Gamepad (SCP) · Connected" Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                </StackPanel>
-                                <Button Grid.Column="2" Content="Disconnect" />
-                            </Grid>
-                        </Border>
+                        <StackPanel x:Name="ConnectedRows" />
                     </StackPanel>
                 </Grid>
 
                 <Grid x:Name="WarningState" Visibility="Collapsed">
-                    <StackPanel Spacing="16">
-                        <InfoBar IsOpen="True" Severity="Warning" Title="Virtual controller driver required"
-                                 Message="Install or enable the selected output driver before connecting a controller." />
-                        <Border Padding="14" Background="{ThemeResource ControlFillColorDefaultBrush}"
-                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1"
-                                CornerRadius="8">
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="Detected Wii Guitar" Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                                <TextBlock Text="Connection is available, but output is not ready."
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <Button Content="Open driver setup" HorizontalAlignment="Left" />
-                            </StackPanel>
-                        </Border>
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Connection Failure" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                        <StackPanel x:Name="WarningRows" />
                     </StackPanel>
                 </Grid>
 
+                <Grid x:Name="DisconnectedState" Visibility="Collapsed">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Disconnected Controller" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                        <StackPanel x:Name="DisconnectedRows" />
+                    </StackPanel>
+                </Grid>
                 <Grid x:Name="SyncState" Visibility="Collapsed">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14">
                         <ProgressRing IsActive="True" Width="48" Height="48" HorizontalAlignment="Center" />

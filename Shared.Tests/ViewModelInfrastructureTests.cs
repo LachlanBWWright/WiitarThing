@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using WiinUSoft.ViewModels;
@@ -69,6 +70,21 @@ public class ViewModelInfrastructureTests
         Assert.False(command.IsExecuting);
         Assert.True(command.CanExecute(null));
         Assert.Equal(2, commandRaisedCount);
+    }
+
+    [Fact]
+    public async Task AsyncRelayCommandReportsFailureAndResetsExecutingState()
+    {
+        Exception? reported = null;
+        var command = new AsyncRelayCommand(
+            () => Task.FromException(new InvalidOperationException("expected")),
+            onError: exception => reported = exception);
+
+        await command.ExecuteAsync();
+
+        Assert.IsType<InvalidOperationException>(reported);
+        Assert.False(command.IsExecuting);
+        Assert.True(command.CanExecute(null));
     }
 
     private sealed class TestViewModel : ViewModelBase

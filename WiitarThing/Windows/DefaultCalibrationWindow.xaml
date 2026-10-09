@@ -28,19 +28,22 @@
                         <RadioButton x:Name="radioMin"
                                      Content="Minimum"
                                      GroupName="selection"
+                                     IsChecked="{Binding Minimum, Mode=TwoWay}"
                                      FontSize="14"/>
                         <RadioButton x:Name="radioDefault"
                                      Content="Default (Recommended)"
                                      GroupName="selection"
                                      FontSize="14"
-                                     IsChecked="True"/>
+                                     IsChecked="{Binding Default, Mode=TwoWay}"/>
                         <RadioButton x:Name="radioMod"
                                      Content="Moderate"
                                      GroupName="selection"
+                                     IsChecked="{Binding Moderate, Mode=TwoWay}"
                                      FontSize="14"/>
                         <RadioButton x:Name="radioExt"
                                      Content="Extra"
                                      GroupName="selection"
+                                     IsChecked="{Binding Extra, Mode=TwoWay}"
                                      FontSize="14"/>
                         <StackPanel Orientation="Horizontal"
                                         Spacing="12"
@@ -48,11 +51,14 @@
                                 <RadioButton x:Name="radioCopy"
                                              Content="Copy From:"
                                              GroupName="selection"
+                                             IsChecked="{Binding Copy, Mode=TwoWay}"
                                              FontSize="14"
-                                             IsEnabled="False"
+                                             IsEnabled="{Binding CanCopy}"
                                              VerticalAlignment="Center"/>
                                 <ComboBox x:Name="copyCombo"
-                                          IsEnabled="False"
+                                          ItemsSource="{Binding CopyOptions}"
+                                          SelectedIndex="{Binding CopyIndex, Mode=TwoWay}"
+                                          IsEnabled="{Binding CanCopy}"
                                           MinWidth="180"
                                           Height="32"/>
                         </StackPanel>

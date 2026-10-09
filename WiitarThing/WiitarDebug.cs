@@ -8,6 +8,7 @@ namespace WiinUSoft
 {
     class WiitarDebug
     {
+        private static readonly object Sync = new();
         public enum LogLevel
         {
             TooMuch = 0,
@@ -23,15 +24,27 @@ namespace WiinUSoft
 #endif
             var utcDate = DateTime.Now.ToUniversalTime();
             string date = $"{utcDate.Hour:D2}:{utcDate.Minute:D2}:{utcDate.Second:D2}.{utcDate.Millisecond:D3}";
-            string logFilePath = Frankenpath(AppContext.BaseDirectory.TrimEnd('\\'), "WiitarLog.log");
+            string logDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WiitarThing");
+            string logFilePath = Path.Combine(logDirectory, "WiitarLog.log");
 
-            using (var logFile = File.Open(logFilePath, FileMode.Append, FileAccess.Write))
+            try
             {
-                using (var logFileWriter = new StreamWriter(logFile))
+                lock (Sync)
                 {
+                    Directory.CreateDirectory(logDirectory);
+                    using var logFile = File.Open(logFilePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+                    using var logFileWriter = new StreamWriter(logFile);
                     logFileWriter.WriteLine($"[{date}] {message}");
+                    if (new FileInfo(logFilePath).Length > 2 * 1024 * 1024)
+                    {
+                        File.Copy(logFilePath, logFilePath + ".1", true);
+                        File.WriteAllText(logFilePath, string.Empty);
+                    }
                 }
             }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+            catch (System.Security.SecurityException) { }
 
         }
 

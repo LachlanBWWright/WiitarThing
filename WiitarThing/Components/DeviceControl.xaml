@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="WiinUSoft.DeviceControl"
+<UserControl x:Class="WiinUSoft.DeviceControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -33,25 +33,32 @@
                     <MenuFlyout>
                         <MenuFlyoutItem x:Name="typeClear"
                                 Text="Reset"
-                                Click="TypeOptionClick"/>
+                                Command="{Binding SetControllerTypeCommand}"
+                                CommandParameter="Unknown"/>
                         <MenuFlyoutItem x:Name="typePro"
                                 Text="Pro Controller"
-                                Click="TypeOptionClick"/>
+                                Command="{Binding SetControllerTypeCommand}"
+                                CommandParameter="ProController"/>
                         <MenuFlyoutItem x:Name="typeWiimote"
                                 Text="Wiimote"
-                                Click="TypeOptionClick"/>
+                                Command="{Binding SetControllerTypeCommand}"
+                                CommandParameter="Wiimote"/>
                         <MenuFlyoutItem x:Name="typeNunchuk"
                                 Text="Nunchuk"
-                                Click="TypeOptionClick"/>
+                                Command="{Binding SetControllerTypeCommand}"
+                                CommandParameter="Nunchuk"/>
                         <MenuFlyoutItem x:Name="typeClassic"
                                 Text="Classic Controller"
-                                Click="TypeOptionClick"/>
+                                Command="{Binding SetControllerTypeCommand}"
+                                CommandParameter="ClassicController"/>
                         <MenuFlyoutItem x:Name="typeClassicPro"
                                 Text="Classic Controller Pro"
-                                Click="TypeOptionClick"/>
+                                Command="{Binding SetControllerTypeCommand}"
+                                CommandParameter="ClassicControllerPro"/>
                         <MenuFlyoutItem x:Name="typeGuitar"
                                 Text="Wii Guitar"
-                                Click="TypeOptionClick"/>
+                                Command="{Binding SetControllerTypeCommand}"
+                                CommandParameter="Guitar"/>
                     </MenuFlyout>
                 </FlyoutBase.AttachedFlyout>
             </Image>
@@ -68,7 +75,7 @@
                     <TextBlock x:Name="labelName"
                                Grid.Column="0"
                                FontWeight="SemiBold"
-                               Text="Unknown Device"
+                               Text="{Binding DisplayName, Mode=OneWay}"
                                TextTrimming="CharacterEllipsis"
                                VerticalAlignment="Center"/>
                     <TextBox x:Name="nameInput"
@@ -101,6 +108,11 @@
                            Text="Device Unavailable"
                            Visibility="Collapsed"
                            Margin="0,2,0,0"/>
+                <TextBlock x:Name="outputErrorText" Text="{Binding OutputError}"
+                           Visibility="{Binding OutputErrorVisibility}"
+                           Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                           TextWrapping="Wrap"
+                           Margin="0,4,0,0"/>
             </StackPanel>
 
             <!-- Action buttons -->
@@ -230,7 +242,7 @@
                     <ComboBox x:Name="outputModeSelector"
                               Width="230"
                               Height="30"
-                              SelectionChanged="OutputModeSelectorSelectionChanged"
+                              SelectedIndex="{Binding VirtualOutputModeIndex, Mode=TwoWay}"
                               ToolTipService.ToolTip="Select virtual output backend">
                         <ComboBoxItem Content="Xbox 360 Gamepad (SCP)"/>
                         <ComboBoxItem Content="Virtual Guitar (HIDMaestro, experimental)"/>
@@ -239,11 +251,20 @@
                     <ComboBox x:Name="previewModeSelector"
                               Width="230"
                               Height="30"
-                              SelectionChanged="PreviewModeSelectorSelectionChanged"
+                              SelectedIndex="{Binding GuitarPreviewModeIndex, Mode=TwoWay}"
                               ToolTipService.ToolTip="Select guitar preview source">
                         <ComboBoxItem Content="Wii Controller"/>
                         <ComboBoxItem Content="Virtual Output"/>
                     </ComboBox>
+                    <NumberBox Header="vJoy device ID"
+                               Width="230"
+                               Minimum="1"
+                               Maximum="255"
+                               SmallChange="1"
+                               Value="{Binding VJoyDeviceIdValue, Mode=TwoWay}"
+                               Visibility="{Binding VJoySettingsVisibility}"
+                               ToolTipService.ToolTip="Choose a different configured vJoy device for each guitar"
+                               AutomationProperties.Name="vJoy device ID"/>
                     <TextBlock x:Name="virtualOutputStatusText"
                                Text="Virtual output: not connected"
                                Style="{ThemeResource CaptionTextBlockStyle}"
@@ -310,8 +331,7 @@
                 <ComboBox x:Name="autoConnectNumber"
                           Width="148"
                           Height="34"
-                          SelectedIndex="0"
-                          SelectionChanged="AutoConnectSelectionChanged"
+                          SelectedIndex="{Binding AutoConnectSlot, Mode=TwoWay}"
                           ToolTipService.ToolTip="Auto-connect target"
                           AutomationProperties.Name="Auto-connect target">
                     <ComboBoxItem Content="Auto: Off"/>
@@ -359,7 +379,7 @@
                         VerticalContentAlignment="Center"
                         Content="DISCONNECT"
                         ToolTipService.ToolTip="Disconnect this controller"
-                        Click="BtnDetatchClick"
+                        Command="{Binding DisconnectCommand}"
                         Visibility="Collapsed"/>
             </StackPanel>
         </Grid>

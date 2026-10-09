@@ -2,6 +2,7 @@
         x:Class="WiinUSoft.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:WiinUSoft"
         Title="WiitarThing">
     <Window.SystemBackdrop>
         <MicaBackdrop Kind="Base" />
@@ -59,7 +60,7 @@
                                 <MenuFlyoutSeparator />
                                 <MenuFlyoutItem x:Name="UiGalleryMenuItem"
                                                 Text="UI Gallery (Debug)"
-                                                Click="UiGalleryMenuItem_Click" />
+                                                Command="{x:Bind ViewModel.OpenUiGalleryCommand}" />
                         </MenuBarItem>
                         <MenuBarItem Title="Settings">
                                 <MenuFlyoutItem Text="{x:Bind ViewModel.VersionText, Mode=OneWay}"
@@ -180,7 +181,7 @@
                                                 <ItemsControl ItemsSource="{x:Bind ViewModel.AvailableDevices, Mode=OneWay}">
                                                         <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
-                                                                        <ContentPresenter Content="{Binding View}"/>
+                                                                        <local:DeviceControl Session="{Binding Session}"/>
                                                                 </DataTemplate>
                                                         </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
@@ -234,7 +235,7 @@
                                                 <ItemsControl ItemsSource="{x:Bind ViewModel.ConnectedDevices, Mode=OneWay}">
                                                         <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
-                                                                        <ContentPresenter Content="{Binding View}"/>
+                                                                        <local:DeviceControl Session="{Binding Session}"/>
                                                                 </DataTemplate>
                                                         </ItemsControl.ItemTemplate>
                                                 </ItemsControl>

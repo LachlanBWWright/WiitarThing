@@ -11,6 +11,10 @@ dotnet test Shared.Tests/Shared.Tests.csproj \
   --configuration Release \
   --no-restore \
   --verbosity minimal
+dotnet test Application.Tests/Application.Tests.csproj \
+  --configuration Release \
+  --no-restore \
+  --verbosity minimal
 dotnet publish WiitarThing/WiitarThing.csproj \
   --configuration Release \
   --runtime "$runtime_identifier" \

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -582,29 +582,13 @@ namespace NintrollerLib
 
         public void SetCalibration(INintrollerState from)
         {
-            //if (from.CalibrationEmpty)
-            //{
-            //    // don't apply empty calibrations
-            //    return;
-            //}
-
-            //if (from.GetType() == typeof(WiiGuitar))
-            //{
-            //    Joy.Calibrate(((WiiGuitar)from).Joy);
-            //}
-            //else if (from.GetType() == typeof(ClassicControllerPro))
-            //{
-            //    Joy.Calibrate(((ClassicControllerPro)from).LJoy);
-            //}
-            //else if (from.GetType() == typeof(Wiimote))
-            //{
-            //    wiimote.SetCalibration(from);
-            //}
+            if (from is Wiimote remote)
+                wiimote.SetCalibration(remote);
         }
 
         public void SetCalibration(string calibrationString)
         {
-            if (calibrationString.Count(c => c == '0') > 5)
+            if (!Calibrations.HasCalibrationValues(calibrationString))
             {
                 // don't set empty calibrations
                 return;

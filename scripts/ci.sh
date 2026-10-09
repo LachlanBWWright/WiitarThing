@@ -17,4 +17,9 @@ dotnet test Shared.Tests/Shared.Tests.csproj \
   --no-build \
   --verbosity minimal
 
+dotnet test Application.Tests/Application.Tests.csproj \
+  --configuration Release \
+  --no-build \
+  --verbosity minimal
+
 run_exception_policy

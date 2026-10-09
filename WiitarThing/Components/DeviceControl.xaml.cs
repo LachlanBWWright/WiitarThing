@@ -1,1300 +1,342 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Xml.Serialization;
+using System.ComponentModel;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI;
+using Microsoft.UI.Xaml.Media;
 using NintrollerLib;
 using Shared;
-using Shared.Windows;
-using Windows.System;
+using WiinUSoft.Holders;
+using WiinUSoft.Models;
 using WiinUSoft.VirtualOutput;
+using WiinUSoft.ViewModels;
 
-namespace WiinUSoft
+namespace WiinUSoft;
+
+/// <summary>Visual representation of a device. Hardware lifetime and state are owned by the session.</summary>
+public partial class DeviceControl : UserControl
 {
-    public enum DeviceState { None = 0, Discovered, Connected_XInput, Connected_VJoy }
-    public delegate void ConnectStateChange(DeviceControl sender, DeviceState oldState, DeviceState newState);
-    public delegate void ConnectionLost(DeviceControl sender);
+    public static readonly DependencyProperty SessionProperty =
+        DependencyProperty.Register(nameof(Session), typeof(IDeviceSession), typeof(DeviceControl), new PropertyMetadata(null, OnSessionChanged));
 
-    public partial class DeviceControl : UserControl
+    private static readonly SolidColorBrush PreviewInactiveBrush = new(Colors.Transparent);
+    private static readonly SolidColorBrush PreviewTextInactiveBrush = new(Colors.Gray);
+    private static readonly SolidColorBrush PreviewTextActiveBrush = new(Colors.White);
+    private static readonly SolidColorBrush FretGBrush = new(global::Windows.UI.Color.FromArgb(255, 45, 164, 78));
+    private static readonly SolidColorBrush FretRBrush = new(global::Windows.UI.Color.FromArgb(255, 209, 52, 56));
+    private static readonly SolidColorBrush FretYBrush = new(global::Windows.UI.Color.FromArgb(255, 255, 200, 61));
+    private static readonly SolidColorBrush FretBBrush = new(global::Windows.UI.Color.FromArgb(255, 0, 120, 212));
+    private static readonly SolidColorBrush FretOBrush = new(global::Windows.UI.Color.FromArgb(255, 255, 140, 0));
+
+    private IDeviceSession? _session;
+    private DeviceViewModel? _viewModel;
+    private bool _editingName;
+
+    public DeviceControl()
     {
-        #region Members
-        private string devicePath = string.Empty;
-        private Nintroller device = null!;
-        private DeviceState state;
-        private IR previousIR;
-        private bool snapIRpointer;
-        private float rumbleAmount;
-        private int rumbleStepCount;
-        private const int RumbleStepPeriod = 10;
-        private const float RumbleSlowMult = 0.5f;
-
-        internal Holders.Holder? holder;
-        internal Property properties = null!;
-        internal int targetXDevice;
-        internal bool lowBatteryFired;
-        internal bool identifying;
-        internal string dName = "";
-        internal System.Threading.Timer? updateTimer;
-
-        internal const int UPDATE_SPEED = 25;
-        private static readonly SolidColorBrush PreviewInactiveBrush = new(Colors.Transparent);
-        private static readonly SolidColorBrush PreviewTextInactiveBrush = new(Colors.Gray);
-        private static readonly SolidColorBrush PreviewTextActiveBrush = new(Colors.White);
-        private static readonly SolidColorBrush PreviewActiveBrush = new(Colors.White);
-        private static readonly SolidColorBrush FretGBrush = new(global::Windows.UI.Color.FromArgb(255, 45, 164, 78));
-        private static readonly SolidColorBrush FretRBrush = new(global::Windows.UI.Color.FromArgb(255, 209, 52, 56));
-        private static readonly SolidColorBrush FretYBrush = new(global::Windows.UI.Color.FromArgb(255, 255, 200, 61));
-        private static readonly SolidColorBrush FretBBrush = new(global::Windows.UI.Color.FromArgb(255, 0, 120, 212));
-        private static readonly SolidColorBrush FretOBrush = new(global::Windows.UI.Color.FromArgb(255, 255, 140, 0));
-        private IVirtualControllerBackend? virtualBackend;
-        private IVirtualControllerReadback? virtualReadback;
-        private VirtualControllerIdentity? virtualIdentity;
-        private ControllerOutputState lastSourceOutput = ControllerOutputState.Empty;
-        private ControllerOutputState lastReadbackOutput = ControllerOutputState.Empty;
-        private bool backendWriteFailed;
-
-        public event ConnectStateChange? OnConnectStateChange;
-        public event ConnectionLost? OnConnectionLost;
-        #endregion
-
-        #region Properties
-        internal Nintroller Device
+        InitializeComponent();
+        DataContextChanged += DeviceControlDataContextChanged;
+        Loaded += (_, _) =>
         {
-            get => device;
-            set
+            if (_session is null && Session is IDeviceSession session)
+                AttachSession(session);
+            if (_viewModel is null && DataContext is DeviceViewModel viewModel)
             {
-                if (device is not null)
-                {
-                    device.ExtensionChange -= DeviceExtensionChange;
-                    device.StateUpdate -= DeviceStateChange;
-                    device.LowBattery -= DeviceLowBattery;
-#if DEBUG
-                    device.StateUpdate -= Debug_Device_StateUpdate;
-#endif
-                }
-                device = value;
-                if (device is not null)
-                {
-                    device.ExtensionChange += DeviceExtensionChange;
-                    device.StateUpdate += DeviceStateChange;
-                    device.LowBattery += DeviceLowBattery;
-#if DEBUG
-                    device.StateUpdate += Debug_Device_StateUpdate;
-#endif
-                }
+                _viewModel = viewModel;
+                viewModel.PropertyChanged += ViewModelPropertyChanged;
             }
-        }
-
-        internal ControllerType DeviceType { get; private set; }
-        internal string DevicePath { get => devicePath; private set => devicePath = value; }
-        internal bool Connected => device?.Connected == true;
-
-        internal DeviceState ConnectionState
+        };
+        Unloaded += (_, _) =>
         {
-            get => state;
-            set
+            if (_session is not null)
+                DetachSession(_session);
+            if (_viewModel is not null)
             {
-                if (value != state)
-                {
-                    var prev = state;
-                    SetState(value);
-                    OnConnectStateChange?.Invoke(this, prev, value);
-                }
+                _viewModel.PropertyChanged -= ViewModelPropertyChanged;
+                _viewModel = null;
             }
-        }
-        #endregion
+        };
+    }
 
-        public DeviceControl() { InitializeComponent(); }
+    private void DeviceControlDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
+    {
+        if (_viewModel is not null)
+            _viewModel.PropertyChanged -= ViewModelPropertyChanged;
+        _viewModel = args.NewValue as DeviceViewModel;
+        if (_viewModel is not null)
+            _viewModel.PropertyChanged += ViewModelPropertyChanged;
+    }
 
-        public DeviceControl(Nintroller nintroller, string path) : this()
+    private void ViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(DeviceViewModel.GuitarPreviewModeIndex))
+            DispatcherQueue.TryEnqueue(UpdateGuitarPreviewPanel);
+    }
+
+    public IDeviceSession? Session
+    {
+        get => (IDeviceSession?)GetValue(SessionProperty);
+        set => SetValue(SessionProperty, value);
+    }
+
+    private static void OnSessionChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var control = (DeviceControl)d;
+        if (e.OldValue is IDeviceSession oldSession) control.DetachSession(oldSession);
+        if (e.NewValue is IDeviceSession newSession) control.AttachSession(newSession);
+    }
+
+    private void AttachSession(IDeviceSession session)
+    {
+        _session = session;
+        session.StateChanged += SessionStateChanged;
+        session.ConnectionLost += SessionConnectionLost;
+        session.ConnectionFailed += SessionConnectionFailed;
+        session.BatteryChanged += SessionBatteryChanged;
+        session.PreviewChanged += SessionPreviewChanged;
+        session.InlineOutputError += SessionInlineOutputError;
+        RefreshVisuals();
+    }
+
+    private void DetachSession(IDeviceSession session)
+    {
+        session.StateChanged -= SessionStateChanged;
+        session.ConnectionLost -= SessionConnectionLost;
+        session.ConnectionFailed -= SessionConnectionFailed;
+        session.BatteryChanged -= SessionBatteryChanged;
+        session.PreviewChanged -= SessionPreviewChanged;
+        session.InlineOutputError -= SessionInlineOutputError;
+        if (ReferenceEquals(_session, session)) _session = null;
+    }
+
+    private void SessionStateChanged(object? sender, DeviceSessionStateChangedEventArgs e) => DispatcherQueue.TryEnqueue(RefreshVisuals);
+    private void SessionConnectionLost(object? sender, DeviceSessionConnectionLostEventArgs e) => DispatcherQueue.TryEnqueue(RefreshVisuals);
+    private void SessionBatteryChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() =>
+        statusGradient.Background = new SolidColorBrush(_session?.IsBatteryLow == true ? Colors.OrangeRed : Colors.Transparent));
+    private void SessionPreviewChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(UpdateGuitarPreviewPanel);
+    private void SessionInlineOutputError(object? sender, string e) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (ReferenceEquals(sender, _session))
+            virtualOutputStatusText.Text = string.IsNullOrEmpty(e) ? "Virtual output: connected" : $"Virtual output: {e}";
+    });
+    private void SessionConnectionFailed(object? sender, DeviceSessionConnectionFailedEventArgs e) => DispatcherQueue.TryEnqueue(async () =>
+    {
+        if (XamlRoot is not null)
         {
-            Device = nintroller;
-            devicePath = path;
-            Device.Disconnected += DeviceDisconnected;
-        }
-
-        internal void DisposeControl()
-        {
-            updateTimer?.Dispose();
-            updateTimer = null;
-            DisconnectVirtualBackend();
-
-            if (device is not null)
-            {
-                device.Disconnected -= DeviceDisconnected;
-                device.Dispose();
-            }
-        }
-
-#if DEBUG
-        private Windows.DebugDataWindow? DebugDataWindowInstance;
-        private bool debugWindowVisible;
-
-        private void Debug_Device_StateUpdate(object? sender, NintrollerStateEventArgs e)
-        {
-            if (e.state.DebugViewActive)
-            {
-                e.state.DebugViewActive = false;
-                DebugViewActivate();
-            }
-        }
-
-        private void DebugViewActivate()
-        {
-            if (!debugWindowVisible)
-            {
-                DispatcherQueue.TryEnqueue(() =>
-                {
-                    DebugDataWindowInstance = new Windows.DebugDataWindow
-                    {
-                        nintroller = Device,
-                        XamlRoot = XamlRoot
-                    };
-                    DebugDataWindowInstance.RegisterNintrollerUpdate();
-                    DebugDataWindowInstance.Closed += (_, _) => debugWindowVisible = false;
-                    debugWindowVisible = true;
-                    _ = DebugDataWindowInstance.ShowAsync();
-                });
-            }
-        }
-#endif
-
-        public void RefreshState()
-        {
-            if (state != DeviceState.Connected_XInput) ConnectionState = DeviceState.Discovered;
-            Property? savedProperties = UserPrefs.Instance.GetDevicePref(devicePath);
-            if (savedProperties is not null)
-            {
-                properties = savedProperties;
-                SetName(string.IsNullOrWhiteSpace(properties.name) ? device.Type.ToString() : properties.name);
-                ApplyCalibration(properties.calPref, properties.calString ?? "");
-                snapIRpointer = properties.pointerMode != Property.PointerOffScreenMode.Center;
-                if (!string.IsNullOrEmpty(properties.lastIcon))
-                    icon.Source = Application.Current.Resources[properties.lastIcon] as Microsoft.UI.Xaml.Media.ImageSource;
-            }
-            else
-            {
-                properties = new Property(devicePath);
-                UpdateIcon(device.Type);
-                SetName(device.Type.ToString());
-            }
-
-            autoConnectNumber.SelectionChanged -= AutoConnectSelectionChanged;
-            autoConnectNumber.SelectedIndex = properties.autoConnect
-                ? Math.Clamp(properties.autoNum, 1, autoConnectNumber.Items.Count - 1)
-                : 0;
-            autoConnectNumber.SelectionChanged += AutoConnectSelectionChanged;
-            outputModeSelector.SelectionChanged -= OutputModeSelectorSelectionChanged;
-            outputModeSelector.SelectedIndex = (int)UserPrefs.Instance.virtualOutputMode;
-            outputModeSelector.SelectionChanged += OutputModeSelectorSelectionChanged;
-            previewModeSelector.SelectionChanged -= PreviewModeSelectorSelectionChanged;
-            previewModeSelector.SelectedIndex = (int)UserPrefs.Instance.guitarPreviewMode;
-            previewModeSelector.SelectionChanged += PreviewModeSelectorSelectionChanged;
-        }
-
-        public void SetName(string newName)
-        {
-            dName = newName;
-            labelName.Text = newName;
-            nameInput.Text = newName;
-        }
-
-        public void Detatch()
-        {
-            device?.StopReading();
-            holder?.Close();
-            DisconnectVirtualBackend();
-            lowBatteryFired = false;
-            ConnectionState = DeviceState.Discovered;
-            DispatcherQueue.TryEnqueue(() =>
-                statusGradient.Background = new SolidColorBrush(global::Microsoft.UI.Colors.Transparent));
-        }
-
-        public void SetState(DeviceState newState)
-        {
-            state = newState;
-            updateTimer?.Dispose();
-            updateTimer = null;
-
-            switch (newState)
-            {
-                case DeviceState.None:
-                    btnIdentify.IsEnabled = false;
-                    btnEditName.IsEnabled = false;
-                    autoConnectNumber.IsEnabled = false;
-                    btnXinput.IsEnabled = false;
-                    btnDetatch.IsEnabled = false;
-                    btnDetatch.Visibility = Visibility.Collapsed;
-                    btnDebugView.Visibility = Visibility.Collapsed;
-                    guitarPreview.Visibility = Visibility.Collapsed;
-                    virtualOutputPanel.Visibility = Visibility.Collapsed;
-                    break;
-
-                case DeviceState.Discovered:
-                    btnIdentify.IsEnabled = true;
-                    btnEditName.IsEnabled = true;
-                    autoConnectNumber.IsEnabled = true;
-                    btnXinput.IsEnabled = true;
-                    btnDetatch.IsEnabled = false;
-                    btnDetatch.Visibility = Visibility.Collapsed;
-                    btnDebugView.Visibility = Visibility.Collapsed;
-                    guitarPreview.Visibility = Visibility.Collapsed;
-                    virtualOutputPanel.Visibility = Visibility.Collapsed;
-                    break;
-
-                case DeviceState.Connected_XInput:
-                    btnIdentify.IsEnabled = true;
-                    btnEditName.IsEnabled = true;
-                    autoConnectNumber.IsEnabled = true;
-                    btnXinput.IsEnabled = false;
-                    btnDetatch.IsEnabled = true;
-                    btnDetatch.Visibility = Visibility.Visible;
-#if DEBUG
-                    btnDebugView.Visibility = Visibility.Visible;
-#else
-                    btnDebugView.Visibility = Visibility.Collapsed;
-#endif
-                    if (device.Type == ControllerType.Guitar)
-                    {
-                        holder = null;
-                        guitarPreview.Visibility = Visibility.Visible;
-                        virtualOutputPanel.Visibility = Visibility.Visible;
-                        outputModeSelector.SelectedIndex = (int)UserPrefs.Instance.virtualOutputMode;
-                        previewModeSelector.SelectedIndex = (int)UserPrefs.Instance.guitarPreviewMode;
-                        virtualOutputDiffText.Text = "Mismatch: n/a";
-                        virtualSourceStateText.Text = "Source: n/a";
-                        virtualReadbackStateText.Text = "Readback: n/a";
-
-                        var connectResult = ConnectVirtualBackendForGuitar();
-                        if (connectResult.IsError)
-                        {
-                            if (IsOptionalVirtualOutputFailure(connectResult.Error))
-                            {
-                                DisconnectVirtualBackend();
-                                DispatcherQueue.TryEnqueue(async () =>
-                                {
-                                    await PromptForVirtualOutputDriverAsync(connectResult.Error);
-                                });
-                            }
-                            else
-                            {
-                                DispatcherQueue.TryEnqueue(async () =>
-                                {
-                                    Detatch();
-                                    await ShowVirtualControllerErrorAsync(connectResult.Error);
-                                    await PromptForVirtualOutputDriverAsync(connectResult.Error);
-                                });
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        virtualOutputPanel.Visibility = Visibility.Collapsed;
-                        guitarPreview.Visibility = Visibility.Collapsed;
-                        var xHolder = new Holders.XInputHolder(device.Type);
-                        LoadProfile(properties.profile, xHolder);
-                        var connectResult = xHolder.TryConnectXInput(targetXDevice);
-                        if (connectResult.IsError)
-                        {
-                            holder = null;
-                            DispatcherQueue.TryEnqueue(async () =>
-                            {
-                                Detatch();
-                                await ShowVirtualControllerErrorAsync(connectResult.Error);
-                                if (connectResult.Error.Kind == VirtualControllerErrorKind.DriverNotReady)
-                                    await VirtualControllerDriverPrompt.PromptInstallAsync(this.XamlRoot);
-                            });
-                            break;
-                        }
-                        holder = xHolder;
-                    }
-
-                    device.SetPlayerLED(targetXDevice);
-                    updateTimer = new System.Threading.Timer(HolderUpdate, device, 1000, UPDATE_SPEED);
-                    break;
-            }
-        }
-
-        private void DeviceExtensionChange(object? sender, NintrollerExtensionEventArgs e)
-        {
-            DeviceType = e.controllerType;
-            if (holder is not null) holder.AddMapping(DeviceType);
-            DispatcherQueue.TryEnqueue(() =>
-            {
-                UpdateIcon(DeviceType);
-                int playerNum = targetXDevice;
-                Detatch();
-                AssignToXinputPlayer(playerNum);
-                UpdateIcon(DeviceType);
-            });
-        }
-
-        private void DeviceLowBattery(object? sender, LowBatteryEventArgs e)
-        {
-            SetBatteryStatus(e.batteryLevel == BatteryStatus.Low || e.batteryLevel == BatteryStatus.VeryLow);
-        }
-
-        private void DeviceStateChange(object? sender, NintrollerStateEventArgs e)
-        {
-            if (updateTimer is not null) updateTimer.Change(1000, UPDATE_SPEED);
-            if (holder is null && virtualBackend is null) return;
-            RumbleStep();
-
-            var inputHolder = holder;
-            if (e.controllerType == ControllerType.Guitar)
-            {
-                WiiGuitar wgt = (WiiGuitar)e.state;
-                if (inputHolder is not null)
-                {
-                    inputHolder.SetValue(Inputs.WiiGuitar.G, wgt.G); inputHolder.SetValue(Inputs.WiiGuitar.R, wgt.R);
-                    inputHolder.SetValue(Inputs.WiiGuitar.Y, wgt.Y); inputHolder.SetValue(Inputs.WiiGuitar.B, wgt.B);
-                    inputHolder.SetValue(Inputs.WiiGuitar.O, wgt.O);
-                    inputHolder.SetValue(Inputs.WiiGuitar.UP, wgt.Up); inputHolder.SetValue(Inputs.WiiGuitar.DOWN, wgt.Down);
-                    inputHolder.SetValue(Inputs.WiiGuitar.LEFT, wgt.Left); inputHolder.SetValue(Inputs.WiiGuitar.RIGHT, wgt.Right);
-                    inputHolder.SetValue(Inputs.WiiGuitar.WHAMMYHIGH, wgt.WhammyHigh); inputHolder.SetValue(Inputs.WiiGuitar.WHAMMYLOW, wgt.WhammyLow);
-                    inputHolder.SetValue(Inputs.WiiGuitar.TILTHIGH, wgt.TiltHigh); inputHolder.SetValue(Inputs.WiiGuitar.TILTLOW, wgt.TiltLow);
-                    inputHolder.SetValue(Inputs.WiiGuitar.START, wgt.Start); inputHolder.SetValue(Inputs.WiiGuitar.SELECT, wgt.Select);
-                }
-
-                lastSourceOutput = ControllerOutputState.FromWiiGuitar(wgt);
-                var backend = virtualBackend;
-                if (backend is not null)
-                {
-                    var writeResult = backend.Update(lastSourceOutput);
-                    if (writeResult.IsError)
-                    {
-                        if (ShouldKeepVirtualOutputErrorInline(writeResult.Error))
-                        {
-                            string backendDisplayName = backend.DisplayName;
-                            string errorMessage = writeResult.Error.Message;
-                            DispatcherQueue.TryEnqueue(() =>
-                            {
-                                if (virtualOutputStatusText is not null)
-                                    virtualOutputStatusText.Text = $"Virtual output: {backendDisplayName} ({errorMessage})";
-                            });
-                        }
-                        else if (!backendWriteFailed)
-                        {
-                            backendWriteFailed = true;
-                            var errorToShow = writeResult.Error;
-                            _ = DispatcherQueue.TryEnqueue(async () =>
-                            {
-                                await ShowVirtualControllerErrorAsync(errorToShow);
-                            });
-                        }
-                    }
-                    else
-                    {
-                        backendWriteFailed = false;
-                    }
-                }
-
-                DispatcherQueue.TryEnqueue(UpdateGuitarPreviewPanel);
-            }
-            else
-            {
-                if (inputHolder is null)
-                {
-                    Debug.WriteLine($"Skipping controller state update for '{devicePath}' because the XInput holder is unavailable.");
-                    return;
-                }
-
-                inputHolder.ClearAllValues();
-                switch (e.controllerType)
-                {
-                    case ControllerType.ProController:
-                        #region Pro Controller
-                        ProController pro = (ProController)e.state;
-                        inputHolder.SetValue(Inputs.ProController.A, pro.A); inputHolder.SetValue(Inputs.ProController.B, pro.B);
-                        inputHolder.SetValue(Inputs.ProController.X, pro.X); inputHolder.SetValue(Inputs.ProController.Y, pro.Y);
-                        inputHolder.SetValue(Inputs.ProController.UP, pro.Up); inputHolder.SetValue(Inputs.ProController.DOWN, pro.Down);
-                        inputHolder.SetValue(Inputs.ProController.LEFT, pro.Left); inputHolder.SetValue(Inputs.ProController.RIGHT, pro.Right);
-                        inputHolder.SetValue(Inputs.ProController.L, pro.L); inputHolder.SetValue(Inputs.ProController.R, pro.R);
-                        inputHolder.SetValue(Inputs.ProController.ZL, pro.ZL); inputHolder.SetValue(Inputs.ProController.ZR, pro.ZR);
-                        inputHolder.SetValue(Inputs.ProController.START, pro.Plus); inputHolder.SetValue(Inputs.ProController.SELECT, pro.Minus);
-                        inputHolder.SetValue(Inputs.ProController.HOME, pro.Home); inputHolder.SetValue(Inputs.ProController.LS, pro.LStick);
-                        inputHolder.SetValue(Inputs.ProController.RS, pro.RStick);
-                        inputHolder.SetValue(Inputs.ProController.LRIGHT, pro.LJoy.X > 0 ? pro.LJoy.X : 0f);
-                        inputHolder.SetValue(Inputs.ProController.LLEFT, pro.LJoy.X < 0 ? -pro.LJoy.X : 0f);
-                        inputHolder.SetValue(Inputs.ProController.LUP, pro.LJoy.Y > 0 ? pro.LJoy.Y : 0f);
-                        inputHolder.SetValue(Inputs.ProController.LDOWN, pro.LJoy.Y < 0 ? -pro.LJoy.Y : 0f);
-                        inputHolder.SetValue(Inputs.ProController.RRIGHT, pro.RJoy.X > 0 ? pro.RJoy.X : 0f);
-                        inputHolder.SetValue(Inputs.ProController.RLEFT, pro.RJoy.X < 0 ? -pro.RJoy.X : 0f);
-                        inputHolder.SetValue(Inputs.ProController.RUP, pro.RJoy.Y > 0 ? pro.RJoy.Y : 0f);
-                        inputHolder.SetValue(Inputs.ProController.RDOWN, pro.RJoy.Y < 0 ? -pro.RJoy.Y : 0f);
-                        #endregion
-                        break;
-                    case ControllerType.Wiimote:
-                        SetWiimoteInputs(inputHolder, (Wiimote)e.state);
-                        break;
-                    case ControllerType.Nunchuk:
-                    case ControllerType.NunchukB:
-                        #region Nunchuk
-                        Nunchuk nun = (Nunchuk)e.state;
-                        SetWiimoteInputs(inputHolder, nun.wiimote);
-                        inputHolder.SetValue(Inputs.Nunchuk.C, nun.C); inputHolder.SetValue(Inputs.Nunchuk.Z, nun.Z);
-                        inputHolder.SetValue(Inputs.Nunchuk.RIGHT, nun.joystick.X > 0 ? nun.joystick.X : 0f);
-                        inputHolder.SetValue(Inputs.Nunchuk.LEFT, nun.joystick.X < 0 ? -nun.joystick.X : 0f);
-                        inputHolder.SetValue(Inputs.Nunchuk.UP, nun.joystick.Y > 0 ? nun.joystick.Y : 0f);
-                        inputHolder.SetValue(Inputs.Nunchuk.DOWN, nun.joystick.Y < 0 ? -nun.joystick.Y : 0f);
-                        inputHolder.SetValue(Inputs.Nunchuk.TILT_RIGHT, nun.accelerometer.X > 0 ? nun.accelerometer.X : 0f);
-                        inputHolder.SetValue(Inputs.Nunchuk.TILT_LEFT, nun.accelerometer.X < 0 ? -nun.accelerometer.X : 0f);
-                        inputHolder.SetValue(Inputs.Nunchuk.TILT_UP, nun.accelerometer.Y > 0 ? nun.accelerometer.Y : 0f);
-                        inputHolder.SetValue(Inputs.Nunchuk.TILT_DOWN, nun.accelerometer.Y < 0 ? -nun.accelerometer.Y : 0f);
-                        inputHolder.SetValue(Inputs.Nunchuk.ACC_SHAKE_X, nun.accelerometer.X > 1.15f);
-                        inputHolder.SetValue(Inputs.Nunchuk.ACC_SHAKE_Y, nun.accelerometer.Y > 1.15f);
-                        inputHolder.SetValue(Inputs.Nunchuk.ACC_SHAKE_Z, nun.accelerometer.Z > 1.15f);
-                        #endregion
-                        break;
-                    case ControllerType.ClassicController:
-                        #region Classic Controller
-                        ClassicController cc = (ClassicController)e.state;
-                        SetWiimoteInputs(inputHolder, cc.wiimote);
-                        inputHolder.SetValue(Inputs.ClassicController.A, cc.A); inputHolder.SetValue(Inputs.ClassicController.B, cc.B);
-                        inputHolder.SetValue(Inputs.ClassicController.X, cc.X); inputHolder.SetValue(Inputs.ClassicController.Y, cc.Y);
-                        inputHolder.SetValue(Inputs.ClassicController.UP, cc.Up); inputHolder.SetValue(Inputs.ClassicController.DOWN, cc.Down);
-                        inputHolder.SetValue(Inputs.ClassicController.LEFT, cc.Left); inputHolder.SetValue(Inputs.ClassicController.RIGHT, cc.Right);
-                        inputHolder.SetValue(Inputs.ClassicController.L, cc.L.value > 0); inputHolder.SetValue(Inputs.ClassicController.R, cc.R.value > 0);
-                        inputHolder.SetValue(Inputs.ClassicController.ZL, cc.ZL); inputHolder.SetValue(Inputs.ClassicController.ZR, cc.ZR);
-                        inputHolder.SetValue(Inputs.ClassicController.START, cc.Start); inputHolder.SetValue(Inputs.ClassicController.SELECT, cc.Select);
-                        inputHolder.SetValue(Inputs.ClassicController.HOME, cc.Home);
-                        inputHolder.SetValue(Inputs.ClassicController.LFULL, cc.LFull); inputHolder.SetValue(Inputs.ClassicController.RFULL, cc.RFull);
-                        inputHolder.SetValue(Inputs.ClassicController.LT, cc.L.value > 0.1f ? cc.L.value : 0f);
-                        inputHolder.SetValue(Inputs.ClassicController.RT, cc.R.value > 0.1f ? cc.R.value : 0f);
-                        inputHolder.SetValue(Inputs.ClassicController.LRIGHT, cc.LJoy.X > 0 ? cc.LJoy.X : 0f);
-                        inputHolder.SetValue(Inputs.ClassicController.LLEFT, cc.LJoy.X < 0 ? -cc.LJoy.X : 0f);
-                        inputHolder.SetValue(Inputs.ClassicController.LUP, cc.LJoy.Y > 0 ? cc.LJoy.Y : 0f);
-                        inputHolder.SetValue(Inputs.ClassicController.LDOWN, cc.LJoy.Y < 0 ? -cc.LJoy.Y : 0f);
-                        inputHolder.SetValue(Inputs.ClassicController.RRIGHT, cc.RJoy.X > 0 ? cc.RJoy.X : 0f);
-                        inputHolder.SetValue(Inputs.ClassicController.RLEFT, cc.RJoy.X < 0 ? -cc.RJoy.X : 0f);
-                        inputHolder.SetValue(Inputs.ClassicController.RUP, cc.RJoy.Y > 0 ? cc.RJoy.Y : 0f);
-                        inputHolder.SetValue(Inputs.ClassicController.RDOWN, cc.RJoy.Y < 0 ? -cc.RJoy.Y : 0f);
-                        #endregion
-                        break;
-                    case ControllerType.ClassicControllerPro:
-                        #region Classic Controller Pro
-                        ClassicControllerPro ccp = (ClassicControllerPro)e.state;
-                        SetWiimoteInputs(inputHolder, ccp.wiimote);
-                        inputHolder.SetValue(Inputs.ClassicControllerPro.A, ccp.A); inputHolder.SetValue(Inputs.ClassicControllerPro.B, ccp.B);
-                        inputHolder.SetValue(Inputs.ClassicControllerPro.X, ccp.X); inputHolder.SetValue(Inputs.ClassicControllerPro.Y, ccp.Y);
-                        inputHolder.SetValue(Inputs.ClassicControllerPro.UP, ccp.Up); inputHolder.SetValue(Inputs.ClassicControllerPro.DOWN, ccp.Down);
-                        inputHolder.SetValue(Inputs.ClassicControllerPro.LEFT, ccp.Left); inputHolder.SetValue(Inputs.ClassicControllerPro.RIGHT, ccp.Right);
-                        inputHolder.SetValue(Inputs.ClassicControllerPro.L, ccp.L); inputHolder.SetValue(Inputs.ClassicControllerPro.R, ccp.R);
-                        inputHolder.SetValue(Inputs.ClassicControllerPro.ZL, ccp.ZL); inputHolder.SetValue(Inputs.ClassicControllerPro.ZR, ccp.ZR);
-                        inputHolder.SetValue(Inputs.ClassicControllerPro.START, ccp.Start); inputHolder.SetValue(Inputs.ClassicControllerPro.SELECT, ccp.Select);
-                        inputHolder.SetValue(Inputs.ClassicControllerPro.HOME, ccp.Home);
-                        inputHolder.SetValue(Inputs.ClassicControllerPro.LRIGHT, ccp.LJoy.X > 0 ? ccp.LJoy.X : 0f);
-                        inputHolder.SetValue(Inputs.ClassicControllerPro.LLEFT, ccp.LJoy.X < 0 ? -ccp.LJoy.X : 0f);
-                        inputHolder.SetValue(Inputs.ClassicControllerPro.LUP, ccp.LJoy.Y > 0 ? ccp.LJoy.Y : 0f);
-                        inputHolder.SetValue(Inputs.ClassicControllerPro.LDOWN, ccp.LJoy.Y < 0 ? -ccp.LJoy.Y : 0f);
-                        inputHolder.SetValue(Inputs.ClassicControllerPro.RRIGHT, ccp.RJoy.X > 0 ? ccp.RJoy.X : 0f);
-                        inputHolder.SetValue(Inputs.ClassicControllerPro.RLEFT, ccp.RJoy.X < 0 ? -ccp.RJoy.X : 0f);
-                        inputHolder.SetValue(Inputs.ClassicControllerPro.RUP, ccp.RJoy.Y > 0 ? ccp.RJoy.Y : 0f);
-                        inputHolder.SetValue(Inputs.ClassicControllerPro.RDOWN, ccp.RJoy.Y < 0 ? -ccp.RJoy.Y : 0f);
-                        #endregion
-                        break;
-                    case ControllerType.Drums:
-                        #region Wii Drums
-                        WiiDrums wdr = (WiiDrums)e.state;
-                        inputHolder.SetValue(Inputs.WiiDrums.G, wdr.G); inputHolder.SetValue(Inputs.WiiDrums.R, wdr.R);
-                        inputHolder.SetValue(Inputs.WiiDrums.Y, wdr.Y); inputHolder.SetValue(Inputs.WiiDrums.B, wdr.B);
-                        inputHolder.SetValue(Inputs.WiiDrums.O, wdr.O); inputHolder.SetValue(Inputs.WiiDrums.BASS, wdr.Bass);
-                        inputHolder.SetValue(Inputs.WiiDrums.UP, wdr.Up); inputHolder.SetValue(Inputs.WiiDrums.DOWN, wdr.Down);
-                        inputHolder.SetValue(Inputs.WiiDrums.LEFT, wdr.Left); inputHolder.SetValue(Inputs.WiiDrums.RIGHT, wdr.Right);
-                        inputHolder.SetValue(Inputs.WiiDrums.START, wdr.Start); inputHolder.SetValue(Inputs.WiiDrums.SELECT, wdr.Select);
-                        #endregion
-                        break;
-                }
-                inputHolder.Update();
-            }
-
-            if (updateTimer is not null) updateTimer.Change(100, UPDATE_SPEED);
-        }
-
-        private void DeviceDisconnected(object? sender, DisconnectedEventArgs e)
-        {
-            DispatcherQueue.TryEnqueue(() =>
-            {
-                Detatch();
-                OnConnectionLost?.Invoke(this);
-                var mainWindow = MainWindow.Instance;
-                if (mainWindow is not null)
-                {
-                    mainWindow.ShowBalloon("Connection Lost",
-                        "Failed to communicate with controller. It may no longer be connected.", 2);
-                }
-                else
-                {
-                    Debug.WriteLine("Skipping connection-lost balloon because MainWindow is unavailable.");
-                }
-            });
-        }
-
-        private void SetWiimoteInputs(Holders.Holder inputHolder, Wiimote wm)
-        {
-            wm.irSensor.Normalize();
-            inputHolder.SetValue(Inputs.Wiimote.A, wm.buttons.A); inputHolder.SetValue(Inputs.Wiimote.B, wm.buttons.B);
-            inputHolder.SetValue(Inputs.Wiimote.ONE, wm.buttons.One); inputHolder.SetValue(Inputs.Wiimote.TWO, wm.buttons.Two);
-            inputHolder.SetValue(Inputs.Wiimote.UP, wm.buttons.Up); inputHolder.SetValue(Inputs.Wiimote.DOWN, wm.buttons.Down);
-            inputHolder.SetValue(Inputs.Wiimote.LEFT, wm.buttons.Left); inputHolder.SetValue(Inputs.Wiimote.RIGHT, wm.buttons.Right);
-            inputHolder.SetValue(Inputs.Wiimote.MINUS, wm.buttons.Minus); inputHolder.SetValue(Inputs.Wiimote.PLUS, wm.buttons.Plus);
-            inputHolder.SetValue(Inputs.Wiimote.HOME, wm.buttons.Home);
-            inputHolder.SetValue(Inputs.Wiimote.TILT_RIGHT, wm.accelerometer.X > 0 ? wm.accelerometer.X : 0);
-            inputHolder.SetValue(Inputs.Wiimote.TILT_LEFT, wm.accelerometer.X < 0 ? wm.accelerometer.X : 0);
-            inputHolder.SetValue(Inputs.Wiimote.TILT_UP, wm.accelerometer.Y > 0 ? wm.accelerometer.Y : 0);
-            inputHolder.SetValue(Inputs.Wiimote.TILT_DOWN, wm.accelerometer.Y < 0 ? wm.accelerometer.Y : 0);
-            inputHolder.SetValue(Inputs.Wiimote.ACC_SHAKE_X, wm.accelerometer.X > 1.15);
-            inputHolder.SetValue(Inputs.Wiimote.ACC_SHAKE_Y, wm.accelerometer.Y > 1.15);
-            inputHolder.SetValue(Inputs.Wiimote.ACC_SHAKE_Z, wm.accelerometer.Z > 1.15);
-            if (snapIRpointer && !wm.irSensor.point1.visible && !wm.irSensor.point2.visible)
-            {
-                if (properties.pointerMode == Property.PointerOffScreenMode.SnapX ||
-                    properties.pointerMode == Property.PointerOffScreenMode.SnapXY)
-                    wm.irSensor.X = previousIR.X;
-                if (properties.pointerMode == Property.PointerOffScreenMode.SnapY ||
-                    properties.pointerMode == Property.PointerOffScreenMode.SnapXY)
-                    wm.irSensor.Y = previousIR.Y;
-            }
-            inputHolder.SetValue(Inputs.Wiimote.IR_RIGHT, wm.irSensor.X > 0 ? wm.irSensor.X : 0);
-            inputHolder.SetValue(Inputs.Wiimote.IR_LEFT, wm.irSensor.X < 0 ? wm.irSensor.X : 0);
-            inputHolder.SetValue(Inputs.Wiimote.IR_UP, wm.irSensor.Y > 0 ? wm.irSensor.Y : 0);
-            inputHolder.SetValue(Inputs.Wiimote.IR_DOWN, wm.irSensor.Y < 0 ? wm.irSensor.Y : 0);
-            previousIR = wm.irSensor;
-        }
-
-        private void UpdateGuitarPreviewPanel()
-        {
-            guitarPreview.Visibility = Visibility.Visible;
-            ControllerOutputState previewState = lastSourceOutput;
-
-            if (UserPrefs.Instance.guitarPreviewMode == GuitarPreviewMode.VirtualOutput)
-            {
-                var readResult = TryReadVirtualOutputState();
-                if (readResult.IsOk)
-                {
-                    previewState = readResult.Value;
-                    lastReadbackOutput = previewState;
-                }
-                else
-                {
-                    virtualReadbackStateText.Text = "Readback: unavailable";
-                    virtualOutputDiffText.Text = $"Output preview unavailable: {readResult.Error.Message}";
-                }
-            }
-            else
-            {
-                lastReadbackOutput = ControllerOutputState.Empty;
-                virtualReadbackStateText.Text = "Readback: disabled";
-            }
-
-            UpdateGuitarPreview(previewState);
-            virtualSourceStateText.Text = $"Source: {lastSourceOutput.ToCompactDebugString()}";
-            virtualReadbackStateText.Text = lastReadbackOutput == ControllerOutputState.Empty
-                ? virtualReadbackStateText.Text
-                : $"Readback: {lastReadbackOutput.ToCompactDebugString()}";
-            virtualOutputDiffText.Text = BuildMismatchSummary(lastSourceOutput, lastReadbackOutput);
-        }
-
-        private void UpdateGuitarPreview(ControllerOutputState state)
-        {
-            SetFretPreview(fretG, state.Green, FretGBrush);
-            SetFretPreview(fretR, state.Red, FretRBrush);
-            SetFretPreview(fretY, state.Yellow, FretYBrush);
-            SetFretPreview(fretB, state.Blue, FretBBrush);
-            SetFretPreview(fretO, state.Orange, FretOBrush);
-            strumIndicator.Text = GetStrumPreview(state);
-
-            SetTextPreview(previewWH, state.Whammy > 0.05f);
-            SetTextPreview(previewWL, state.Whammy < -0.05f);
-            SetTextPreview(previewTH, state.Tilt > 0.05f);
-            SetTextPreview(previewTL, state.Tilt < -0.05f);
-            SetTextPreview(previewStart, state.Start);
-            SetTextPreview(previewSelect, state.Select);
-        }
-
-        private static void SetFretPreview(Microsoft.UI.Xaml.Controls.Border fret, bool pressed, SolidColorBrush activeBrush)
-        {
-            fret.Background = pressed ? activeBrush : PreviewInactiveBrush;
-        }
-
-        private static void SetTextPreview(TextBlock textBlock, bool active)
-        {
-            textBlock.Foreground = active ? PreviewTextActiveBrush : PreviewTextInactiveBrush;
-            textBlock.FontWeight = active
-                ? Microsoft.UI.Text.FontWeights.SemiBold
-                : Microsoft.UI.Text.FontWeights.Normal;
-        }
-
-        private static string GetStrumPreview(ControllerOutputState state)
-        {
-            if (state.StrumUp && state.DPadRight) return "↗";
-            if (state.StrumUp && state.DPadLeft) return "↖";
-            if (state.StrumDown && state.DPadRight) return "↘";
-            if (state.StrumDown && state.DPadLeft) return "↙";
-            if (state.StrumUp) return "↑";
-            if (state.StrumDown) return "↓";
-            if (state.DPadLeft) return "←";
-            if (state.DPadRight) return "→";
-            return "•";
-        }
-
-        private Result<Unit, VirtualControllerError> ConnectVirtualBackendForGuitar()
-        {
-            DisconnectVirtualBackend();
-            backendWriteFailed = false;
-            lastReadbackOutput = ControllerOutputState.Empty;
-
-            VirtualOutputMode selectedMode = UserPrefs.Instance.virtualOutputMode;
-            virtualBackend = VirtualControllerBackendFactory.Create(selectedMode);
-            if (selectedMode == VirtualOutputMode.HidMaestroExperimental
-                && UserPrefs.Instance.guitarPreviewMode != GuitarPreviewMode.VirtualOutput)
-            {
-                UserPrefs.Instance.guitarPreviewMode = GuitarPreviewMode.VirtualOutput;
-                var saveResult = UserPrefs.SavePrefs();
-                if (saveResult.IsError)
-                    System.Diagnostics.Debug.WriteLine(saveResult.Error.ToDisplayString());
-
-                previewModeSelector.SelectionChanged -= PreviewModeSelectorSelectionChanged;
-                previewModeSelector.SelectedIndex = (int)GuitarPreviewMode.VirtualOutput;
-                previewModeSelector.SelectionChanged += PreviewModeSelectorSelectionChanged;
-            }
-
-            int targetId = selectedMode == VirtualOutputMode.VJoyExperimental
-                ? Math.Max(1, UserPrefs.Instance.vJoyDeviceId)
-                : targetXDevice;
-
-            var connectResult = virtualBackend.Connect(targetId, ControllerType.Guitar);
-            if (connectResult.IsError)
-            {
-                virtualOutputStatusText.Text = $"Virtual output: {virtualBackend.DisplayName} (failed)";
-                virtualBackend.Dispose();
-                virtualBackend = null;
-                return connectResult;
-            }
-
-            var identityResult = virtualBackend.GetIdentity();
-            if (identityResult.IsOk)
-            {
-                virtualIdentity = identityResult.Value;
-                virtualOutputStatusText.Text = $"Virtual output: {virtualIdentity.ToCompactDisplayString()}";
-            }
-            else
-            {
-                virtualOutputStatusText.Text = $"Virtual output: {virtualBackend.DisplayName}";
-            }
-
-            var readbackResult = virtualBackend.CreateReadback();
-            if (readbackResult.IsOk)
-            {
-                virtualReadback = readbackResult.Value;
-                if (virtualIdentity is not null)
-                {
-                    var attachResult = virtualReadback.Attach(virtualIdentity);
-                    if (attachResult.IsError)
-                    {
-                        virtualReadback.Dispose();
-                        virtualReadback = null;
-                    }
-                }
-
-                if (virtualReadback is not null)
-                    virtualReadbackStateText.Text = "Readback: connected";
-            }
-
-            if (virtualReadback is null)
-            {
-                virtualOutputDiffText.Text = "Output preview unavailable";
-                virtualReadbackStateText.Text = "Readback: unavailable";
-            }
-
-            return Result<Unit, VirtualControllerError>.Ok(Unit.Value);
-        }
-
-        private Result<ControllerOutputState, VirtualControllerError> TryReadVirtualOutputState()
-        {
-            if (virtualReadback is null)
-            {
-                return Result<ControllerOutputState, VirtualControllerError>.Err(
-                    VirtualControllerError.DriverNotReady("Output preview unavailable for the selected backend."));
-            }
-
-            try
-            {
-                return virtualReadback.ReadState();
-            }
-            catch (Exception ex)
-            {
-                return Result<ControllerOutputState, VirtualControllerError>.Err(
-                    VirtualControllerError.WriteFailed($"Readback failed: {ex.Message}"));
-            }
-        }
-
-        private static string BuildMismatchSummary(ControllerOutputState source, ControllerOutputState output)
-        {
-            if (output == ControllerOutputState.Empty)
-                return "Mismatch: n/a";
-
-            var mismatch = new List<string>(14);
-            bool skipAnalogReadbackMismatch = UserPrefs.Instance.virtualOutputMode == VirtualOutputMode.HidMaestroExperimental;
-            if (source.Green != output.Green) mismatch.Add("G");
-            if (source.Red != output.Red) mismatch.Add("R");
-            if (source.Yellow != output.Yellow) mismatch.Add("Y");
-            if (source.Blue != output.Blue) mismatch.Add("B");
-            if (source.Orange != output.Orange) mismatch.Add("O");
-            if (source.StrumUp != output.StrumUp) mismatch.Add("SU");
-            if (source.StrumDown != output.StrumDown) mismatch.Add("SD");
-            if (source.DPadLeft != output.DPadLeft) mismatch.Add("DL");
-            if (source.DPadRight != output.DPadRight) mismatch.Add("DR");
-            if (source.Start != output.Start) mismatch.Add("St");
-            if (source.Select != output.Select) mismatch.Add("Sl");
-            if (source.Home != output.Home) mismatch.Add("Hm");
-            if (!skipAnalogReadbackMismatch && Math.Abs(source.Whammy - output.Whammy) > 0.12f) mismatch.Add("Wh");
-            if (!skipAnalogReadbackMismatch && Math.Abs(source.Tilt - output.Tilt) > 0.12f) mismatch.Add("Tl");
-
-            if (mismatch.Count == 0)
-                return "Mismatch: none";
-
-            return $"Mismatch: {string.Join(", ", mismatch)}";
-        }
-
-        private void DisconnectVirtualBackend()
-        {
-            if (virtualReadback is not null)
-            {
-                virtualReadback.Dispose();
-                virtualReadback = null;
-            }
-
-            if (virtualBackend is not null)
-            {
-                virtualBackend.Disconnect();
-                virtualBackend.Dispose();
-                virtualBackend = null;
-            }
-
-            virtualIdentity = null;
-            lastReadbackOutput = ControllerOutputState.Empty;
-            backendWriteFailed = false;
-            virtualOutputStatusText?.Text = "Virtual output: not connected";
-            virtualSourceStateText?.Text = "Source: n/a";
-            virtualReadbackStateText?.Text = "Readback: n/a";
-        }
-
-        private async System.Threading.Tasks.Task ShowVirtualControllerErrorAsync(VirtualControllerError error)
-        {
-            if (error.Kind == VirtualControllerErrorKind.DriverNotReady
-                && (UserPrefs.Instance.virtualOutputMode == VirtualOutputMode.ScpXbox360
-                    || UserPrefs.Instance.virtualOutputMode == VirtualOutputMode.HidMaestroExperimental
-                    || UserPrefs.Instance.virtualOutputMode == VirtualOutputMode.VJoyExperimental))
-                return;
-
-            if (XamlRoot is null)
-                return;
-
-            var dlg = new ContentDialog
+            var dialog = new ContentDialog
             {
                 Title = "Virtual Output Failed",
-                Content = error.ToDisplayString(),
+                Content = e.Error.ToDisplayString(),
                 PrimaryButtonText = "OK",
-                XamlRoot = this.XamlRoot
+                XamlRoot = XamlRoot
             };
-
-            await VirtualControllerDriverPrompt.ShowDialogAsync(dlg);
+            await VirtualControllerDriverPrompt.ShowDialogAsync(dialog);
         }
+        if (e.Error.Kind == VirtualControllerErrorKind.DriverNotReady)
+            await VirtualControllerDriverPrompt.PromptInstallAsync(XamlRoot);
+    });
 
-        private async System.Threading.Tasks.Task PromptForVirtualOutputDriverAsync(VirtualControllerError error)
-        {
-            if (error.Kind != VirtualControllerErrorKind.DriverNotReady)
-                return;
-
-            switch (UserPrefs.Instance.virtualOutputMode)
-            {
-                case VirtualOutputMode.ScpXbox360:
-                    await VirtualControllerDriverPrompt.PromptInstallAsync(this.XamlRoot);
-                    break;
-
-                case VirtualOutputMode.VJoyExperimental:
-                    await VirtualControllerDriverPrompt.PromptVJoyInstallAsync(this.XamlRoot);
-                    break;
-
-                case VirtualOutputMode.HidMaestroExperimental:
-                    await VirtualControllerDriverPrompt.PromptHidMaestroInstallAsync(this.XamlRoot);
-                    break;
-            }
-        }
-
-        private static bool IsOptionalVirtualOutputFailure(VirtualControllerError error)
-        {
-            return (UserPrefs.Instance.virtualOutputMode == VirtualOutputMode.HidMaestroExperimental
-                    || UserPrefs.Instance.virtualOutputMode == VirtualOutputMode.VJoyExperimental)
-                && error.Kind == VirtualControllerErrorKind.DriverNotReady;
-        }
-
-        private static bool ShouldKeepVirtualOutputErrorInline(VirtualControllerError error)
-        {
-            return UserPrefs.Instance.virtualOutputMode == VirtualOutputMode.HidMaestroExperimental
-                && (error.Kind == VirtualControllerErrorKind.ConnectionFailed
-                    || error.Kind == VirtualControllerErrorKind.WriteFailed);
-        }
-
-        private void HolderUpdate(object? holderState)
-        {
-            if (holder is not null)
-                holder.Update();
-            RumbleStep();
-            SetBatteryStatus(device.BatteryLevel == BatteryStatus.Low);
-        }
-
-        void RumbleStep()
-        {
-            if (holder is null && virtualBackend is null) return;
-
-            if (identifying) return;
-            bool cur = device.RumbleEnabled;
-            if (!properties.useRumble) { if (cur) device.RumbleEnabled = false; return; }
-            if (holder is not null)
-            {
-                rumbleAmount = holder.RumbleAmount;
-            }
-            else if (virtualBackend is ScpXInputBackend xinputBackend)
-            {
-                rumbleAmount = xinputBackend.LastRumbleAmount;
-            }
-            else
-            {
-                rumbleAmount = 0f;
-            }
-            float modifier = properties.rumbleIntensity * 0.5f;
-            float dutyCycle = rumbleAmount < 256
-                ? RumbleSlowMult * rumbleAmount / 256f
-                : rumbleAmount / 65535f;
-            int stopStep = (int)Math.Round(modifier * dutyCycle * RumbleStepPeriod);
-            if (rumbleStepCount < stopStep) { if (!cur) device.RumbleEnabled = true; }
-            else { if (cur) device.RumbleEnabled = false; }
-            if (++rumbleStepCount >= RumbleStepPeriod) rumbleStepCount = 0;
-        }
-
-        private void SetBatteryStatus(bool isLow)
-        {
-            if (isLow && !lowBatteryFired)
-            {
-                DispatcherQueue.TryEnqueue(() =>
-                {
-                    statusGradient.Background = new SolidColorBrush(global::Microsoft.UI.Colors.OrangeRed);
-                    if (TrayServiceIsVisible())
-                    {
-                        lowBatteryFired = true;
-                        var mainWindow = MainWindow.Instance;
-                        if (mainWindow is not null)
-                        {
-                            mainWindow.ShowBalloon(
-                                "Battery Low",
-                                dName + (!dName.Equals(device.Type.ToString()) ? " (" + device.Type.ToString() + ") " : " ")
-                                      + "is running low on battery life.",
-                                2,
-                                System.Media.SystemSounds.Hand);
-                        }
-                        else
-                        {
-                            Debug.WriteLine("Skipping battery-low balloon because MainWindow is unavailable.");
-                        }
-                    }
-                });
-            }
-            else if (!isLow && lowBatteryFired)
-            {
-                DispatcherQueue.TryEnqueue(() =>
-                {
-                    statusGradient.Background = new SolidColorBrush(global::Microsoft.UI.Colors.Transparent);
-                    lowBatteryFired = false;
-                });
-            }
-        }
-
-        // Helper: tray visible check avoids dependency on the tray field
-        private static bool TrayServiceIsVisible() => MainWindow.Instance is not null;
-
-        private void LoadProfile(string profilePath, Holders.Holder h)
-        {
-            Profile? loadedProfile = null;
-            var profileResult = TryLoadProfile(profilePath);
-            if (profileResult.IsOk)
-            {
-                loadedProfile = profileResult.Value;
-            }
-            else if (!string.IsNullOrWhiteSpace(profilePath))
-            {
-                System.Diagnostics.Debug.WriteLine(profileResult.Error.ToDisplayString());
-            }
-
-            loadedProfile ??= UserPrefs.Instance.defaultProfile;
-            if (loadedProfile is not null)
-            {
-                for (int i = 0; i < Math.Min(loadedProfile.controllerMapKeys.Count, loadedProfile.controllerMapValues.Count); i++)
-                {
-                    h.SetMapping(loadedProfile.controllerMapKeys[i], loadedProfile.controllerMapValues[i]);
-                    CheckIR(loadedProfile.controllerMapKeys[i]);
-                }
-            }
-        }
-
-        private static Result<Profile, PreferencesError> TryLoadProfile(string profilePath)
-        {
-            if (string.IsNullOrWhiteSpace(profilePath))
-                return Result<Profile, PreferencesError>.Err(
-                    PreferencesError.ValidationFailed("Profile path is empty."));
-
-            if (!File.Exists(profilePath))
-                return Result<Profile, PreferencesError>.Err(
-                    PreferencesError.FileNotFound(profilePath));
-
-            var serializer = new XmlSerializer(typeof(Profile));
-            try
-            {
-                using var stream = File.OpenRead(profilePath);
-                using var reader = new StreamReader(stream);
-                using var xmlReader = System.Xml.XmlReader.Create(reader, new System.Xml.XmlReaderSettings
-                {
-                    DtdProcessing = System.Xml.DtdProcessing.Prohibit,
-                    XmlResolver = null
-                });
-                var profile = serializer.Deserialize(xmlReader) as Profile;
-                if (profile is null)
-                {
-                    return Result<Profile, PreferencesError>.Err(
-                        PreferencesError.InvalidXml(profilePath, new InvalidOperationException("Profile XML did not deserialize to a valid profile.")));
-                }
-
-                return Result<Profile, PreferencesError>.Ok(profile);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Result<Profile, PreferencesError>.Err(PreferencesError.AccessDenied(profilePath, ex));
-            }
-            catch (System.Xml.XmlException ex)
-            {
-                return Result<Profile, PreferencesError>.Err(PreferencesError.InvalidXml(profilePath, ex));
-            }
-            catch (InvalidOperationException ex) when (ex.InnerException is System.Xml.XmlException)
-            {
-                return Result<Profile, PreferencesError>.Err(PreferencesError.InvalidXml(profilePath, ex));
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Result<Profile, PreferencesError>.Err(PreferencesError.Unknown(profilePath, ex));
-            }
-            catch (System.Security.SecurityException ex)
-            {
-                return Result<Profile, PreferencesError>.Err(PreferencesError.AccessDenied(profilePath, ex));
-            }
-            catch (IOException ex)
-            {
-                return Result<Profile, PreferencesError>.Err(PreferencesError.Unknown(profilePath, ex));
-            }
-        }
-
-        private void UpdateIcon(ControllerType cType)
-        {
-            string key = cType switch
-            {
-                ControllerType.ProController => "ProIcon",
-                ControllerType.ClassicControllerPro => "CCPIcon",
-                ControllerType.ClassicController => "CCIcon",
-                ControllerType.Nunchuk => "WNIcon",
-                ControllerType.NunchukB => "WNIcon",
-                ControllerType.Guitar => "WGTIcon",
-                ControllerType.Drums => "WDRIcon",
-                _ => "WIcon"
-            };
-            icon.Source = Application.Current.Resources[key] as Microsoft.UI.Xaml.Media.ImageSource;
-            UserPrefs.Instance.UpdateDeviceIcon(devicePath, key);
-        }
-
-        private void ApplyCalibration(Property.CalibrationPreference calPref, string calString)
-        {
-            switch (calPref)
-            {
-                case Property.CalibrationPreference.Default: device.SetCalibration(Calibrations.CalibrationPreset.Default); break;
-                case Property.CalibrationPreference.More: device.SetCalibration(Calibrations.CalibrationPreset.Modest); break;
-                case Property.CalibrationPreference.Extra: device.SetCalibration(Calibrations.CalibrationPreset.Extra); break;
-                case Property.CalibrationPreference.Minimal: device.SetCalibration(Calibrations.CalibrationPreset.Minimum); break;
-                case Property.CalibrationPreference.Raw: device.SetCalibration(Calibrations.CalibrationPreset.None); break;
-                case Property.CalibrationPreference.Custom:
-                    var cs = new CalibrationStorage(calString);
-                    device.SetCalibration(cs.ProCalibration); device.SetCalibration(cs.NunchukCalibration);
-                    device.SetCalibration(cs.ClassicCalibration); device.SetCalibration(cs.ClassicProCalibration);
-                    device.SetCalibration(cs.WiimoteCalibration);
-                    break;
-            }
-        }
-
-        private void CheckIR(string assignment)
-        {
-            if (assignment.StartsWith("wIR", StringComparison.Ordinal) && device is not null && device.IRMode == IRCamMode.Off)
-            {
-                if (device.Type == ControllerType.Wiimote || device.Type == ControllerType.Nunchuk || device.Type == ControllerType.NunchukB)
-                    device.IRMode = IRCamMode.Basic;
-            }
-        }
-
-        #region UI Events
-
-        private void IconRightTapped(object sender, RightTappedRoutedEventArgs e)
-        {
-            _ = sender;
-            _ = e;
-            FlyoutBase.ShowAttachedFlyout(icon);
-        }
-
-        private void XInputFlyout_Opening(object sender, object e)
-        {
-            _ = sender;
-            _ = e;
-            XOption1.IsEnabled = Holders.XInputHolder.availabe[0];
-            XOption2.IsEnabled = Holders.XInputHolder.availabe[1];
-            XOption3.IsEnabled = Holders.XInputHolder.availabe[2];
-            XOption4.IsEnabled = Holders.XInputHolder.availabe[3];
-        }
-
-        private void AssignToXinputPlayer(int player)
-        {
-            device.BeginReading();
-            device.GetStatus();
-            targetXDevice = player;
-            ConnectionState = DeviceState.Connected_XInput;
-            RefreshState();
-        }
-
-        private async void XOptionClick(object sender, RoutedEventArgs e)
-        {
-            _ = e;
-            var item = (MenuFlyoutItem)sender;
-            if (Device.Type != ControllerType.ProController)
-            {
-                var dlg = new ContentDialog
-                {
-                    Title = "Connect Wii Remote",
-                    Content = "Press 1+2 on the Wii remote and press OK to continue.",
-                    PrimaryButtonText = "OK",
-                    CloseButtonText = "Cancel",
-                    XamlRoot = this.XamlRoot
-                };
-                if (await dlg.ShowAsync() != ContentDialogResult.Primary) return;
-            }
-            if (TryOpenDeviceStream())
-            {
-                if (int.TryParse(item.Name.Replace("XOption", ""), out int tmp))
-                    AssignToXinputPlayer(tmp);
-            }
-        }
-
-        private void TypeOptionClick(object sender, RoutedEventArgs e)
-        {
-            _ = e;
-            var item = (MenuFlyoutItem)sender;
-            ControllerType ct = item.Name switch
-            {
-                "typeClear" => ControllerType.Unknown,
-                "typePro" => ControllerType.ProController,
-                "typeWiimote" => ControllerType.Wiimote,
-                "typeNunchuk" => ControllerType.Nunchuk,
-                "typeClassic" => ControllerType.ClassicController,
-                "typeClassicPro" => ControllerType.ClassicControllerPro,
-                "typeGuitar" => ControllerType.Guitar,
-                _ => ControllerType.Unknown
-            };
-            device.ForceControllerType(ct);
-            RefreshState();
-        }
-
-        private void BtnDetatchClick(object sender, RoutedEventArgs e)
-        {
-            _ = sender;
-            _ = e;
-            Detatch();
-        }
-
-        private void BtnIdentifyClick(object sender, RoutedEventArgs e)
-        {
-            _ = sender;
-            _ = e;
-            Console.WriteLine("Start of BtnIdentifyClick");
-            bool wasConnected = Connected;
-
-            if (wasConnected || TryOpenDeviceStream())
-            {
-                if (!wasConnected) device.BeginReading();
-                identifying = true;
-                device.RumbleEnabled = true;
-                Delay(500).ContinueWith(o => { identifying = false; device.RumbleEnabled = false; if (!wasConnected) device.StopReading(); });
-                device.SetPlayerLED(1);
-                const int L = 400;
-                Delay((L / 7) * 1).ContinueWith(o => device.SetPlayerLED(2));
-                Delay((L / 7) * 2).ContinueWith(o => device.SetPlayerLED(3));
-                Delay((L / 7) * 3).ContinueWith(o => device.SetPlayerLED(4));
-                Delay((L / 7) * 4).ContinueWith(o => device.SetPlayerLED(3));
-                Delay((L / 7) * 5).ContinueWith(o => device.SetPlayerLED(2));
-                Delay((L / 7) * 6).ContinueWith(o => device.SetPlayerLED(1));
-                if (targetXDevice != 0) Delay(L).ContinueWith(o => device.SetPlayerLED(targetXDevice));
-            }
-
-            Console.WriteLine("end of BtnIdentifyClick");
-        }
-
-        private bool TryOpenDeviceStream()
-        {
-            if (device.DataStream is not WinBtStream stream)
-                return false;
-
-            var openResult = stream.TryOpenConnection();
-            if (openResult.IsError)
-            {
-                System.Diagnostics.Debug.WriteLine(openResult.Error.ToDisplayString());
-                return false;
-            }
-
-            return device.DataStream.CanRead;
-        }
-
-        private void BtnXinputIsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e)
-        {
-            _ = sender;
-            btnXinput.Visibility = (bool)e.NewValue ? Visibility.Visible : Visibility.Collapsed;
-        }
-
-        private async void OutputModeSelectorSelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            _ = sender;
-            _ = e;
-            if (outputModeSelector.SelectedIndex < 0)
-                return;
-
-            UserPrefs.Instance.virtualOutputMode = (VirtualOutputMode)outputModeSelector.SelectedIndex;
-            var saveResult = UserPrefs.SavePrefs();
-            if (saveResult.IsError)
-                System.Diagnostics.Debug.WriteLine(saveResult.Error.ToDisplayString());
-
-            if (device.Type != ControllerType.Guitar || ConnectionState != DeviceState.Connected_XInput)
-                return;
-
-            var reconnect = ConnectVirtualBackendForGuitar();
-            if (reconnect.IsError)
-            {
-                await ShowVirtualControllerErrorAsync(reconnect.Error);
-                await PromptForVirtualOutputDriverAsync(reconnect.Error);
-            }
-        }
-
-        private void PreviewModeSelectorSelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            _ = sender;
-            _ = e;
-            if (previewModeSelector.SelectedIndex < 0)
-                return;
-
-            UserPrefs.Instance.guitarPreviewMode = (GuitarPreviewMode)previewModeSelector.SelectedIndex;
-            var saveResult = UserPrefs.SavePrefs();
-            if (saveResult.IsError)
-                System.Diagnostics.Debug.WriteLine(saveResult.Error.ToDisplayString());
-
-            if (device.Type == ControllerType.Guitar && ConnectionState == DeviceState.Connected_XInput)
-                UpdateGuitarPreviewPanel();
-        }
-
-        private void BtnEditNameClick(object sender, RoutedEventArgs e)
-        {
-            _ = sender;
-            _ = e;
-            nameInput.Text = dName;
-            labelName.Visibility = Visibility.Collapsed;
-            nameInput.Visibility = Visibility.Visible;
-            nameInput.Focus(FocusState.Programmatic);
-            nameInput.SelectAll();
-        }
-
-        private void NameInputTextChanged(object sender, TextChangedEventArgs e)
-        {
-            _ = sender;
-            _ = e;
-            if (properties is not null)
-                properties.name = nameInput.Text;
-        }
-
-        private void NameInputKeyDown(object sender, KeyRoutedEventArgs e)
-        {
-            _ = sender;
-            if (e.Key == VirtualKey.Enter)
-            {
-                CommitNameEdit();
-                e.Handled = true;
-            }
-            else if (e.Key == VirtualKey.Escape)
-            {
-                nameInput.Text = dName;
-                EndNameEdit();
-                e.Handled = true;
-            }
-        }
-
-        private void NameInputLostFocus(object sender, RoutedEventArgs e)
-        {
-            _ = sender;
-            _ = e;
-            CommitNameEdit();
-        }
-
-        private void CommitNameEdit()
-        {
-            string name = string.IsNullOrWhiteSpace(nameInput.Text) ? device.Type.ToString() : nameInput.Text.Trim();
-            properties.name = name;
-            SetName(name);
-            SaveDeviceProperties();
-            EndNameEdit();
-        }
-
-        private void EndNameEdit()
-        {
-            nameInput.Visibility = Visibility.Collapsed;
-            labelName.Visibility = Visibility.Visible;
-        }
-
-        private void AutoConnectSelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            _ = sender;
-            _ = e;
-            if (properties is null) return;
-
-            properties.autoConnect = autoConnectNumber.SelectedIndex > 0;
-            properties.autoNum = autoConnectNumber.SelectedIndex;
-            SaveDeviceProperties();
-        }
-
-        private void SaveDeviceProperties()
-        {
-            UserPrefs.Instance.AddDevicePref(properties);
-            var saveResult = UserPrefs.SavePrefs();
-            if (saveResult.IsError)
-                System.Diagnostics.Debug.WriteLine(saveResult.Error.ToDisplayString());
-        }
-
-        private void BtnDebugViewClick(object sender, RoutedEventArgs e)
-        {
-            _ = sender;
-            _ = e;
-#if DEBUG
-            DebugViewActivate();
-#endif
-        }
-
-        #endregion
-
-        static System.Threading.Tasks.Task Delay(int ms) => System.Threading.Tasks.Task.Delay(ms);
+    private void RefreshVisuals()
+    {
+        if (_session is null) return;
+        UpdateIcon(_session.DeviceType);
+        labelName.Text = _session.DisplayName;
+        nameInput.Text = _session.DisplayName;
+        autoConnectNumber.SelectedIndex = Math.Clamp(_session.AutoConnectSlot, 0, autoConnectNumber.Items.Count - 1);
+        statusGradient.Background = new SolidColorBrush(_session.IsBatteryLow ? Colors.OrangeRed : Colors.Transparent);
+        ApplyStateVisuals(_session.ConnectionState);
     }
+
+    private void ApplyStateVisuals(DeviceState state)
+    {
+        bool available = state != DeviceState.None;
+        bool connected = state == DeviceState.Connected_XInput;
+        labelUnavailable.Visibility = available ? Visibility.Collapsed : Visibility.Visible;
+        btnIdentify.IsEnabled = available;
+        btnEditName.IsEnabled = available;
+        autoConnectNumber.IsEnabled = available;
+        btnXinput.IsEnabled = available && !connected;
+        btnDetatch.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
+        btnDetatch.IsEnabled = connected;
+#if DEBUG
+        btnDebugView.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
+#else
+        btnDebugView.Visibility = Visibility.Collapsed;
+#endif
+        bool guitar = available && _session?.DeviceType == ControllerType.Guitar;
+        guitarPreview.Visibility = guitar && connected ? Visibility.Visible : Visibility.Collapsed;
+        virtualOutputPanel.Visibility = guitar ? Visibility.Visible : Visibility.Collapsed;
+        if (connected)
+        {
+            string? error = (DataContext as DeviceViewModel)?.OutputError;
+            virtualOutputStatusText.Text = string.IsNullOrEmpty(error) ? "Virtual output: connected" : $"Virtual output: {error}";
+        }
+        if (guitar && connected) UpdateGuitarPreviewPanel();
+        if (!connected)
+        {
+            virtualOutputStatusText.Text = "Virtual output: not connected";
+            virtualSourceStateText.Text = "Source: n/a";
+            virtualReadbackStateText.Text = "Readback: unavailable";
+            virtualOutputDiffText.Text = "Mismatch: n/a";
+        }
+    }
+
+    private void UpdateIcon(ControllerType type)
+    {
+        string key = type switch
+        {
+            ControllerType.ProController => "ProIcon",
+            ControllerType.ClassicControllerPro => "CCPIcon",
+            ControllerType.ClassicController => "CCIcon",
+            ControllerType.Nunchuk or ControllerType.NunchukB => "WNIcon",
+            ControllerType.Guitar => "WGTIcon",
+            ControllerType.Drums => "WDRIcon",
+            _ => "WIcon"
+        };
+        icon.Source = Application.Current.Resources[key] as ImageSource;
+    }
+
+    private void UpdateGuitarPreviewPanel()
+    {
+        if (_session is null) return;
+        var state = _session.LastPreviewState;
+        var output = GuitarPreviewState.Empty;
+        if (DataContext is DeviceViewModel vm && vm.GuitarPreviewModeIndex == (int)GuitarPreviewMode.VirtualOutput)
+        {
+            if (_session.TryReadVirtualOutput(out var read, out _))
+            {
+                state = read;
+                output = read;
+                virtualReadbackStateText.Text = $"Readback: {read.ToCompactDebugString()}";
+            }
+            else virtualReadbackStateText.Text = "Readback: unavailable";
+        }
+        else virtualReadbackStateText.Text = "Readback: disabled";
+        UpdateGuitarPreview(state);
+        var source = _session.LastPreviewState;
+        virtualSourceStateText.Text = $"Source: {source.ToCompactDebugString()}";
+        virtualOutputDiffText.Text = BuildMismatchSummary(source, output);
+    }
+
+    private void UpdateGuitarPreview(GuitarPreviewState state)
+    {
+        SetFretPreview(fretG, state.Green, FretGBrush); SetFretPreview(fretR, state.Red, FretRBrush);
+        SetFretPreview(fretY, state.Yellow, FretYBrush); SetFretPreview(fretB, state.Blue, FretBBrush);
+        SetFretPreview(fretO, state.Orange, FretOBrush); strumIndicator.Text = GetStrumPreview(state);
+        SetTextPreview(previewWH, state.Whammy > 0.05f); SetTextPreview(previewWL, state.Whammy < -0.05f);
+        SetTextPreview(previewTH, state.Tilt > 0.05f); SetTextPreview(previewTL, state.Tilt < -0.05f);
+        SetTextPreview(previewStart, state.Start); SetTextPreview(previewSelect, state.Select);
+    }
+
+    private static string BuildMismatchSummary(GuitarPreviewState source, GuitarPreviewState output)
+    {
+        if (output == GuitarPreviewState.Empty) return "Mismatch: n/a";
+        var mismatch = new System.Collections.Generic.List<string>();
+        if (source.Green != output.Green) mismatch.Add("G");
+        if (source.Red != output.Red) mismatch.Add("R");
+        if (source.Yellow != output.Yellow) mismatch.Add("Y");
+        if (source.Blue != output.Blue) mismatch.Add("B");
+        if (source.Orange != output.Orange) mismatch.Add("O");
+        if (source.StrumUp != output.StrumUp) mismatch.Add("SU");
+        if (source.StrumDown != output.StrumDown) mismatch.Add("SD");
+        if (source.Start != output.Start) mismatch.Add("St");
+        if (source.Select != output.Select) mismatch.Add("Sl");
+        if (Math.Abs(source.Whammy - output.Whammy) > 0.12f) mismatch.Add("Wh");
+        if (Math.Abs(source.Tilt - output.Tilt) > 0.12f) mismatch.Add("Tl");
+        return mismatch.Count == 0 ? "Mismatch: none" : $"Mismatch: {string.Join(", ", mismatch)}";
+    }
+
+    private static void SetFretPreview(Border fret, bool pressed, SolidColorBrush brush) => fret.Background = pressed ? brush : PreviewInactiveBrush;
+    private static void SetTextPreview(TextBlock text, bool active)
+    {
+        text.Foreground = active ? PreviewTextActiveBrush : PreviewTextInactiveBrush;
+        text.FontWeight = active ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
+    }
+
+    #pragma warning disable CS0162
+    private static string GetStrumPreview(GuitarPreviewState state)
+    {
+        bool asciiPreview = Environment.TickCount != int.MinValue;
+        if (asciiPreview)
+        {
+            if (state.StrumUp && state.DPadRight) return "^>"; if (state.StrumUp && state.DPadLeft) return "^<";
+            if (state.StrumDown && state.DPadRight) return "v>"; if (state.StrumDown && state.DPadLeft) return "v<";
+            if (state.StrumUp) return "^"; if (state.StrumDown) return "v";
+            if (state.DPadLeft) return "<"; if (state.DPadRight) return ">"; return "-";
+        }
+#if false
+        if (state.StrumUp && state.DPadRight) return "↗"; if (state.StrumUp && state.DPadLeft) return "↖";
+        if (state.StrumDown && state.DPadRight) return "↘"; if (state.StrumDown && state.DPadLeft) return "↙";
+        if (state.StrumUp) return "↑"; if (state.StrumDown) return "↓";
+        if (state.DPadLeft) return "←"; if (state.DPadRight) return "→"; return "•";
+    }
+
+ #endif
+        if (state.StrumUp && state.DPadRight) return "↗"; if (state.StrumUp && state.DPadLeft) return "↖";
+        if (state.StrumDown && state.DPadRight) return "↘"; if (state.StrumDown && state.DPadLeft) return "↙";
+        if (state.StrumUp) return "↑"; if (state.StrumDown) return "↓";
+        if (state.DPadLeft) return "←"; if (state.DPadRight) return "→"; return "•";
+    }
+
+    #pragma warning restore CS0162
+    private void IconRightTapped(object sender, RightTappedRoutedEventArgs e) => FlyoutBase.ShowAttachedFlyout(icon);
+
+    private void XInputFlyout_Opening(object sender, object e)
+    {
+        XOption1.IsEnabled = Holders.XInputHolder.availabe[0]; XOption2.IsEnabled = Holders.XInputHolder.availabe[1];
+        XOption3.IsEnabled = Holders.XInputHolder.availabe[2]; XOption4.IsEnabled = Holders.XInputHolder.availabe[3];
+    }
+
+    private async void XOptionClick(object sender, RoutedEventArgs e)
+    {
+        if (_session is null || DataContext is not DeviceViewModel vm) return;
+        var item = (MenuFlyoutItem)sender;
+        if (_session.DeviceType != ControllerType.ProController)
+        {
+            var dialog = new ContentDialog { Title = "Connect Wii Remote", Content = "Press 1+2 on the Wii remote and press OK to continue.", PrimaryButtonText = "OK", CloseButtonText = "Cancel", XamlRoot = XamlRoot };
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        }
+        if (int.TryParse(item.Name.Replace("XOption", ""), out int player)) vm.ConnectToXInput(player);
+    }
+
+    private async void BtnIdentifyClick(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not DeviceViewModel vm) return;
+        btnIdentify.IsEnabled = false;
+        try { await vm.IdentifyAsync(); }
+        catch (Exception error) { WiitarDebug.Log($"Identify failed: {error}", WiitarDebug.LogLevel.Error); }
+        finally { RefreshVisuals(); }
+    }
+
+    private void BtnXinputIsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e) => btnXinput.Visibility = (bool)e.NewValue ? Visibility.Visible : Visibility.Collapsed;
+
+    private void BtnEditNameClick(object sender, RoutedEventArgs e)
+    {
+        _editingName = true; nameInput.Text = _session?.DisplayName ?? string.Empty; labelName.Visibility = Visibility.Collapsed;
+        nameInput.Visibility = Visibility.Visible; nameInput.Focus(FocusState.Programmatic); nameInput.SelectAll();
+    }
+
+    private void NameInputTextChanged(object sender, TextChangedEventArgs e) { }
+    private void NameInputKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == global::Windows.System.VirtualKey.Enter) { CommitNameEdit(); e.Handled = true; }
+        else if (e.Key == global::Windows.System.VirtualKey.Escape) { EndNameEdit(); e.Handled = true; }
+    }
+    private void NameInputLostFocus(object sender, RoutedEventArgs e) { if (_editingName) CommitNameEdit(); }
+    private void CommitNameEdit() { if (DataContext is DeviceViewModel vm) vm.DisplayName = nameInput.Text; EndNameEdit(); }
+    private void EndNameEdit() { _editingName = false; nameInput.Visibility = Visibility.Collapsed; labelName.Visibility = Visibility.Visible; }
+
+#if DEBUG
+    private Windows.DebugDataWindow? _debugWindow;
+    private void BtnDebugViewClick(object sender, RoutedEventArgs e)
+    {
+        if (_debugWindow is not null || _session is not IConnectableDeviceSession connectable) return;
+        _debugWindow = new Windows.DebugDataWindow { nintroller = connectable.Controller, XamlRoot = XamlRoot };
+        _debugWindow.RegisterNintrollerUpdate(); _debugWindow.Closed += (_, _) => _debugWindow = null; _ = _debugWindow.ShowAsync();
+    }
+#else
+    private void BtnDebugViewClick(object sender, RoutedEventArgs e) { }
+#endif
 }

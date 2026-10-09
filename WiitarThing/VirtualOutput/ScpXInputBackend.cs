@@ -103,7 +103,9 @@ internal sealed class ScpXInputBackend : IVirtualControllerBackend
             return Result<Unit, VirtualControllerError>.Err(parseResult.Error);
         }
 
-        _bus.Report(parsed, rumble);
+        if (!_bus.Report(parsed, rumble))
+            return Result<Unit, VirtualControllerError>.Err(
+                VirtualControllerError.WriteFailed("The SCP bus rejected the controller report.", _slot));
         if (rumble[1] == 0x08)
         {
             int strength = BitConverter.ToInt32(new byte[] { rumble[4], rumble[3], 0x00, 0x00 }, 0);

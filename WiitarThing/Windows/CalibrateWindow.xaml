@@ -15,8 +15,9 @@
                 Spacing="4"
                 Margin="0,0,0,12">
             <TextBlock x:Name="title"
-                    Text="Calibrate Wiimote"/>
+                    Text="{Binding Title}"/>
             <TextBlock x:Name="inst"
+                       Text="{Binding Instructions}"
                        TextWrapping="Wrap">
                 Rotate the Wiimote around to the left and right (roll) so the buttons face left and then right. Adjust the minimums and maximums of each axis as desired.
             </TextBlock>
@@ -510,10 +511,10 @@
                         Height="36"
                         Click="cancelBtn_Click"/>
                 <Button x:Name="nextBtn"
-                        Content="Next"
                         Width="100"
                         Height="36"
-                        Click="nextBtn_Click"/>
+                        Click="nextBtn_Click"
+                        Content="{Binding NextButtonText}"/>
             </StackPanel>
         </Grid>
     </Grid>

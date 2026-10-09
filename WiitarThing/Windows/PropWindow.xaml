@@ -32,7 +32,7 @@
                          Grid.Column="1"
                          Height="32"
                          VerticalContentAlignment="Center"
-                         TextChanged="nameInput_TextChanged"
+                         Text="{Binding Name, Mode=TwoWay}"
                          PlaceholderText="Enter device name"/>
             </Grid>
 
@@ -48,8 +48,7 @@
                 <ComboBox x:Name="autoConnectNumber"
                           Grid.Column="1"
                           Height="32"
-                          SelectedIndex="0"
-                          SelectionChanged="AutoConnect_SelectionChanged">
+                          SelectedIndex="{Binding AutoConnectIndex, Mode=TwoWay}">
                     <ComboBoxItem Content="None"/>
                     <ComboBoxItem Content="Controller 1"/>
                     <ComboBoxItem Content="Controller 2"/>
@@ -63,21 +62,20 @@
         <!-- Hidden controls for code-behind compatibility -->
         <CheckBox  x:Name="autoCheckbox"
                 Visibility="Collapsed"
-                Click="autoCheckbox_Click"/>
+                IsChecked="{Binding AutoConnect, Mode=TwoWay}"/>
         <TextBox   x:Name="defaultInput"
                 Visibility="Collapsed"
-                TextChanged="defaultInput_TextChanged"/>
+                Text="{Binding ProfilePath, Mode=TwoWay}"/>
         <Button    x:Name="defaultBtn"
                 Visibility="Collapsed"
                 Click="defaultBtn_Click"
                 Content="..."/>
         <ComboBox  x:Name="rumbleSelection"
                 Visibility="Collapsed"
-                SelectedIndex="2"
-                SelectionChanged="Rumble_SelectionChanged"/>
+                SelectedIndex="{Binding RumbleIndex, Mode=TwoWay}"/>
         <ComboBox  x:Name="calibrationSelection"
                 Visibility="Collapsed"
-                SelectedIndex="0"
+                SelectedIndex="{Binding CalibrationIndex, Mode=TwoWay}"
                    SelectionChanged="Calibration_SelectionChanged"
                 DropDownClosed="calibrationSelection_DropDownClosed">
             <ComboBoxItem Content="Default"/>
@@ -88,8 +86,7 @@
         </ComboBox>
         <ComboBox  x:Name="pointerSelection"
                 Visibility="Collapsed"
-                SelectedIndex="0"
-                SelectionChanged="pointerSelection_SelectionChanged"/>
+                SelectedIndex="{Binding PointerModeIndex, Mode=TwoWay}"/>
 
         <!-- Bottom action row -->
         <StackPanel Grid.Row="3"

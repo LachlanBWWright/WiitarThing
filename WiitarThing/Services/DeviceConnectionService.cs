@@ -1,5 +1,6 @@
 using NintrollerLib;
 using Shared.Windows;
+using WiinUSoft.Models;
 
 namespace WiinUSoft.Services;
 
@@ -13,7 +14,7 @@ public sealed class DeviceConnectionService : IDeviceConnectionService
         var openResult = stream.TryOpenConnection();
         if (openResult.IsError)
         {
-            System.Diagnostics.Debug.WriteLine(openResult.Error.ToDisplayString());
+            WiitarDebug.Log(openResult.Error.ToDisplayString(), WiitarDebug.LogLevel.Error);
             return false;
         }
 
@@ -31,22 +32,20 @@ public sealed class DeviceConnectionService : IDeviceConnectionService
         return null;
     }
 
-    public bool TryConnectToXInput(DeviceControl deviceControl, int playerNumber)
+    public bool TryConnectToXInput(IDeviceSession deviceSession, int playerNumber)
     {
+        if (deviceSession is not IConnectableDeviceSession connectableDevice)
+            return false;
+
         if (playerNumber < 1 || playerNumber > 4)
             return false;
 
         if (Holders.XInputHolder.availabe.Length < playerNumber || !Holders.XInputHolder.availabe[playerNumber - 1])
             return false;
 
-        if (!deviceControl.Device.Connected && !TryEnsureStreamOpen(deviceControl.Device))
+        if (!connectableDevice.Controller.Connected && !TryEnsureStreamOpen(connectableDevice.Controller))
             return false;
 
-        deviceControl.targetXDevice = playerNumber;
-        deviceControl.ConnectionState = DeviceState.Connected_XInput;
-        deviceControl.Device.BeginReading();
-        deviceControl.Device.GetStatus();
-        deviceControl.Device.SetPlayerLED(playerNumber);
-        return true;
+        return connectableDevice.AssignToXInput(playerNumber).IsOk;
     }
 }

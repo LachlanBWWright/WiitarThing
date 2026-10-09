@@ -1,13 +1,15 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace NintrollerLib
 {
     /// <summary>
     /// Used to represent a Nintendo controller
     /// </summary>
-    public class Nintroller : IDisposable
+    public partial class Nintroller : IDisposable, IAsyncDisposable
     {
         #region Members
         // Events
@@ -29,7 +31,7 @@ namespace NintrollerLib
         public event EventHandler<DisconnectedEventArgs>        Disconnected    = delegate { };
         
         // General
-        private bool               _connected                   = false;
+        private volatile bool      _connected                   = false;
         private INintrollerState?  _state                       = new Wiimote();
         private CalibrationStorage _calibrations                = new CalibrationStorage();
         private ControllerType     _currentType                 = ControllerType.Unknown;
@@ -43,8 +45,14 @@ namespace NintrollerLib
 
         // Read/Writing Variables
         private Stream           _stream = null!;             // Read and Write Stream
-        private bool             _reading    = false;        // true if actively reading
+        private volatile bool    _reading    = false;        // true if actively reading
+        private CancellationTokenSource? _readCancellation;
+        private Task _readingCompletion = Task.CompletedTask;
+        private long             _readGeneration;
+        private bool             _disposed;
         private bool             _disconnectNotified;
+        private static int       _nextConnectionId;
+        private readonly int     _connectionId = Interlocked.Increment(ref _nextConnectionId);
         private readonly object  _readingObj = new object(); // for locking/blocking
         
         // help with parsing Reports
@@ -318,7 +326,16 @@ namespace NintrollerLib
         /// </summary>
         public void Dispose()
         {
-            StopReading();
+            lock (_readingObj)
+            {
+                if (_disposed)
+                    return;
+                _disposed = true;
+                _reading = false;
+                _connected = false;
+                _readGeneration++;
+                _readCancellation?.Cancel();
+            }
             GC.SuppressFinalize(this);
 
             if (_stream != null)
@@ -371,7 +388,7 @@ namespace NintrollerLib
         [Obsolete("Use StopReading instead and then close the stream.")]
         public void Disconnect()
         {
-            _reading = false;
+            StopReading();
 
             if (_stream != null)
                 _stream.Close();
@@ -389,25 +406,39 @@ namespace NintrollerLib
         /// </summary>
         public void BeginReading()
         {
-            _connected = true;
-
-            bool shouldStart;
+            Task previous;
+            TaskCompletionSource completion;
+            CancellationTokenSource cancellation;
+            long generation;
             lock (_readingObj)
             {
-                // Serialize starts so repeated connection notifications cannot
-                // create overlapping read chains.
-                shouldStart = !_reading && _stream != null;
-                if (shouldStart)
-                {
-                    _reading = true;
-                    _disconnectNotified = false;
-                }
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                if (_reading)
+                    return;
+                generation = ++_readGeneration;
+                _connected = _reading = true;
+                _disconnectNotified = false;
+                previous = _readingCompletion;
+                completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                _readingCompletion = completion.Task;
+                cancellation = new CancellationTokenSource();
+                _readCancellation = cancellation;
             }
-
-            if (shouldStart)
-                ReadAsync();
+            // Start outside the read lock: parsing calls subscribers that take session locks.
+            _ = RunReadLoopAsync(previous, completion, cancellation, generation);
         }
 
+        /// <summary>Completes after the current read loop and its callbacks have stopped.</summary>
+        public Task ReadingCompletion
+        {
+            get { lock (_readingObj) return _readingCompletion; }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            Dispose();
+            await ReadingCompletion.ConfigureAwait(false);
+        }
         /// <summary>
         /// Sends a status request to the device.
         /// </summary>
@@ -439,106 +470,70 @@ namespace NintrollerLib
             ApplyReportingType(reportType, continuous);
         }
 
-        // Performs an asynchronous read
-        private void ReadAsync()
+        private bool IsCurrentRead(long generation)
         {
-            if (_stream != null && _stream.CanRead)
-            {
-                IAsyncResult? ar = null;
-                System.Threading.WaitHandle? wh = null;
-
-                lock (_readingObj)
-                {
-                    byte[] readResult = new byte[Constants.REPORT_LENGTH];
-                    
-                    try
-                    {
-                        ar = _stream.BeginRead(readResult, 0, readResult.Length, RecieveDataAsync, readResult);
-                        wh = ar.AsyncWaitHandle;
-                    }
-                    catch (ObjectDisposedException ex)
-                    {
-                        Log("Can't read, the stream was disposed");
-                        NotifyDisconnected(ex);
-                    }
-                    catch (IOException e)
-                    {
-                        Log("Error Begining Read, is it not connected?");
-                        NotifyDisconnected(e);
-                    }
-                    catch (InvalidOperationException e)
-                    {
-                        Log("Error Begining Read, stream is not in a readable state.");
-                        NotifyDisconnected(e);
-                    }
-                }
-
-                // Wait 3 seconds for a response in the background
-                System.Threading.Tasks.Task t = new System.Threading.Tasks.Task(() =>
-                {
-                    try
-                    {
-                        if (wh != null && !wh.SafeWaitHandle.IsClosed && !wh.WaitOne(3000) && _reading && _connected)
-                        {
-                            // If read is not completed send a status report to check connection status
-                            GetStatus();
-                        }
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                        Log("Disposed");
-                    }
-                    finally
-                    {
-                        wh?.Dispose();
-                    }
-                });
-                t.Start();
-            }
+            lock (_readingObj)
+                return !_disposed && _reading && generation == _readGeneration;
         }
 
-        // Recieve Data from reading the stream
-        private void RecieveDataAsync (IAsyncResult data)
+        private async Task RunReadLoopAsync(Task previous, TaskCompletionSource completion,
+            CancellationTokenSource cancellation, long generation)
         {
+            var token = cancellation.Token;
             try
             {
-                // Convert the result
-                if (data.AsyncState is not byte[] result)
-                    return;
-
-                // Must be called for each BeginRead()
-                _stream.EndRead(data);
-
-                ParseReport(result);
-
-                // start another read if we are still to be reading
-                if (_reading)
+                // Even a stream that ignores cancellation must never have overlapping reads.
+                await previous.ConfigureAwait(false);
+                var buffer = new byte[Constants.REPORT_LENGTH];
+                while (IsCurrentRead(generation))
                 {
-                    ReadAsync();
+                    using var timeoutCancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
+                    var read = _stream.ReadAsync(buffer.AsMemory(), token).AsTask();
+                    var timeout = Task.Delay(3000, timeoutCancellation.Token);
+                    if (await Task.WhenAny(read, timeout).ConfigureAwait(false) == timeout && IsCurrentRead(generation))
+                        GetStatus();
+                    int count = await read.ConfigureAwait(false);
+                    timeoutCancellation.Cancel();
+                    if (!IsCurrentRead(generation))
+                        break;
+                    if (count == 0)
+                    {
+                        NotifyDisconnected(new EndOfStreamException("The controller returned an empty HID report."), generation);
+                        break;
+                    }
+                    if (count != buffer.Length)
+                    {
+                        Log($"Nintroller[{_connectionId}] ignored partial HID report ({count}/{buffer.Length} bytes)");
+                        continue;
+                    }
+                    ParseReport(buffer);
+                    // Subscribers may retain raw reports (for example the debug view).
+                    buffer = new byte[Constants.REPORT_LENGTH];
                 }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
-                Log("Async Read Was Cancelled");
+                Log("Controller read cancelled.");
             }
-            catch (IOException e)
+            catch (IOException ex) { NotifyDisconnected(ex, generation); }
+            catch (ObjectDisposedException ex) { NotifyDisconnected(ex, generation); }
+            catch (InvalidOperationException ex) { NotifyDisconnected(ex, generation); }
+            catch (Exception ex)
             {
-                Log("IO Error, is the device not connected?");
-                if (_reading || _connected)
-                {
-                    NotifyDisconnected(e);
-                }
+                // Read-loop boundary: always expose unexpected parser/subscriber failures.
+                NotifyDisconnected(ex, generation);
             }
-            catch (ObjectDisposedException e)
+            finally
             {
-                Log("Read failed because the stream is disposed.");
-                if (_reading || _connected)
+                lock (_readingObj)
                 {
-                    NotifyDisconnected(e);
+                    if (ReferenceEquals(_readCancellation, cancellation))
+                        _readCancellation = null;
+                    cancellation.Dispose();
                 }
+                completion.TrySetResult();
             }
         }
-
         // Request data from the device's memory
         private void ReadMemory(int address, short size)
         {
@@ -699,6 +694,7 @@ namespace NintrollerLib
                                 //LowBattery(this, BatteryStatus.VeryLow);
                                 LowBattery(this, new LowBatteryEventArgs(BatteryStatus.VeryLow));
                             }
+                            _batteryLow = lowBattery;
 
                             // LED
                             // TODO: LED Check - we probably don't want this one
@@ -753,20 +749,22 @@ namespace NintrollerLib
 
                     bool noError = (report[3] & 0xF) == 0;
                     if (!noError)
+                    {
                         Log("Possible ReadMem Error: " + (report[3] & 0x0F).ToString());
+                        return;
+                    }
 
                     switch(_readType)
                     {
                         case ReadReportType.Extension_A:
                             // Initialize
-                            lock (_readingObj)
+                            // Native writes and subscriber notifications must run outside
+                            // the read lock; device shutdown takes its own session lock.
+                            if (report[0] != 0x04)
                             {
                                 // TODO: Can report[0] ever be equal to 0x04 here? Considering it has to be 0x21 to get here...
-                                if (report[0] != 0x04)
-                                {
-                                    WriteToMemory(Constants.REGISTER_EXTENSION_INIT_1, new byte[] { 0x55 });
-                                    WriteToMemory(Constants.REGISTER_EXTENSION_INIT_2, new byte[] { 0x00 });
-                                }
+                                WriteToMemory(Constants.REGISTER_EXTENSION_INIT_1, new byte[] { 0x55 });
+                                WriteToMemory(Constants.REGISTER_EXTENSION_INIT_2, new byte[] { 0x00 });
                             }
 
                             _readType = ReadReportType.Extension_B;
@@ -774,10 +772,9 @@ namespace NintrollerLib
                             break;
 
                         case ReadReportType.Extension_B:
-                            if (report.Length < 6)
+                            if ((report[3] >> 4) + 1 < 6)
                             {
-                                _readType = ReadReportType.Unknown;
-                                Log("Report length not long enough for Extension_B");
+                                Log("Extension identifier reply contains fewer than six bytes.");
                                 return;
                             }
 
@@ -984,6 +981,7 @@ namespace NintrollerLib
 
                                     default:
                                         Log("Unhandled controller type");
+                                        _state = null;
                                         break;
                                 }
 
@@ -1224,22 +1222,7 @@ namespace NintrollerLib
                     if (_state != null)
                     {
                         _state.Update(report);
-                        var arg = new NintrollerStateEventArgs(_currentType, _state, BatteryLevel);
-
-                        try
-                        {
-                            // got an access violation here once
-                            //StateUpdate(this, arg);
-
-                            // let's try not including the sender
-                            StateUpdate(null, arg);
-                        }
-                        catch (Exception)
-                        {
-#if DEBUG
-                            Debug.WriteLine("State Update Exception while dispatching subscriber callback.");
-#endif
-                        }
+                        DispatchStateUpdate();
                     }
                     break;
 #endregion
@@ -1469,21 +1452,36 @@ namespace NintrollerLib
             {
                 _reading = false;
                 _connected = false;
+                _readGeneration++;
+                _readCancellation?.Cancel();
             }
         }
 
-        private void NotifyDisconnected(Exception exception)
+        /// <summary>Requests cancellation and waits for the stopped generation to finish.</summary>
+        public Task StopReadingAsync()
         {
             lock (_readingObj)
             {
-                if (_disconnectNotified)
+                StopReading();
+                return _readingCompletion;
+            }
+        }
+
+        private void NotifyDisconnected(Exception exception, long? generation = null)
+        {
+            lock (_readingObj)
+            {
+                if (_disposed || _disconnectNotified || (generation.HasValue && generation.Value != _readGeneration))
                     return;
 
                 _disconnectNotified = true;
                 _reading = false;
                 _connected = false;
+                _readGeneration++;
+                _readCancellation?.Cancel();
             }
 
+            Log($"Nintroller[{_connectionId}] disconnected: {exception.GetType().Name}: {exception.Message}");
             Disconnected?.Invoke(this, new DisconnectedEventArgs(exception));
         }
 
@@ -1509,9 +1507,17 @@ namespace NintrollerLib
         /// <param name="calibrationStorageString">Calibration storage string to use.</param>
         public void SetCalibration(string calibrationStorageString)
         {
+            if (string.IsNullOrEmpty(calibrationStorageString)) return;
+
             _calibrations.SetCalibrations(calibrationStorageString);
-            
-            // TODO: apply 
+
+            // Apply both the remote and extension calibration to the existing state.
+            // Reuse the typed setters so live input and controller identity are preserved.
+            SetCalibration(_calibrations.WiimoteCalibration);
+            SetCalibration(_calibrations.NunchukCalibration);
+            SetCalibration(_calibrations.ClassicCalibration);
+            SetCalibration(_calibrations.ClassicProCalibration);
+            SetCalibration(_calibrations.ProCalibration);
         }
         /// <summary>
         /// Sets the controller calibration for the Wiimote
@@ -1527,7 +1533,8 @@ namespace NintrollerLib
                 _currentType == ControllerType.NunchukB ||
                 _currentType == ControllerType.ClassicController || 
                 _currentType == ControllerType.ClassicControllerPro ||
-                _currentType == ControllerType.Guitar))
+                _currentType == ControllerType.Guitar ||
+                _currentType == ControllerType.Drums))
             {
                 _state.SetCalibration(wiimoteCalibration);
             }

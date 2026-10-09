@@ -280,38 +280,7 @@ namespace WiinUSoft
                 return Result<Unit, PreferencesError>.Err(
                     PreferencesError.ValidationFailed("Cannot save preferences before an active instance is initialized.", DataPath));
 
-            var serializer = new XmlSerializer(typeof(UserPrefs));
-            try
-            {
-                var mode = File.Exists(DataPath) ? FileMode.Create : FileMode.CreateNew;
-                using (var stream = File.Open(DataPath, mode, FileAccess.Write))
-                using (var writer = new StreamWriter(stream))
-                {
-                    serializer.Serialize(writer, _instance);
-                }
-
-                return Result<Unit, PreferencesError>.Ok(Unit.Value);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Result<Unit, PreferencesError>.Err(
-                    PreferencesError.AccessDenied(DataPath, ex));
-            }
-            catch (SecurityException ex)
-            {
-                return Result<Unit, PreferencesError>.Err(
-                    PreferencesError.AccessDenied(DataPath, ex));
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Result<Unit, PreferencesError>.Err(
-                    PreferencesError.SerializationFailed(DataPath, ex));
-            }
-            catch (IOException ex)
-            {
-                return Result<Unit, PreferencesError>.Err(
-                    PreferencesError.SerializationFailed(DataPath, ex));
-            }
+            return PreferencesFileStore.Save(DataPath, _instance);
         }
 
         /// <summary>
@@ -343,6 +312,12 @@ namespace WiinUSoft
                     pref.rumbleIntensity = property.rumbleIntensity;
                     pref.useRumble = property.useRumble;
                     pref.calPref = property.calPref;
+                    pref.calString = property.calString;
+                    pref.pointerMode = property.pointerMode;
+                    pref.lastIcon = property.lastIcon;
+                    pref.virtualOutputMode = property.virtualOutputMode;
+                    pref.guitarPreviewMode = property.guitarPreviewMode;
+                    pref.vJoyDeviceId = property.vJoyDeviceId;
 
                     return;
                 }
@@ -416,6 +391,10 @@ namespace WiinUSoft
         public CalibrationPreference calPref;
         public string calString = ""; // not the best solution for saving the custom config but makes it easy
         public PointerOffScreenMode pointerMode = PointerOffScreenMode.Center;
+        // Null preserves the global defaults in preferences written by older versions.
+        public VirtualOutputMode? virtualOutputMode;
+        public GuitarPreviewMode? guitarPreviewMode;
+        public int? vJoyDeviceId;
 
         public Property()
         {
@@ -437,6 +416,7 @@ namespace WiinUSoft
         {
             hid = copy.hid;
             name = copy.name;
+            lastIcon = copy.lastIcon;
             autoConnect = copy.autoConnect;
             autoNum = copy.autoNum;
             useRumble = copy.useRumble;
@@ -446,6 +426,9 @@ namespace WiinUSoft
             calPref = copy.calPref;
             calString = copy.calString;
             pointerMode = copy.pointerMode;
+            virtualOutputMode = copy.virtualOutputMode;
+            guitarPreviewMode = copy.guitarPreviewMode;
+            vJoyDeviceId = copy.vJoyDeviceId;
         }
     }
 

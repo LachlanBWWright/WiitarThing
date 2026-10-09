@@ -5,6 +5,18 @@
     /// </summary>
     public static class Calibrations
     {
+        internal static bool HasCalibrationValues(string? calibration)
+        {
+            if (string.IsNullOrWhiteSpace(calibration))
+                return false;
+            foreach (string component in calibration.Split(':', '|'))
+            {
+                if (int.TryParse(component, out int value) && value != 0)
+                    return true;
+            }
+            return false;
+        }
+
         /// <summary>
         /// Possible pre built calibration types
         /// </summary>
@@ -1025,7 +1037,7 @@
         /// Constructor that takes the ToString of this class and converts it to calibrations.
         /// </summary>
         /// <param name="storageString"></param>
-        public CalibrationStorage(string storageString) : base()
+        public CalibrationStorage(string storageString) : this()
         {
             SetCalibrations(storageString);
         }
@@ -1050,7 +1062,7 @@
                 {
                     NunchukCalibration.SetCalibration(calStr);
                 }
-                else if (calStr.StartsWith("cls"))
+                else if (calStr.StartsWith("cla") || calStr.StartsWith("cls"))
                 {
                     ClassicCalibration.SetCalibration(calStr);
                 }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using WiinUSoft.Services;
 
 namespace WiinUSoft.Windows
 {
@@ -22,7 +23,7 @@ namespace WiinUSoft.Windows
 
             _workThread = new System.Threading.Thread(() =>
             {
-                SyncDialog.RemoveAllWiimotes();
+                new BluetoothPairingService().RemoveAllWiimotes();
                 DispatcherQueue.TryEnqueue(Hide);
             });
             _workThread.IsBackground = true;

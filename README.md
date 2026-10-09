@@ -1,4 +1,8 @@
 # About WiitarThing
+
+The current build is a Windows x64 application using .NET 10 and WinUI 3. Windows 7 and Windows 8 are no longer supported by this build; references to them in the legacy connection guides below are historical.
+
+For development, see [Build and test](BUILD_AND_TEST.md). For implemented changes and remaining priorities, see [Project status](PROJECT_STATUS.md).
 WiitarThing lets you use Wii Guitar Hero guitars (a.k.a. "Wiitars") and Wii Guitar Hero drums (a.k.a. "Wiidrums") **wirelessly** on Windows PCs with high performance (built with Clone Hero in mind). 
 To use Wiitars or Wiidrums with a wired connection on your PC without a Wiimote or bluetooth, simply order the [Raphnet adapter](https://www.raphnet-tech.com/products/wusbmote_1player_adapter_v3/index.php) and plug it in to your PC. This software is not needed in that case.
 
@@ -24,6 +28,8 @@ http://www.wiinupro.com/
   * `Virtual Guitar (HIDMaestro, experimental)`
   * `DirectInput Joystick (vJoy, experimental)`
 * A guitar row also includes a **Preview Source** selector (`Wii Controller` vs `Virtual Output`) plus output state/mismatch readback text to help debug mapping and driver issues.
+* Output and preview selections are saved separately for each device. Existing preference files remain compatible: devices without an override inherit the previous global defaults. Switching output on a connected guitar reconnects that device; a failed replacement disconnects it and displays the error.
+* HIDMaestro and vJoy remain experimental. Selecting vJoy shows a per-device **vJoy device ID** field. Configure a different vJoy device in vJoyConf for each guitar and enter its ID. Duplicate active IDs are rejected; older preferences inherit the global ID until overridden. Changing the ID on an active guitar reconnects its output.
 * WiitarThing will not work out of the box for the Guitar Hero 3, Guitar Hero: Aerosmith, or Guitar Hero: World Tour games for PC.
   * This is because WiitarThing makes the guitar show up as a **regular Xbox 360 gamepad**. These official PC releases of these games expect **an Xbox 360 gamepad flagged as a guitar**.
   * To get around this, you can use [x360ce](https://www.x360ce.com/) to emulate a guitar-flagged controller.

@@ -57,10 +57,10 @@ internal sealed class VJoyBackend : IVirtualControllerBackend
                 VirtualControllerError.InvalidMapping("vJoy backend currently supports guitar output only.", slotOrDeviceId > 0 ? slotOrDeviceId : null));
         }
 
-        if (slotOrDeviceId <= 0)
+        if (slotOrDeviceId <= 0 || slotOrDeviceId > byte.MaxValue)
         {
             return Result<Unit, VirtualControllerError>.Err(
-                VirtualControllerError.InvalidMapping("vJoy device ID must be 1 or greater.", slotOrDeviceId));
+                VirtualControllerError.InvalidMapping("vJoy device ID must be between 1 and 255.", slotOrDeviceId));
         }
 
         _deviceId = (uint)slotOrDeviceId;
@@ -95,7 +95,7 @@ internal sealed class VJoyBackend : IVirtualControllerBackend
                 return Result<Unit, VirtualControllerError>.Err(
                     VirtualControllerError.DriverNotReady($"vJoy device {_deviceId} does not exist. Configure it in vJoyConf.", slotOrDeviceId));
             }
-            if (status == VjdStat.VjdStatBust)
+            if (status == VjdStat.VjdStatBust || status == VjdStat.VjdStatOwn)
             {
                 return Result<Unit, VirtualControllerError>.Err(
                     VirtualControllerError.ConnectionFailed($"vJoy device {_deviceId} is busy.", slotOrDeviceId));

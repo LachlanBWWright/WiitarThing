@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -113,11 +113,17 @@ namespace NintrollerLib
                 accelerometer.Calibrate(((ClassicControllerPro)from).wiimote.accelerometer);
                 irSensor.boundingArea = ((ClassicControllerPro)from).wiimote.irSensor.boundingArea;
             }
+            else
+            {
+                return;
+            }
+
+            accelerometer.Normalize();
         }
 
         public void SetCalibration(string calibrationString)
         {
-            if (calibrationString.Count(c => c == '0') > 5)
+            if (!Calibrations.HasCalibrationValues(calibrationString))
             {
                 // don't set empty calibrations
                 return;
@@ -448,6 +454,8 @@ namespace NintrollerLib
             {
                 accelerometer.Calibrate(((Nunchuk)from).accelerometer);
                 joystick.Calibrate(((Nunchuk)from).joystick);
+                accelerometer.Normalize();
+                joystick.Normalize();
             }
             else if (from.GetType() == typeof(Wiimote))
             {
@@ -457,7 +465,7 @@ namespace NintrollerLib
 
         public void SetCalibration(string calibrationString)
         {
-            if (calibrationString.Count(c => c == '0') > 5)
+            if (!Calibrations.HasCalibrationValues(calibrationString))
             {
                 // don't set empty calibrations
                 return;
@@ -776,6 +784,10 @@ namespace NintrollerLib
                 RJoy.Calibrate(((ClassicController)from).RJoy);
                 L.Calibrate(((ClassicController)from).L);
                 R.Calibrate(((ClassicController)from).R);
+                LJoy.Normalize();
+                RJoy.Normalize();
+                L.Normalize();
+                R.Normalize();
             }
             else if (from.GetType() == typeof(Wiimote))
             {
@@ -785,7 +797,7 @@ namespace NintrollerLib
 
         public void SetCalibration(string calibrationString)
         {
-            if (calibrationString.Count(c => c == '0') > 5)
+            if (!Calibrations.HasCalibrationValues(calibrationString))
             {
                 // don't set empty calibrations
                 return;
@@ -1136,6 +1148,8 @@ namespace NintrollerLib
             {
                 LJoy.Calibrate(((ClassicControllerPro)from).LJoy);
                 RJoy.Calibrate(((ClassicControllerPro)from).RJoy);
+                LJoy.Normalize();
+                RJoy.Normalize();
             }
             else if (from.GetType() == typeof(Wiimote))
             {
@@ -1145,7 +1159,7 @@ namespace NintrollerLib
 
         public void SetCalibration(string calibrationString)
         {
-            if (calibrationString.Count(c => c == '0') > 5)
+            if (!Calibrations.HasCalibrationValues(calibrationString))
             {
                 // don't set empty calibrations
                 return;
@@ -1452,12 +1466,14 @@ namespace NintrollerLib
             {
                 LJoy.Calibrate(((ProController)from).LJoy);
                 RJoy.Calibrate(((ProController)from).RJoy);
+                LJoy.Normalize();
+                RJoy.Normalize();
             }
         }
 
         public void SetCalibration(string calibrationString)
         {
-            if (calibrationString.Count(c => c == '0') > 5)
+            if (!Calibrations.HasCalibrationValues(calibrationString))
             {
                 // don't set empty calibrations
                 return;

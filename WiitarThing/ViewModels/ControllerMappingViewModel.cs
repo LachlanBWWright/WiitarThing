@@ -15,6 +15,8 @@ public sealed class ControllerMappingViewModel : ViewModelBase
 
     public ObservableCollection<MappingRowViewModel> Rows { get; }
 
+    public string HeaderText { get; set; } = "Edit mappings for the selected controller. Keys on the left map to Xbox targets on the right.";
+
     public Dictionary<string, string> ToDictionary()
     {
         return Rows.ToDictionary(row => row.Source, row => row.Target?.Trim() ?? string.Empty);

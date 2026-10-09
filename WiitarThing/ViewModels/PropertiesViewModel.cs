@@ -11,7 +11,7 @@ public sealed class PropertiesViewModel : ViewModelBase
 
     public PropertiesViewModel(Property source, string defaultName)
     {
-        Source = source;
+        Source = source ?? throw new System.ArgumentNullException(nameof(source));
         _name = string.IsNullOrWhiteSpace(source.name) ? defaultName : source.name;
         _profilePath = source.profile;
         _autoConnectIndex = source.autoNum;
@@ -32,36 +32,89 @@ public sealed class PropertiesViewModel : ViewModelBase
     public string Name
     {
         get => _name;
-        set => SetProperty(ref _name, value);
+        set
+        {
+            if (SetProperty(ref _name, value))
+                Source.name = value;
+        }
     }
 
     public string ProfilePath
     {
         get => _profilePath;
-        set => SetProperty(ref _profilePath, value);
+        set
+        {
+            if (SetProperty(ref _profilePath, value))
+                Source.profile = value;
+        }
     }
 
     public int AutoConnectIndex
     {
         get => _autoConnectIndex;
-        set => SetProperty(ref _autoConnectIndex, value);
+        set
+        {
+            if (!SetProperty(ref _autoConnectIndex, value))
+                return;
+
+            Source.autoConnect = value > 0;
+            Source.autoNum = value;
+            OnPropertyChanged(nameof(AutoConnect));
+        }
     }
 
     public int RumbleIndex
     {
         get => _rumbleIndex;
-        set => SetProperty(ref _rumbleIndex, value);
+        set
+        {
+            if (!SetProperty(ref _rumbleIndex, value))
+                return;
+
+            Source.useRumble = value > 0;
+            Source.rumbleIntensity = value;
+        }
     }
 
     public int CalibrationIndex
     {
         get => _calibrationIndex;
-        set => SetProperty(ref _calibrationIndex, value);
+        set
+        {
+            if (!SetProperty(ref _calibrationIndex, value))
+                return;
+
+            Source.calPref = value switch
+            {
+                1 => Property.CalibrationPreference.Minimal,
+                2 => Property.CalibrationPreference.More,
+                3 => Property.CalibrationPreference.Extra,
+                4 => Property.CalibrationPreference.Custom,
+                _ => Property.CalibrationPreference.Default
+            };
+        }
     }
 
     public int PointerModeIndex
     {
         get => _pointerModeIndex;
-        set => SetProperty(ref _pointerModeIndex, value);
+        set
+        {
+            if (SetProperty(ref _pointerModeIndex, value))
+                Source.pointerMode = (Property.PointerOffScreenMode)value;
+        }
+    }
+
+    public bool AutoConnect
+    {
+        get => Source.autoConnect;
+        set
+        {
+            if (Source.autoConnect == value)
+                return;
+
+            Source.autoConnect = value;
+            OnPropertyChanged();
+        }
     }
 }

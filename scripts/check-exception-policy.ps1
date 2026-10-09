@@ -21,7 +21,12 @@ $allowlistByPattern = @{
         "WiitarThing/UserPrefs.cs",        # preferences external API boundary
         "WiitarThing/Components/DeviceControl.xaml.cs", # profile file boundary
         "WiitarThing/Windows/MainWindow.xaml.cs", # UI boundary logging
-        "Nintroller/Nintroller.cs"         # subscriber callback boundary
+        "Nintroller/Nintroller.cs",         # subscriber callback boundary
+        "Nintroller/Nintroller.StateDispatch.cs", # subscriber callback boundary
+        "WiitarThing/ViewModels/AsyncRelayCommand.cs" # ICommand async boundary
+    )
+    EmptyCatch = @(
+        "WiitarThing/WiitarDebug.cs"        # diagnostics must never crash the app
     )
     NotImplemented = @(
         "Nintroller/ControllerStructs.cs", # explicit placeholders pending parser expansion

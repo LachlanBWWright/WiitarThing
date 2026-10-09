@@ -106,15 +106,15 @@ namespace WiinUSoft
         {
             EarlyLog("OnLaunched begin");
 
+            // Production device rows require the same icons in gallery captures.
+            LoadIconResources();
+            EarlyLog("Icons loaded");
+
             if (_captureUiGallery)
             {
                 _ = CaptureUiGalleryAndExitAsync();
                 return;
             }
-
-            // Load controller icon BitmapImages from the output directory
-            LoadIconResources();
-            EarlyLog("Icons loaded");
 
             _mainWindow = new MainWindow();
             EarlyLog("MainWindow constructed");
